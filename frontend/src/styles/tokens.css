@@ -1,0 +1,176 @@
+/**
+ * VEL Finance — Design Token System
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Source of truth for all design tokens.
+ *
+ * Rules (per 09_DESIGN_SYSTEM.md):
+ * - All tokens defined here as CSS custom properties.
+ * - No component may hardcode any color, spacing, radius, or shadow.
+ * - Tokens consumed by Tailwind v4 @theme block in globals.css.
+ * - Token names follow a semantic naming convention, not a visual one.
+ * - Dark theme: future-ready via a `.dark` class override (not implemented).
+ *
+ * Tailwind v4 note:
+ * - In Tailwind v4, the design system is configured via CSS @theme,
+ *   not tailwind.config.ts. This file is imported into globals.css.
+ */
+
+:root {
+  /* ── Brand / Primary — Emerald (per 09_DESIGN_SYSTEM.md) ─────────────── */
+  --color-primary-50: #ecfdf5;
+  --color-primary-100: #d1fae5;
+  --color-primary-200: #a7f3d0;
+  --color-primary-300: #6ee7b7;
+  --color-primary-400: #34d399;
+  --color-primary-500: #10b981;
+  --color-primary-600: #059669;
+  --color-primary-700: #047857;
+  --color-primary-800: #065f46;
+  --color-primary-900: #064e3b;
+  --color-primary-950: #022c22;
+
+  /* ── Secondary — Slate (per 09_DESIGN_SYSTEM.md) ─────────────────────── */
+  --color-secondary-50: #f8fafc;
+  --color-secondary-100: #f1f5f9;
+  --color-secondary-200: #e2e8f0;
+  --color-secondary-300: #cbd5e1;
+  --color-secondary-400: #94a3b8;
+  --color-secondary-500: #64748b;
+  --color-secondary-600: #475569;
+  --color-secondary-700: #334155;
+  --color-secondary-800: #1e293b;
+  --color-secondary-900: #0f172a;
+  --color-secondary-950: #020617;
+
+  /* ── Semantic — Success — Green (per 09_DESIGN_SYSTEM.md) ────────────── */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+
+  /* ── Semantic — Warning — Amber (per 09_DESIGN_SYSTEM.md) ───────────── */
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+
+  /* ── Semantic — Error — Red (per 09_DESIGN_SYSTEM.md) ───────────────── */
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-500: #ef4444;
+  --color-error-600: #dc2626;
+  --color-error-700: #b91c1c;
+
+  /* ── Semantic — Info — Blue (per 09_DESIGN_SYSTEM.md) ───────────────── */
+  --color-info-50: #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+
+  /* ── Surface System (per 09_DESIGN_SYSTEM.md) ────────────────────────── */
+  --color-background: #f8fafc;         /* Very light gray — app background */
+  --color-surface: #ffffff;            /* Pure white — cards, panels */
+  --color-surface-raised: #ffffff;     /* Dropdowns, popovers */
+  --color-surface-overlay: #ffffff;    /* Dialogs, modals */
+  --color-border: #e2e8f0;             /* Soft gray — standard border */
+  --color-border-strong: #cbd5e1;      /* Stronger border for emphasis */
+  --color-border-subtle: #f1f5f9;      /* Subtle dividers */
+
+  /* ── Text System ─────────────────────────────────────────────────────── */
+  --color-text-primary: #0f172a;       /* Main content text */
+  --color-text-secondary: #475569;     /* Supporting text */
+  --color-text-tertiary: #94a3b8;      /* Captions, placeholders */
+  --color-text-disabled: #cbd5e1;      /* Disabled state text */
+  --color-text-inverse: #ffffff;       /* Text on dark backgrounds */
+  --color-text-brand: #059669;         /* Brand-colored text */
+
+  /* ── Financial UI Colors (per 09_DESIGN_SYSTEM.md) ──────────────────── */
+  --color-financial-positive: #16a34a; /* Positive amounts — green */
+  --color-financial-outstanding: #d97706; /* Outstanding — amber */
+  --color-financial-overdue: #dc2626;  /* Overdue — red */
+  --color-financial-neutral: #475569;  /* Neutral financial values */
+
+  /* ── Typography (per 09_DESIGN_SYSTEM.md) ────────────────────────────── */
+  --font-family-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-base: 1rem;     /* 16px */
+  --font-size-lg: 1.125rem;   /* 18px */
+  --font-size-xl: 1.25rem;    /* 20px */
+  --font-size-2xl: 1.5rem;    /* 24px */
+  --font-size-3xl: 1.875rem;  /* 30px */
+  --font-size-4xl: 2.25rem;   /* 36px */
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+
+  /* ── Spacing — 8px base grid (per 09_DESIGN_SYSTEM.md) ─────────────── */
+  --spacing-0: 0px;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-20: 80px;
+  --spacing-24: 96px;
+
+  /* ── Border Radius (per 09_DESIGN_SYSTEM.md) ────────────────────────── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* ── Shadows / Elevation (per 09_DESIGN_SYSTEM.md — subtle only) ─────── */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.07), 0 8px 10px -6px rgb(0 0 0 / 0.07);
+
+  /* ── Z-Index System ──────────────────────────────────────────────────── */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+
+  /* ── Animation / Motion (per 09_DESIGN_SYSTEM.md — 150ms–250ms) ─────── */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 250ms;
+  --easing-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-in: cubic-bezier(0.4, 0, 1, 1);
+  --easing-out: cubic-bezier(0, 0, 0.2, 1);
+  --easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Layout ──────────────────────────────────────────────────────────── */
+  --sidebar-width: 256px;
+  --sidebar-collapsed-width: 72px;
+  --header-height: 64px;
+  --mobile-header-height: 56px;
+  --bottom-nav-height: 64px;
+  --content-max-width: 1440px;
+}
+
+/* ── Dark Theme — structure ready, not activated (per 09_DESIGN_SYSTEM.md) ─ */
+/* .dark { } */

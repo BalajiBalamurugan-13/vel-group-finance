@@ -1,0 +1,14 @@
+/**
+ * VEL Finance — Root Application Component
+ */
+import { RouterProvider } from 'react-router-dom';
+import { Providers } from './providers';
+import { router } from '@/routes/router';
+
+export function App() {
+  return (
+    <Providers>
+      <RouterProvider router={router} />
+    </Providers>
+  );
+}
