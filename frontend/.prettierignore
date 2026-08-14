@@ -1,0 +1,22 @@
+# Prettier ignore file
+# Matches .gitignore patterns — don't format generated or third-party content
+
+# Build output
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# Environment files (contain sensitive values)
+.env
+.env.*
+
+# Package lock (managed by npm)
+package-lock.json
+
+# Auto-generated type declarations
+*.d.ts
+
+# Public assets (SVG files are hand-authored design assets)
+public/

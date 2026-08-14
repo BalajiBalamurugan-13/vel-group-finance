@@ -5,6 +5,7 @@
  * breadcrumbs, and an optional action slot.
  */
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { cn } from '@/lib/cn';
 import type { BreadcrumbItem } from '@/types';
 
@@ -37,12 +38,12 @@ export function PageHeader({
                   </span>
                 )}
                 {crumb.path ? (
-                  <a
-                    href={crumb.path}
+                  <Link
+                    to={crumb.path}
                     className="text-xs text-secondary-500 hover:text-secondary-700 transition-colors"
                   >
                     {crumb.label}
-                  </a>
+                  </Link>
                 ) : (
                   <span className="text-xs text-secondary-400" aria-current="page">
                     {crumb.label}
