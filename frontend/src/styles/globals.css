@@ -25,89 +25,91 @@
 /*
  * Maps design tokens from tokens.css into Tailwind utility classes.
  * src/styles/tokens.css is the SINGLE SOURCE OF TRUTH for all raw values.
- * No hex values are duplicated here — this block only tells Tailwind which
- * CSS custom properties to generate utility classes for.
  *
- * With @theme (not inline), Tailwind generates:
- *   .bg-primary-500 { background-color: var(--color-primary-500); }
- * The CSS custom property value (#10b981) comes from tokens.css :root {}.
+ * Using @theme inline so Tailwind v4 reads the CSS custom property values
+ * from :root (tokens.css) and generates utility classes with var() references.
+ * e.g. .bg-primary-600 { background-color: var(--color-primary-600); }
+ *
+ * NOTE: @theme with `initial` only works in Vite dev (on-demand) mode.
+ * In production scan-based builds, @theme inline is required to generate
+ * all utility classes regardless of whether they appear as literal strings.
  */
-@theme {
+@theme inline {
   /* Colors — Brand Primary */
-  --color-primary-50: initial;
-  --color-primary-100: initial;
-  --color-primary-200: initial;
-  --color-primary-300: initial;
-  --color-primary-400: initial;
-  --color-primary-500: initial;
-  --color-primary-600: initial;
-  --color-primary-700: initial;
-  --color-primary-800: initial;
-  --color-primary-900: initial;
-  --color-primary-950: initial;
+  --color-primary-50: var(--color-primary-50);
+  --color-primary-100: var(--color-primary-100);
+  --color-primary-200: var(--color-primary-200);
+  --color-primary-300: var(--color-primary-300);
+  --color-primary-400: var(--color-primary-400);
+  --color-primary-500: var(--color-primary-500);
+  --color-primary-600: var(--color-primary-600);
+  --color-primary-700: var(--color-primary-700);
+  --color-primary-800: var(--color-primary-800);
+  --color-primary-900: var(--color-primary-900);
+  --color-primary-950: var(--color-primary-950);
 
   /* Colors — Secondary */
-  --color-secondary-50: initial;
-  --color-secondary-100: initial;
-  --color-secondary-200: initial;
-  --color-secondary-300: initial;
-  --color-secondary-400: initial;
-  --color-secondary-500: initial;
-  --color-secondary-600: initial;
-  --color-secondary-700: initial;
-  --color-secondary-800: initial;
-  --color-secondary-900: initial;
-  --color-secondary-950: initial;
+  --color-secondary-50: var(--color-secondary-50);
+  --color-secondary-100: var(--color-secondary-100);
+  --color-secondary-200: var(--color-secondary-200);
+  --color-secondary-300: var(--color-secondary-300);
+  --color-secondary-400: var(--color-secondary-400);
+  --color-secondary-500: var(--color-secondary-500);
+  --color-secondary-600: var(--color-secondary-600);
+  --color-secondary-700: var(--color-secondary-700);
+  --color-secondary-800: var(--color-secondary-800);
+  --color-secondary-900: var(--color-secondary-900);
+  --color-secondary-950: var(--color-secondary-950);
 
   /* Colors — Semantic: Success */
-  --color-success-50: initial;
-  --color-success-100: initial;
-  --color-success-500: initial;
-  --color-success-600: initial;
-  --color-success-700: initial;
+  --color-success-50: var(--color-success-50);
+  --color-success-100: var(--color-success-100);
+  --color-success-500: var(--color-success-500);
+  --color-success-600: var(--color-success-600);
+  --color-success-700: var(--color-success-700);
 
   /* Colors — Semantic: Warning */
-  --color-warning-50: initial;
-  --color-warning-100: initial;
-  --color-warning-500: initial;
-  --color-warning-600: initial;
-  --color-warning-700: initial;
+  --color-warning-50: var(--color-warning-50);
+  --color-warning-100: var(--color-warning-100);
+  --color-warning-500: var(--color-warning-500);
+  --color-warning-600: var(--color-warning-600);
+  --color-warning-700: var(--color-warning-700);
 
   /* Colors — Semantic: Error */
-  --color-error-50: initial;
-  --color-error-100: initial;
-  --color-error-500: initial;
-  --color-error-600: initial;
-  --color-error-700: initial;
+  --color-error-50: var(--color-error-50);
+  --color-error-100: var(--color-error-100);
+  --color-error-500: var(--color-error-500);
+  --color-error-600: var(--color-error-600);
+  --color-error-700: var(--color-error-700);
 
   /* Colors — Semantic: Info */
-  --color-info-50: initial;
-  --color-info-100: initial;
-  --color-info-500: initial;
-  --color-info-600: initial;
-  --color-info-700: initial;
+  --color-info-50: var(--color-info-50);
+  --color-info-100: var(--color-info-100);
+  --color-info-500: var(--color-info-500);
+  --color-info-600: var(--color-info-600);
+  --color-info-700: var(--color-info-700);
 
   /* Colors — Surface & Background */
-  --color-background: initial;
-  --color-surface: initial;
-  --color-border: initial;
-  --color-border-strong: initial;
-  --color-border-subtle: initial;
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-subtle: var(--color-border-subtle);
 
   /* Typography */
-  --font-family-sans: initial;
-  --font-family-mono: initial;
+  --font-family-sans: var(--font-family-sans);
+  --font-family-mono: var(--font-family-mono);
 
   /* Border Radius */
-  --radius-sm: initial;
-  --radius-md: initial;
-  --radius-lg: initial;
-  --radius-xl: initial;
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
 
   /* Animation Duration */
-  --duration-fast: initial;
-  --duration-normal: initial;
-  --duration-slow: initial;
+  --duration-fast: var(--duration-fast);
+  --duration-normal: var(--duration-normal);
+  --duration-slow: var(--duration-slow);
 }
 
 /* ── Safe Area Utility (Part 7) ──────────────────────────────────────────── */

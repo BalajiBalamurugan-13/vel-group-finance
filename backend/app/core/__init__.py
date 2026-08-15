@@ -1,0 +1,1 @@
+"""VEL Finance — Core package"""

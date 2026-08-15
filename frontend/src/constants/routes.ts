@@ -19,6 +19,7 @@ export const ROUTES = {
   MEMBERS: '/members',
   COLLECTIONS: '/collections',
   REPORTS: '/reports',
+  SCHEMES: '/schemes',
   SETTINGS: '/settings',
 
   // ── 404 ──────────────────────────────────────────────────────────────────

@@ -34,45 +34,22 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 // ── Style Maps ────────────────────────────────────────────────────────────────
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: [
-    'bg-primary-600 text-white',
-    'hover:bg-primary-700',
-    'active:bg-primary-800',
-    'focus-visible:ring-primary-500',
-    'disabled:bg-primary-200 disabled:text-primary-400',
-  ].join(' '),
+  // Each variant is a single complete string so Tailwind v4's class scanner
+  // can detect every utility as a literal token during compilation.
+  primary:
+    'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 focus-visible:ring-primary-500 disabled:bg-primary-200 disabled:text-primary-400',
 
-  secondary: [
-    'bg-secondary-100 text-secondary-700',
-    'hover:bg-secondary-200',
-    'active:bg-secondary-300',
-    'focus-visible:ring-secondary-400',
-    'disabled:bg-secondary-50 disabled:text-secondary-300',
-  ].join(' '),
+  secondary:
+    'bg-secondary-100 text-secondary-700 hover:bg-secondary-200 active:bg-secondary-300 focus-visible:ring-secondary-400 disabled:bg-secondary-50 disabled:text-secondary-300',
 
-  outline: [
-    'border border-border-strong bg-transparent text-secondary-700',
-    'hover:bg-secondary-50',
-    'active:bg-secondary-100',
-    'focus-visible:ring-secondary-400',
-    'disabled:border-border disabled:text-secondary-300',
-  ].join(' '),
+  outline:
+    'border border-border-strong bg-transparent text-secondary-700 hover:bg-secondary-50 active:bg-secondary-100 focus-visible:ring-secondary-400 disabled:border-border disabled:text-secondary-300',
 
-  ghost: [
-    'bg-transparent text-secondary-600',
-    'hover:bg-secondary-100 hover:text-secondary-700',
-    'active:bg-secondary-200',
-    'focus-visible:ring-secondary-400',
-    'disabled:text-secondary-300',
-  ].join(' '),
+  ghost:
+    'bg-transparent text-secondary-600 hover:bg-secondary-100 hover:text-secondary-700 active:bg-secondary-200 focus-visible:ring-secondary-400 disabled:text-secondary-300',
 
-  danger: [
-    'bg-error-600 text-white',
-    'hover:bg-error-700',
-    'active:bg-error-800',
-    'focus-visible:ring-error-500',
-    'disabled:bg-error-200 disabled:text-error-300',
-  ].join(' '),
+  danger:
+    'bg-error-600 text-white hover:bg-error-700 active:bg-error-800 focus-visible:ring-error-500 disabled:bg-error-200 disabled:text-error-300',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

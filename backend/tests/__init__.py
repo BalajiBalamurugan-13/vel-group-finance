@@ -1,0 +1,1 @@
+"""VEL Finance — Tests package"""

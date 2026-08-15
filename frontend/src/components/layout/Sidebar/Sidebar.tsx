@@ -15,6 +15,7 @@ import {
   Wallet,
   BarChart3,
   Settings,
+  FileBadge,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -34,6 +35,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Members', path: ROUTES.MEMBERS, icon: UserCheck },
   { label: 'Collections', path: ROUTES.COLLECTIONS, icon: Wallet },
   { label: 'Reports', path: ROUTES.REPORTS, icon: BarChart3 },
+  { label: 'Schemes', path: ROUTES.SCHEMES, icon: FileBadge },
   { label: 'Settings', path: ROUTES.SETTINGS, icon: Settings },
 ];
 

@@ -38,6 +38,9 @@ const ReportsPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
+const SchemesPage = lazy(() =>
+  import('@/pages/SchemesPage').then((m) => ({ default: m.SchemesPage })),
+);
 const NotFoundPage = lazy(() =>
   import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 );
@@ -114,6 +117,14 @@ export const routes: RouteObject[] = [
         element: (
           <LazyPage>
             <SettingsPage />
+          </LazyPage>
+        ),
+      },
+      {
+        path: ROUTES.SCHEMES,
+        element: (
+          <LazyPage>
+            <SchemesPage />
           </LazyPage>
         ),
       },

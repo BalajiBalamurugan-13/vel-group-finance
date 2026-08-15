@@ -1,0 +1,25 @@
+# VEL Finance — Group Finance Backend
+# Python dependencies
+
+# ── Web Framework ──────────────────────────────────────────────────────────────
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# ── Settings & Configuration ───────────────────────────────────────────────────
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+python-dotenv>=1.0.0
+
+# ── Database ───────────────────────────────────────────────────────────────────
+# Supabase Python client for PostgreSQL access via Supabase APIs
+supabase>=2.7.0
+
+# ── Testing ────────────────────────────────────────────────────────────────────
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
+httpx>=0.27.0
+
+# ── Future (uncomment when implementing business modules) ──────────────────────
+# sqlalchemy>=2.0.0        — Per docs/10_DEVELOPMENT_RULES.md (add for business modules)
+# alembic>=1.13.0          — Per docs/10_DEVELOPMENT_RULES.md (if needed alongside Supabase CLI)
+# python-multipart>=0.0.9  — Required for form/file upload endpoints
