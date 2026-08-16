@@ -1,5 +1,12 @@
-/**
- * VEL Finance — Members Feature
- * This directory is reserved for the members feature module.
- * Business implementation: NOT YET STARTED.
- */
+export * from './types';
+export * from './api/memberApi';
+export * from './hooks/useMembers';
+export * from './components/MemberStatusBadge';
+export * from './components/MemberFilters';
+export * from './components/MemberTable';
+export * from './components/MemberCard';
+export * from './components/MemberList';
+export * from './components/MemberFormModal';
+export * from './components/UpdateMemberFormModal';
+export * from './components/MemberDetailsModal';
+export * from './components/MemberStatusConfirmModal';

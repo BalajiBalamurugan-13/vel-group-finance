@@ -479,3 +479,91 @@ def test_existing_group_with_inactive_scheme_remains_functional(mock_db):
     group = service.get_group_by_id(MOCK_GROUP_ID)
     assert group["id"] == MOCK_GROUP_ID
     assert group["scheme"]["status"] == "Inactive"
+
+
+def test_group_enrich_dynamic_fields_zero_members(mock_db):
+    """Group with zero active members has member_count=0, total_group_amount=0.00."""
+    service = GroupService(mock_db)
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "groups":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = [MOCK_GROUP]
+        elif table_name == "members":
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = []
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    group = service.get_group_by_id(MOCK_GROUP_ID)
+    assert group["member_count"] == 0
+    assert group["total_group_amount"] == Decimal("0.00")
+
+
+def test_group_enrich_dynamic_fields_one_active_member(mock_db):
+    """Group with 1 active member has member_count=1, total_group_amount=10,000."""
+    service = GroupService(mock_db)
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "groups":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = [MOCK_GROUP]
+        elif table_name == "members":
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
+                {"id": str(uuid4())}
+            ]
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    group = service.get_group_by_id(MOCK_GROUP_ID)
+    assert group["member_count"] == 1
+    assert group["total_group_amount"] == Decimal("10000.00")
+
+
+def test_group_enrich_dynamic_fields_two_active_members(mock_db):
+    """Group with 2 active members has member_count=2, total_group_amount=20,000 (BR-004)."""
+    service = GroupService(mock_db)
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "groups":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = [MOCK_GROUP]
+        elif table_name == "members":
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
+                {"id": str(uuid4())},
+                {"id": str(uuid4())},
+            ]
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    group = service.get_group_by_id(MOCK_GROUP_ID)
+    assert group["member_count"] == 2
+    assert group["total_group_amount"] == Decimal("20000.00")
+
+
+def test_group_enrich_dynamic_fields_excludes_completed_and_closed_members(mock_db):
+    """
+    Only Active members are counted towards member_count and total_group_amount.
+    Query filters eq('status', 'Active').
+    """
+    service = GroupService(mock_db)
+
+    mock_members_query = MagicMock()
+    mock_members_query.execute.return_value.data = [{"id": str(uuid4())}]
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "groups":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = [MOCK_GROUP]
+        elif table_name == "members":
+            mock_tbl.select.return_value.eq.return_value.eq.return_value = mock_members_query
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    group = service.get_group_by_id(MOCK_GROUP_ID)
+    assert group["member_count"] == 1
+    assert group["total_group_amount"] == Decimal("10000.00")
+

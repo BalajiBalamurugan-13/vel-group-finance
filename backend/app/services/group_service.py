@@ -268,10 +268,26 @@ class GroupService:
         Per BR-004: Total Group Amount = Scheme loan amount × active member count.
         NEVER stored in DB table.
         """
-        # In Phase 4, Member Management is not yet implemented.
-        # member_count = 0, total_group_amount = 0.00.
-        # When members are implemented in Phase 5, this will query active members.
-        member_count = group.get("member_count", 0)
+        if "id" in group and group["id"]:
+            try:
+                member_res = (
+                    self.db.table("members")
+                    .select("id")
+                    .eq("group_id", str(group["id"]))
+                    .eq("status", "Active")
+                    .execute()
+                )
+                member_count = len(member_res.data) if member_res.data else 0
+            except Exception as e:
+                logger.error(
+                    "Failed to query active members for group %s: %s",
+                    group.get("id"),
+                    e,
+                )
+                member_count = group.get("member_count", 0) or 0
+        else:
+            member_count = group.get("member_count", 0) or 0
+
         group["member_count"] = member_count
 
         scheme = group.get("scheme")
