@@ -42,6 +42,8 @@ export interface ApiError {
   field?: string;
   details?: Record<string, string[]>;
   statusCode: number;
+  /** Present when code === 'INACTIVE_SCHEME_REACTIVATABLE' */
+  schemeId?: string;
 }
 
 /**

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { useCreateScheme } from '../hooks/useSchemes';
+import { useCreateScheme, useUpdateSchemeStatus } from '../hooks/useSchemes';
 import type { SchemeCreate } from '../types';
 import type { ApiError } from '@/types/common';
 
@@ -11,9 +11,22 @@ interface Props {
   onClose: () => void;
 }
 
+/**
+ * State shape for when the backend signals that an inactive scheme
+ * with the same name and identical financial values exists.
+ * The frontend offers a "Reactivate" action instead of a plain error.
+ */
+interface ReactivatableConflict {
+  schemeId: string;
+  message: string;
+}
+
 export function SchemeFormModal({ isOpen, onClose }: Props) {
-  const { mutateAsync: createScheme, isPending } = useCreateScheme();
+  const { mutateAsync: createScheme, isPending: isCreating } = useCreateScheme();
+  const { mutateAsync: updateStatus, isPending: isReactivating } = useUpdateSchemeStatus();
+
   const [apiError, setApiError] = useState<string | null>(null);
+  const [reactivatable, setReactivatable] = useState<ReactivatableConflict | null>(null);
 
   const {
     register,
@@ -26,20 +39,48 @@ export function SchemeFormModal({ isOpen, onClose }: Props) {
 
   if (!isOpen) return null;
 
+  const isPending = isCreating || isReactivating;
+
   const handleClose = () => {
     reset();
     setApiError(null);
+    setReactivatable(null);
     onClose();
   };
 
   const onSubmit = async (data: SchemeCreate) => {
     setApiError(null);
+    setReactivatable(null);
     try {
       await createScheme(data);
       handleClose();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
-      setApiError(apiErr.message || 'An error occurred while creating the scheme.');
+
+      if (apiErr.code === 'INACTIVE_SCHEME_REACTIVATABLE' && apiErr.schemeId) {
+        // SCENARIO 1: Inactive scheme with identical financial values exists.
+        // Offer the user a "Reactivate" action.
+        setReactivatable({
+          schemeId: apiErr.schemeId,
+          message: apiErr.message,
+        });
+      } else {
+        // SCENARIO 2 & 3: Non-reactivatable conflict or other error.
+        setApiError(apiErr.message || 'An error occurred while creating the scheme.');
+      }
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!reactivatable) return;
+    setApiError(null);
+    try {
+      await updateStatus({ id: reactivatable.schemeId, payload: { status: 'Active' } });
+      handleClose();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      setReactivatable(null);
+      setApiError(apiErr.message || 'Failed to reactivate the scheme.');
     }
   };
 
@@ -47,10 +88,40 @@ export function SchemeFormModal({ isOpen, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-secondary-900/50 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-xl bg-surface p-6 shadow-xl">
         <h2 className="mb-4 text-xl font-semibold text-secondary-900">Create Scheme</h2>
-        
+
+        {/* Generic API error (scenarios 2, 3, network) */}
         {apiError && (
           <div className="mb-4 rounded-lg bg-error-50 p-3 text-sm text-error-600">
             {apiError}
+          </div>
+        )}
+
+        {/* Reactivatable conflict (scenario 1) */}
+        {reactivatable && (
+          <div className="mb-4 rounded-lg border border-warning-500 bg-warning-50 p-4">
+            <p className="mb-3 text-sm text-secondary-700">
+              {reactivatable.message}
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={() => setReactivatable(null)}
+                disabled={isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                type="button"
+                isLoading={isReactivating}
+                onClick={handleReactivate}
+              >
+                Reactivate Scheme
+              </Button>
+            </div>
           </div>
         )}
 
@@ -103,9 +174,12 @@ export function SchemeFormModal({ isOpen, onClose }: Props) {
             <Button variant="ghost" type="button" onClick={handleClose} disabled={isPending}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={isPending}>
-              Create Scheme
-            </Button>
+            {/* Hide the Create button while the reactivation prompt is shown */}
+            {!reactivatable && (
+              <Button type="submit" isLoading={isCreating}>
+                Create Scheme
+              </Button>
+            )}
           </div>
         </form>
       </div>

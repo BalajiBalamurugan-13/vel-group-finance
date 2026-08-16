@@ -82,6 +82,8 @@ function normalizeApiError(error: AxiosError): ApiError {
         data['details'] instanceof Object
           ? (data['details'] as Record<string, string[]>)
           : undefined,
+      // Pass through scheme_id for INACTIVE_SCHEME_REACTIVATABLE responses
+      schemeId: typeof data['scheme_id'] === 'string' ? data['scheme_id'] : undefined,
     };
   }
 

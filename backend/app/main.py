@@ -170,15 +170,26 @@ def create_application() -> FastAPI:
         """
         Handles explicit HTTP exceptions.
         Returns ErrorResponse format per 07_API_SPECIFICATION.md.
+
+        When exc.detail is a dict (used for structured business errors such as
+        INACTIVE_SCHEME_REACTIVATABLE), its keys are merged into the response body
+        so the frontend receives a typed, machine-readable error payload.
         """
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
+        if isinstance(exc.detail, dict):
+            # Structured detail: merge dict keys into the response
+            content = {
+                "success": False,
+                "errors": [],
+                **exc.detail,
+            }
+        else:
+            content = {
                 "success": False,
                 "message": str(exc.detail),
                 "errors": [],
-            },
-        )
+            }
+        return JSONResponse(status_code=exc.status_code, content=content)
+
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:

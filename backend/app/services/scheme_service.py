@@ -1,7 +1,9 @@
 import logging
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import HTTPException
+from fastapi.responses import JSONResponse
 from supabase import Client
 
 from app.schemas.scheme import SchemeCreate, SchemeStatusUpdate, SchemeUpdate
@@ -44,27 +46,82 @@ class SchemeService:
     def create_scheme(self, data: SchemeCreate) -> dict:
         """
         Create a new scheme.
-        Enforces unique scheme name.
+
+        Business scenarios:
+        - SCENARIO 1: Same name + same financial values + Inactive
+            → Raise 409 with code=INACTIVE_SCHEME_REACTIVATABLE so the frontend
+              can offer "Reactivate Scheme" without inserting a duplicate row.
+        - SCENARIO 2: Same name + different financial values + Inactive
+            → Raise 409 with a clear message that a different version exists.
+        - SCENARIO 3: Same name + Active
+            → Raise 409 "A scheme with this name already exists."
+        - SCENARIO 4: Completely new name
+            → Insert and return the new scheme row.
         """
-        # Check for duplicate scheme name
-        existing = (
+        # Fetch any existing scheme with the same name (active OR inactive)
+        existing_response = (
             self.db.table("schemes")
-            .select("id")
+            .select("*")
             .eq("scheme_name", data.scheme_name)
             .execute()
         )
-        if existing.data:
-            raise HTTPException(
-                status_code=409, detail="A scheme with this name already exists"
-            )
 
-        # Convert Pydantic model to dict, serializing Decimal to JSON-compatible strings
+        if existing_response.data:
+            existing = existing_response.data[0]
+
+            if existing["status"] == "Active":
+                # SCENARIO 3 — Active duplicate
+                raise HTTPException(
+                    status_code=409,
+                    detail="A scheme with this name already exists.",
+                )
+
+            # Status is Inactive — compare financial values
+            if self._financial_values_match(existing, data):
+                # SCENARIO 1 — Inactive, identical financial config
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "INACTIVE_SCHEME_REACTIVATABLE",
+                        "message": (
+                            "An inactive scheme with the same name and financial "
+                            "configuration already exists. You can reactivate it."
+                        ),
+                        "scheme_id": existing["id"],
+                    },
+                )
+            else:
+                # SCENARIO 2 — Inactive, different financial config
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "A scheme with this name already exists with different "
+                        "financial values. Create a new scheme with a different "
+                        "name or version."
+                    ),
+                )
+
+        # SCENARIO 4 — New scheme, no name conflict
         insert_data = data.model_dump(mode="json")
-
         response = self.db.table("schemes").insert(insert_data).execute()
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to create scheme")
         return response.data[0]
+
+    def _financial_values_match(self, existing: dict, data: SchemeCreate) -> bool:
+        """
+        Compare financial fields between existing DB row and proposed create data.
+        Uses Decimal comparison to avoid floating-point drift.
+        """
+        def to_decimal(value) -> Decimal:
+            return Decimal(str(value)).quantize(Decimal("0.01"))
+
+        return (
+            to_decimal(existing["loan_amount"]) == data.loan_amount
+            and to_decimal(existing["weekly_installment"]) == data.weekly_installment
+            and int(existing["total_weeks"]) == int(data.total_weeks)
+            and to_decimal(existing["note_cost"]) == data.note_cost
+        )
 
     def update_scheme(self, scheme_id: UUID, data: SchemeUpdate) -> dict:
         """
@@ -103,6 +160,7 @@ class SchemeService:
     def update_scheme_status(self, scheme_id: UUID, data: SchemeStatusUpdate) -> dict:
         """
         Update scheme status (Active / Inactive).
+        Used for both deactivation and reactivation.
         """
         # Ensure scheme exists
         self.get_scheme_by_id(scheme_id)
