@@ -1,5 +1,11 @@
-/**
- * VEL Finance — Groups Feature
- * This directory is reserved for the groups feature module.
- * Business implementation: NOT YET STARTED.
- */
+export * from './types';
+export * from './api/groupApi';
+export * from './hooks/useGroups';
+export * from './components/GroupStatusBadge';
+export * from './components/GroupCard';
+export * from './components/GroupTable';
+export * from './components/GroupList';
+export * from './components/GroupFilters';
+export * from './components/GroupFormModal';
+export * from './components/UpdateGroupFormModal';
+export * from './components/GroupStatusConfirmModal';
