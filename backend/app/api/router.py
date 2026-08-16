@@ -33,6 +33,7 @@ from app.api.health import router as health_router
 from app.api.endpoints.schemes import router as schemes_router
 from app.api.endpoints.groups import router as groups_router
 from app.api.endpoints.members import router as members_router
+from app.api.endpoints.collections import router as collections_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -41,6 +42,7 @@ api_router.include_router(health_router)
 api_router.include_router(schemes_router, prefix="/schemes", tags=["Schemes"])
 api_router.include_router(groups_router, prefix="/groups", tags=["Groups"])
 api_router.include_router(members_router, prefix="/members", tags=["Members"])
+api_router.include_router(collections_router, prefix="/collections", tags=["Collections"])
 
 # ── Future Module Routes (add as each milestone is implemented) ────────────────
 
