@@ -25,10 +25,8 @@ export function MemberFormModal({
   const { mutateAsync: createMember, isPending: isCreating } = useCreateMember();
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Available groups for enrollment: Draft and Active groups only
-  const eligibleGroups = groups.filter(
-    (g) => g.status === 'Draft' || g.status === 'Active',
-  );
+  // Available groups for enrollment: Active groups only
+  const eligibleGroups = groups.filter((g) => g.status === 'Active');
 
   const {
     register,
@@ -95,6 +93,12 @@ export function MemberFormModal({
           </div>
         )}
 
+        {eligibleGroups.length === 0 && !isLoadingGroups && (
+          <div className="mb-4 rounded-lg bg-warning-50 p-3 text-sm text-warning-800 border border-warning-200">
+            <strong>Note:</strong> No Active groups are currently available. Members can only be added to an Active group. Please activate a group first.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Group Selection */}
           <div className="flex flex-col gap-1.5">
@@ -102,11 +106,11 @@ export function MemberFormModal({
               htmlFor="member_group_id"
               className="text-sm font-medium text-secondary-700"
             >
-              Assign to Group <span className="text-error-500">*</span>
+              Assign to Active Group <span className="text-error-500">*</span>
             </label>
             <select
               id="member_group_id"
-              {...register('group_id', { required: 'Please select a group' })}
+              {...register('group_id', { required: 'Please select an active group' })}
               className={cn(
                 'h-11 min-h-[44px] w-full rounded-lg border border-border bg-surface px-3 text-sm text-secondary-900',
                 'hover:border-border-strong focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20',
@@ -115,10 +119,10 @@ export function MemberFormModal({
               )}
               disabled={isLoadingGroups}
             >
-              <option value="">-- Select Group --</option>
+              <option value="">-- Select Active Group --</option>
               {eligibleGroups.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.group_name} ({g.location}) · Status: {g.status}
+                  {g.group_name} ({g.location})
                 </option>
               ))}
             </select>
@@ -187,13 +191,13 @@ export function MemberFormModal({
               id="member_phone"
               label="Phone Number"
               placeholder="e.g. 9876543210"
+              maxLength={10}
               {...register('phone_number', {
                 required: 'Phone number is required',
-                minLength: {
-                  value: 5,
-                  message: 'Phone number must have at least 5 digits',
+                pattern: {
+                  value: /^\d{10}$/,
+                  message: 'Phone number must contain exactly 10 digits',
                 },
-                maxLength: 20,
               })}
               errorMessage={errors.phone_number?.message}
             />

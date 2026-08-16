@@ -85,6 +85,10 @@ class GroupWeeklySummary(BaseModel):
     total_collected: Decimal
     total_pending: Decimal
     completion_percentage: float
+    full_cycle_expected: Optional[Decimal] = None
+    full_cycle_collected: Optional[Decimal] = None
+    full_cycle_pending: Optional[Decimal] = None
+    full_cycle_progress: Optional[float] = None
 
 
 class WeeklyCollectionSummary(BaseModel):
@@ -93,4 +97,7 @@ class WeeklyCollectionSummary(BaseModel):
     total_collected: Decimal = Decimal("0.00")
     total_pending: Decimal = Decimal("0.00")
     collection_count: int = 0
+    full_cycle_expected: Optional[Decimal] = None
+    full_cycle_collected: Optional[Decimal] = None
+    full_cycle_pending: Optional[Decimal] = None
     groups_summary: list[GroupWeeklySummary] = []

@@ -115,13 +115,12 @@ export function UpdateMemberFormModal({
               id="update_member_phone"
               label="Phone Number"
               placeholder="e.g. 9876543210"
+              maxLength={10}
               {...register('phone_number', {
-                required: 'Phone number is required',
-                minLength: {
-                  value: 5,
-                  message: 'Phone number must have at least 5 digits',
+                pattern: {
+                  value: /^\d{10}$/,
+                  message: 'Phone number must contain exactly 10 digits',
                 },
-                maxLength: 20,
               })}
               errorMessage={errors.phone_number?.message}
             />

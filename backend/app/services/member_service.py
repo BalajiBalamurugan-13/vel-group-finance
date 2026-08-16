@@ -143,9 +143,10 @@ class MemberService:
             raise HTTPException(status_code=404, detail="Group not found")
 
         group = group_response.data[0]
-        if group["status"] == "Closed":
+        if group["status"] != "Active":
             raise HTTPException(
-                status_code=400, detail="Cannot add member to a closed group."
+                status_code=400,
+                detail="Members can only be added to an Active group.",
             )
 
         scheme = group.get("scheme")
@@ -155,24 +156,7 @@ class MemberService:
                 detail="Group does not have a valid scheme assigned.",
             )
 
-        # 2. Enforce BR-007: Single Active Group Constraint (by phone_number)
         phone_cleaned = data.phone_number.strip()
-        existing_active = (
-            self.db.table("members")
-            .select("id, status, group:groups(id, status)")
-            .eq("phone_number", phone_cleaned)
-            .eq("status", "Active")
-            .execute()
-        )
-        if existing_active.data:
-            # Check if any of the existing active records belong to an active/draft group
-            for em in existing_active.data:
-                g = em.get("group")
-                if g and g.get("status") in ("Draft", "Active", "Renewed"):
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"A member with phone number '{phone_cleaned}' is already active in another group.",
-                    )
 
         # 3. Calculate joined_date and joined_week
         joined_date = data.joined_date or date.today()

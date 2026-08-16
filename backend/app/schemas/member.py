@@ -38,10 +38,8 @@ class MemberBase(BaseModel):
         trimmed = v.strip()
         if not trimmed:
             raise ValueError("Phone number cannot be empty or only whitespace")
-        # Validate that phone number contains at least 5 digits/valid characters
-        digits_only = re.sub(r"\D", "", trimmed)
-        if len(digits_only) < 5:
-            raise ValueError("Phone number must contain at least 5 digits")
+        if not re.match(r"^\d{10}$", trimmed):
+            raise ValueError("Phone number must contain exactly 10 digits (numbers only)")
         return trimmed
 
 
@@ -57,7 +55,7 @@ class MemberUpdate(BaseModel):
     group_id is immutable once member is created.
     """
     member_name: Optional[str] = Field(None, min_length=1, max_length=255)
-    phone_number: Optional[str] = Field(None, min_length=5, max_length=20)
+    phone_number: Optional[str] = Field(None, min_length=10, max_length=10)
     address: Optional[str] = Field(None, min_length=1)
     photo_url: Optional[str] = None
     nominee: Optional[str] = Field(None, max_length=255)
@@ -83,9 +81,8 @@ class MemberUpdate(BaseModel):
             trimmed = v.strip()
             if not trimmed:
                 raise ValueError("Phone number cannot be empty or only whitespace")
-            digits_only = re.sub(r"\D", "", trimmed)
-            if len(digits_only) < 5:
-                raise ValueError("Phone number must contain at least 5 digits")
+            if not re.match(r"^\d{10}$", trimmed):
+                raise ValueError("Phone number must contain exactly 10 digits (numbers only)")
             return trimmed
         return v
 

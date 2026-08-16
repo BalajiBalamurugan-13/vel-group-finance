@@ -135,12 +135,28 @@ class CollectionService:
         total_weeks = int(scheme["total_weeks"])
         weekly_installment = Decimal(str(scheme["weekly_installment"]))
 
-        # 3. Validate Week Number
+        # 3. Validate Week Number & Sequential Enforcement
         if data.week_number < 1 or data.week_number > total_weeks:
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid week number {data.week_number}. Maximum week for this scheme is {total_weeks}.",
             )
+
+        # Enforce sequential payment: Week N requires Week 1..N-1 to be Paid
+        if data.week_number > 1:
+            prev_paid = (
+                self.db.table("collections")
+                .select("id")
+                .eq("loan_cycle_id", str(loan_cycle["id"]))
+                .eq("week_number", data.week_number - 1)
+                .eq("payment_status", "Paid")
+                .execute()
+            )
+            if not prev_paid.data:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot record payment for Week {data.week_number}. Week {data.week_number - 1} must be paid first.",
+                )
 
         # 4. Duplicate Check (Idempotency per TC-COL-004)
         existing_payment = (
@@ -213,10 +229,11 @@ class CollectionService:
     ) -> list[dict]:
         """
         Retrieves collection history with optional filters (Date, Group, Member).
+        Queries base collections and enriches with member, group, collector, scheme.
+        Avoids invalid PostgREST nested relationship joins that cause PGRST200 errors.
         """
-        query = (
-            self.db.table("collections")
-            .select("*, member:members(member_name, phone_number), group:groups(group_name, location), collector:collectors(collector_name), loan_cycle:loan_cycles(scheme:schemes(*))")
+        query = self.db.table("collections").select(
+            "*, collector:collectors(collector_name)"
         )
 
         if group_id:
@@ -236,7 +253,7 @@ class CollectionService:
         response = query.execute()
 
         results = response.data or []
-        return [self._enrich_collection_joined(c) for c in results]
+        return self._enrich_collections_batch(results)
 
     def get_collection_by_id(self, collection_id: UUID) -> dict:
         """
@@ -244,7 +261,7 @@ class CollectionService:
         """
         response = (
             self.db.table("collections")
-            .select("*, member:members(member_name, phone_number), group:groups(group_name, location), collector:collectors(collector_name), loan_cycle:loan_cycles(scheme:schemes(*))")
+            .select("*, collector:collectors(collector_name)")
             .eq("id", str(collection_id))
             .execute()
         )
@@ -252,24 +269,29 @@ class CollectionService:
             raise HTTPException(status_code=404, detail="Collection record not found.")
 
         collection = response.data[0]
-        return self._enrich_collection_joined(collection)
+        enriched = self._enrich_collections_batch([collection])
+        return enriched[0]
 
     def get_today_collections(self, target_date: Optional[date] = None) -> dict:
         """
         Returns summary and list of all collections for today (or specified date).
+        Only sums collections matching the specified date.
         """
         today_date = target_date or date.today()
         collections = self.get_collections(payment_date=today_date)
 
+        paid_collections = [
+            c for c in collections if c.get("payment_status") == "Paid"
+        ]
         total_collected = sum(
-            (Decimal(str(c.get("amount_paid", 0))) for c in collections),
+            (Decimal(str(c.get("amount_paid", 0))) for c in paid_collections),
             Decimal("0.00"),
         )
 
         return {
             "date": today_date,
             "total_collected": total_collected,
-            "collection_count": len(collections),
+            "collection_count": len(paid_collections),
             "collections": collections,
         }
 
@@ -279,6 +301,17 @@ class CollectionService:
         """
         Calculates weekly collection summary across groups.
         Per Formula 3, 5, 9, 10.
+        CURRENT WEEK:
+        - Weekly Expected = active members × weekly installment
+        - Weekly Collected = collections belonging to the current/active week
+        - Weekly Pending = max(0, Weekly Expected - Weekly Collected)
+        - Weekly Progress = (Weekly Collected / Weekly Expected) × 100
+
+        FULL CYCLE:
+        - Total Expected = weekly_installment × total_weeks × active_members
+        - Total Collected = sum of all actual Paid collection records
+        - Total Pending = max(0, Total Expected - Total Collected)
+        - Full Cycle Progress = (Total Collected / Total Expected) × 100
         """
         # Fetch active groups
         query = self.db.table("groups").select("*, scheme:schemes(*)").eq("status", "Active")
@@ -289,8 +322,11 @@ class CollectionService:
         groups = groups_res.data or []
 
         groups_summary = []
-        overall_expected = Decimal("0.00")
-        overall_collected = Decimal("0.00")
+        overall_weekly_expected = Decimal("0.00")
+        overall_weekly_collected = Decimal("0.00")
+        overall_full_cycle_expected = Decimal("0.00")
+        overall_full_cycle_collected = Decimal("0.00")
+        total_collections_count = 0
 
         for g in groups:
             scheme = g.get("scheme")
@@ -308,30 +344,63 @@ class CollectionService:
             active_count = len(members_res.data or [])
 
             weekly_inst = Decimal(str(scheme["weekly_installment"]))
-            total_expected = weekly_inst * active_count
+            total_weeks = int(scheme["total_weeks"])
+            
+            # Current Week Expected: active_members * weekly_installment
+            weekly_expected = weekly_inst * Decimal(active_count)
+            # Full Cycle Expected: active_members * weekly_installment * total_weeks
+            full_cycle_expected = weekly_inst * Decimal(total_weeks) * Decimal(active_count)
 
-            # Query collections for this group
+            # Query all paid collections for this group
             colls_res = (
                 self.db.table("collections")
-                .select("amount_paid")
+                .select("amount_paid, week_number, payment_date")
                 .eq("group_id", str(g["id"]))
                 .eq("payment_status", "Paid")
                 .execute()
             )
-            total_group_collected = sum(
-                (Decimal(str(c["amount_paid"])) for c in (colls_res.data or [])),
+            all_paid = colls_res.data or []
+            total_collections_count += len(all_paid)
+
+            full_cycle_collected = sum(
+                (Decimal(str(c["amount_paid"])) for c in all_paid),
                 Decimal("0.00"),
             )
-
-            total_pending = max(Decimal("0.00"), total_expected - total_group_collected)
-            pct = (
-                float((total_group_collected / total_expected) * 100)
-                if total_expected > 0
+            full_cycle_pending = max(Decimal("0.00"), full_cycle_expected - full_cycle_collected)
+            full_cycle_progress = (
+                float((full_cycle_collected / full_cycle_expected) * 100)
+                if full_cycle_expected > 0
                 else 0.0
             )
 
-            overall_expected += total_expected
-            overall_collected += total_group_collected
+            # Compute current active week for the group
+            if g.get("start_date"):
+                raw_start = g["start_date"]
+                group_start = (
+                    date.fromisoformat(raw_start)
+                    if isinstance(raw_start, str)
+                    else raw_start
+                )
+                current_week = min(total_weeks, max(1, ((date.today() - group_start).days // 7) + 1))
+            else:
+                current_week = 1
+
+            this_week_paid = [c for c in all_paid if int(c.get("week_number", 0)) == current_week]
+            weekly_collected = sum(
+                (Decimal(str(c["amount_paid"])) for c in this_week_paid),
+                Decimal("0.00"),
+            )
+            weekly_pending = max(Decimal("0.00"), weekly_expected - weekly_collected)
+            weekly_progress = (
+                float((weekly_collected / weekly_expected) * 100)
+                if weekly_expected > 0
+                else 0.0
+            )
+
+            overall_weekly_expected += weekly_expected
+            overall_weekly_collected += weekly_collected
+            overall_full_cycle_expected += full_cycle_expected
+            overall_full_cycle_collected += full_cycle_collected
 
             groups_summary.append({
                 "group_id": g["id"],
@@ -339,21 +408,137 @@ class CollectionService:
                 "location": g["location"],
                 "active_members": active_count,
                 "weekly_installment": weekly_inst,
-                "total_expected": total_expected,
-                "total_collected": total_group_collected,
-                "total_pending": total_pending,
-                "completion_percentage": round(pct, 2),
+                "total_expected": weekly_expected,
+                "total_collected": weekly_collected,
+                "total_pending": weekly_pending,
+                "completion_percentage": round(weekly_progress, 2),
+                "full_cycle_expected": full_cycle_expected,
+                "full_cycle_collected": full_cycle_collected,
+                "full_cycle_pending": full_cycle_pending,
+                "full_cycle_progress": round(full_cycle_progress, 2),
             })
 
-        overall_pending = max(Decimal("0.00"), overall_expected - overall_collected)
+        overall_weekly_pending = max(Decimal("0.00"), overall_weekly_expected - overall_weekly_collected)
+        overall_full_cycle_pending = max(Decimal("0.00"), overall_full_cycle_expected - overall_full_cycle_collected)
 
         return {
-            "total_expected": overall_expected,
-            "total_collected": overall_collected,
-            "total_pending": overall_pending,
-            "collection_count": len(groups_summary),
+            "total_expected": overall_weekly_expected,
+            "total_collected": overall_weekly_collected,
+            "total_pending": overall_weekly_pending,
+            "collection_count": total_collections_count,
+            "full_cycle_expected": overall_full_cycle_expected,
+            "full_cycle_collected": overall_full_cycle_collected,
+            "full_cycle_pending": overall_full_cycle_pending,
             "groups_summary": groups_summary,
         }
+
+    def _enrich_collections_batch(self, collections: list[dict]) -> list[dict]:
+        """
+        Enriches a list of collection records in batch with member, group, and scheme context.
+        Uses direct table lookups instead of composite PostgREST resource embeddings.
+        """
+        if not collections:
+            return []
+
+        # Collect distinct IDs
+        member_ids = list({str(c["member_id"]) for c in collections if c.get("member_id")})
+        group_ids = list({str(c["group_id"]) for c in collections if c.get("group_id")})
+        cycle_ids = list({str(c["loan_cycle_id"]) for c in collections if c.get("loan_cycle_id")})
+
+        # Fetch Members
+        member_map = {}
+        if member_ids:
+            try:
+                m_res = (
+                    self.db.table("members")
+                    .select("id, member_name, phone_number")
+                    .in_("id", member_ids)
+                    .execute()
+                )
+                member_map = {str(m["id"]): m for m in (m_res.data or [])}
+            except Exception:
+                pass
+
+        # Fetch Groups & Schemes
+        group_map = {}
+        if group_ids:
+            try:
+                g_res = (
+                    self.db.table("groups")
+                    .select("id, group_name, location, scheme:schemes(*)")
+                    .in_("id", group_ids)
+                    .execute()
+                )
+                group_map = {str(g["id"]): g for g in (g_res.data or [])}
+            except Exception:
+                pass
+
+        # Fetch Paid Counts per Loan Cycle
+        paid_counts = {}
+        if cycle_ids:
+            try:
+                p_res = (
+                    self.db.table("collections")
+                    .select("loan_cycle_id")
+                    .in_("loan_cycle_id", cycle_ids)
+                    .eq("payment_status", "Paid")
+                    .execute()
+                )
+                for r in (p_res.data or []):
+                    cid = str(r["loan_cycle_id"])
+                    paid_counts[cid] = paid_counts.get(cid, 0) + 1
+            except Exception:
+                pass
+
+        enriched = []
+        for raw in collections:
+            item = dict(raw)
+            # Unpack collector
+            collector = item.pop("collector", None)
+            if collector and isinstance(collector, dict):
+                item["collector_name"] = collector.get("collector_name")
+            elif "collector_name" not in item:
+                item["collector_name"] = None
+
+            # Fallback if member was pre-joined
+            member = item.pop("member", None) or member_map.get(str(item.get("member_id")))
+            if member:
+                item["member_name"] = member.get("member_name")
+                item["phone_number"] = member.get("phone_number")
+
+            # Fallback if group was pre-joined
+            group = item.pop("group", None) or group_map.get(str(item.get("group_id")))
+            scheme = None
+            if group:
+                item["group_name"] = group.get("group_name")
+                item["location"] = group.get("location")
+                scheme = group.get("scheme")
+
+            loan_cycle = item.pop("loan_cycle", None)
+            if loan_cycle and isinstance(loan_cycle, dict) and not scheme:
+                scheme = loan_cycle.get("scheme")
+
+            if scheme:
+                weekly_inst = Decimal(str(scheme["weekly_installment"]))
+                total_weeks = int(scheme["total_weeks"])
+                item["weekly_installment"] = weekly_inst
+                item["total_weeks"] = total_weeks
+
+                cid = str(item.get("loan_cycle_id", ""))
+                weeks_paid = paid_counts.get(cid, int(item.get("week_number", 1)))
+                remaining = max(0, total_weeks - weeks_paid)
+                item["weeks_paid"] = weeks_paid
+                item["remaining_installments"] = remaining
+                item["outstanding_amount"] = Decimal(remaining) * weekly_inst
+                item["completion_percentage"] = (
+                    round((weeks_paid / total_weeks) * 100, 2)
+                    if total_weeks > 0
+                    else 0.0
+                )
+
+            enriched.append(item)
+
+        return enriched
 
     def _enrich_collection(
         self,
@@ -406,30 +591,8 @@ class CollectionService:
         return item
 
     def _enrich_collection_joined(self, collection: dict) -> dict:
-        """Enriches joined Supabase collection row."""
-        item = dict(collection)
-        member = item.pop("member", None)
-        group = item.pop("group", None)
-        collector = item.pop("collector", None)
-        loan_cycle = item.pop("loan_cycle", None)
-        scheme = loan_cycle.get("scheme") if loan_cycle else None
-
-        if member:
-            item["member_name"] = member.get("member_name")
-            item["phone_number"] = member.get("phone_number")
-        if group:
-            item["group_name"] = group.get("group_name")
-            item["location"] = group.get("location")
-        if collector:
-            item["collector_name"] = collector.get("collector_name")
-
-        if scheme:
-            weekly_inst = Decimal(str(scheme["weekly_installment"]))
-            total_weeks = int(scheme["total_weeks"])
-            item["weekly_installment"] = weekly_inst
-            item["total_weeks"] = total_weeks
-
-        return item
+        """Legacy helper delegating to _enrich_collections_batch."""
+        return self._enrich_collections_batch([collection])[0]
 
 
 def get_collection_service(db: Client) -> CollectionService:

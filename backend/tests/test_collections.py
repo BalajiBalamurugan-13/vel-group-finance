@@ -397,9 +397,6 @@ def test_service_final_week_payment_marks_member_completed(mock_db):
     mock_cycle_exec = MagicMock()
     mock_cycle_exec.data = [MOCK_LOAN_CYCLE]
 
-    mock_dup_exec = MagicMock()
-    mock_dup_exec.data = []
-
     mock_collector_exec = MagicMock()
     mock_collector_exec.data = [MOCK_COLLECTOR]
 
@@ -422,6 +419,31 @@ def test_service_final_week_payment_marks_member_completed(mock_db):
     mock_paid_exec = MagicMock()
     mock_paid_exec.data = [{"id": str(uuid4())} for _ in range(18)]
 
+    # Mock collections queries based on week_number parameter
+    def mock_collections_select(*args, **kwargs):
+        mock_chain = MagicMock()
+        def eq_handler(col, val):
+            mock_sub = MagicMock()
+            def eq_handler_2(col2, val2):
+                mock_sub_2 = MagicMock()
+                def eq_handler_3(col3, val3):
+                    mock_res = MagicMock()
+                    if val == str(MOCK_CYCLE_ID) and val2 == 17:  # week 17 sequential check
+                        mock_res.execute.return_value.data = [{"id": "week-17-id", "payment_status": "Paid"}]
+                    elif val == str(MOCK_CYCLE_ID) and val2 == 18:  # week 18 dup check
+                        mock_res.execute.return_value.data = []
+                    else:
+                        mock_res.execute.return_value.data = []
+                    return mock_res
+                mock_sub_2.eq.side_effect = eq_handler_3
+                mock_sub_2.execute.return_value.data = mock_paid_exec.data
+                return mock_sub_2
+            mock_sub.eq.side_effect = eq_handler_2
+            mock_sub.execute.return_value.data = mock_paid_exec.data
+            return mock_sub
+        mock_chain.eq.side_effect = eq_handler
+        return mock_chain
+
     def table_router(table_name):
         mock_tbl = MagicMock()
         if table_name == "members":
@@ -433,8 +455,7 @@ def test_service_final_week_payment_marks_member_completed(mock_db):
         elif table_name == "collectors":
             mock_tbl.select.return_value.eq.return_value.limit.return_value.execute.return_value = mock_collector_exec
         elif table_name == "collections":
-            mock_tbl.select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = mock_dup_exec
-            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = mock_paid_exec
+            mock_tbl.select.side_effect = mock_collections_select
             mock_tbl.insert.return_value.execute.return_value = mock_insert_exec
         return mock_tbl
 
@@ -500,3 +521,327 @@ def test_service_today_collection_calculation(mock_db):
     summary = service.get_today_collections()
     assert summary["total_collected"] == Decimal("1520.00")
     assert summary["collection_count"] == 2
+
+
+def test_service_sequential_week_rejected_when_previous_unpaid(mock_db):
+    """
+    Sequential Week Enforcement:
+    Attempting to record Week 2 when Week 1 is unpaid must be rejected with 400.
+    """
+    service = CollectionService(mock_db)
+
+    mock_member_exec = MagicMock()
+    mock_member_exec.data = [MOCK_MEMBER]
+
+    mock_cycle_exec = MagicMock()
+    mock_cycle_exec.data = [MOCK_LOAN_CYCLE]
+
+    # Week 1 query returns empty (unpaid)
+    mock_prev_paid_exec = MagicMock()
+    mock_prev_paid_exec.data = []
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "members":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_member_exec
+        elif table_name == "loan_cycles":
+            mock_tbl.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = mock_cycle_exec
+        elif table_name == "collections":
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = mock_prev_paid_exec
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    data = CollectionCreate(
+        member_id=MOCK_MEMBER_ID,
+        week_number=2,
+        amount_paid=Decimal("760.00"),
+    )
+    with pytest.raises(HTTPException) as exc:
+        service.record_collection(data)
+
+    assert exc.value.status_code == 400
+    assert "week 1 must be paid first" in exc.value.detail.lower()
+
+
+def test_service_sequential_week_accepted_when_previous_paid(mock_db):
+    """
+    Sequential Week Enforcement:
+    Attempting to record Week 2 when Week 1 is paid must succeed.
+    """
+    service = CollectionService(mock_db)
+
+    mock_member_exec = MagicMock()
+    mock_member_exec.data = [MOCK_MEMBER]
+
+    mock_cycle_exec = MagicMock()
+    mock_cycle_exec.data = [MOCK_LOAN_CYCLE]
+
+    mock_collector_exec = MagicMock()
+    mock_collector_exec.data = [MOCK_COLLECTOR]
+
+    mock_insert_exec = MagicMock()
+    mock_insert_exec.data = [{
+        "id": MOCK_COLLECTION_ID,
+        "loan_cycle_id": MOCK_CYCLE_ID,
+        "member_id": MOCK_MEMBER_ID,
+        "group_id": MOCK_GROUP_ID,
+        "collector_id": MOCK_COLLECTOR_ID,
+        "week_number": 2,
+        "payment_date": date.today().isoformat(),
+        "amount_paid": 760.00,
+        "payment_status": "Paid",
+        "remarks": None,
+        "created_at": "2026-08-16T12:00:00Z",
+    }]
+
+    mock_paid_count_exec = MagicMock()
+    mock_paid_count_exec.data = [{"id": str(uuid4())}, {"id": str(uuid4())}]
+
+    def mock_collections_select(*args, **kwargs):
+        mock_chain = MagicMock()
+        def eq_handler(col, val):
+            mock_sub = MagicMock()
+            def eq_handler_2(col2, val2):
+                mock_sub_2 = MagicMock()
+                def eq_handler_3(col3, val3):
+                    mock_res = MagicMock()
+                    if val == str(MOCK_CYCLE_ID) and val2 == 1:  # week 1 sequential check
+                        mock_res.execute.return_value.data = [{"id": "week-1-id", "payment_status": "Paid"}]
+                    elif val == str(MOCK_CYCLE_ID) and val2 == 2:  # week 2 dup check
+                        mock_res.execute.return_value.data = []
+                    else:
+                        mock_res.execute.return_value.data = []
+                    return mock_res
+                mock_sub_2.eq.side_effect = eq_handler_3
+                mock_sub_2.execute.return_value.data = mock_paid_count_exec.data
+                return mock_sub_2
+            mock_sub.eq.side_effect = eq_handler_2
+            mock_sub.execute.return_value.data = mock_paid_count_exec.data
+            return mock_sub
+        mock_chain.eq.side_effect = eq_handler
+        return mock_chain
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "members":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_member_exec
+        elif table_name == "loan_cycles":
+            mock_tbl.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = mock_cycle_exec
+        elif table_name == "collectors":
+            mock_tbl.select.return_value.eq.return_value.limit.return_value.execute.return_value = mock_collector_exec
+        elif table_name == "collections":
+            mock_tbl.select.side_effect = mock_collections_select
+            mock_tbl.insert.return_value.execute.return_value = mock_insert_exec
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    data = CollectionCreate(
+        member_id=MOCK_MEMBER_ID,
+        week_number=2,
+        amount_paid=Decimal("760.00"),
+    )
+    result = service.record_collection(data)
+    assert result["week_number"] == 2
+    assert result["weeks_paid"] == 2
+    assert result["remaining_installments"] == 16
+    assert result["outstanding_amount"] == Decimal("12160.00")  # 16 × 760
+
+
+def test_service_late_joiner_records_missed_and_current_sequentially(mock_db):
+    """
+    Late Joining (BR-022, Formula 6, Formula 15):
+    A member joining at Week 2 records Week 1 first, then Week 2.
+    """
+    service = CollectionService(mock_db)
+
+    late_member = {
+        **MOCK_MEMBER,
+        "joined_week": 2,
+    }
+
+    mock_member_exec = MagicMock()
+    mock_member_exec.data = [late_member]
+
+    mock_cycle_exec = MagicMock()
+    mock_cycle_exec.data = [MOCK_LOAN_CYCLE]
+
+    mock_dup_exec = MagicMock()
+    mock_dup_exec.data = []
+
+    mock_collector_exec = MagicMock()
+    mock_collector_exec.data = [MOCK_COLLECTOR]
+
+    mock_insert_exec = MagicMock()
+    mock_insert_exec.data = [{
+        "id": MOCK_COLLECTION_ID,
+        "loan_cycle_id": MOCK_CYCLE_ID,
+        "member_id": MOCK_MEMBER_ID,
+        "group_id": MOCK_GROUP_ID,
+        "collector_id": MOCK_COLLECTOR_ID,
+        "week_number": 1,
+        "payment_date": date.today().isoformat(),
+        "amount_paid": 760.00,
+        "payment_status": "Paid",
+        "remarks": "Late joiner paying Week 1 missed installment",
+        "created_at": "2026-08-16T12:00:00Z",
+    }]
+
+    mock_paid_count_exec = MagicMock()
+    mock_paid_count_exec.data = [{"id": str(uuid4())}]
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "members":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_member_exec
+        elif table_name == "loan_cycles":
+            mock_tbl.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = mock_cycle_exec
+        elif table_name == "collectors":
+            mock_tbl.select.return_value.eq.return_value.limit.return_value.execute.return_value = mock_collector_exec
+        elif table_name == "collections":
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = mock_dup_exec
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = mock_paid_count_exec
+            mock_tbl.insert.return_value.execute.return_value = mock_insert_exec
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    # 1. First record Week 1 missed installment
+    data1 = CollectionCreate(
+        member_id=MOCK_MEMBER_ID,
+        week_number=1,
+        amount_paid=Decimal("760.00"),
+        remarks="Late joiner paying Week 1 missed installment",
+    )
+    res1 = service.record_collection(data1)
+    assert res1["week_number"] == 1
+    assert res1["weeks_paid"] == 1
+
+
+def test_service_weekly_summary_current_week_and_full_cycle(mock_db):
+    """
+    Requirement 4:
+    5 active members × ₹760 weekly installment × 18 weeks.
+    - Current Weekly Expected = ₹3,800 (5 × 760).
+    - Full Cycle Expected = ₹68,400 (5 × 760 × 18).
+    - If 1 payment for Week 1 (₹760) is collected:
+      Weekly Collected = ₹760, Weekly Pending = ₹3,040, Weekly Progress = 20.0%.
+    - Full Cycle Collected = ₹760, Full Cycle Pending = ₹67,640, Full Cycle Progress = 1.11%.
+    """
+    service = CollectionService(mock_db)
+
+    # 1 active group with start_date = today (Week 1)
+    groups = [{
+        "id": MOCK_GROUP_ID,
+        "group_name": "PTM 1",
+        "location": "PTM",
+        "start_date": date.today().isoformat(),
+        "scheme": {
+            "weekly_installment": "760.00",
+            "total_weeks": 18,
+        },
+    }]
+
+    # 5 active members
+    active_members = [{"id": str(uuid4())} for _ in range(5)]
+
+    # 1 collected payment for week 1 of 760.00
+    colls = [
+        {"amount_paid": "760.00", "week_number": 1, "payment_date": date.today().isoformat()},
+    ]
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "groups":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = groups
+        elif table_name == "members":
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = active_members
+        elif table_name == "collections":
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = colls
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    summary = service.get_weekly_summary()
+    assert summary["total_expected"] == Decimal("3800.00")       # 5 × 760
+    assert summary["total_collected"] == Decimal("760.00")        # 1 × 760
+    assert summary["total_pending"] == Decimal("3040.00")         # 3800 - 760
+    assert summary["full_cycle_expected"] == Decimal("68400.00")  # 5 × 760 × 18
+    assert summary["full_cycle_collected"] == Decimal("760.00")
+    assert summary["full_cycle_pending"] == Decimal("67640.00")
+
+    group_s = summary["groups_summary"][0]
+    assert group_s["total_expected"] == Decimal("3800.00")
+    assert group_s["completion_percentage"] == 20.0
+    assert group_s["full_cycle_expected"] == Decimal("68400.00")
+    assert group_s["full_cycle_progress"] == 1.11
+
+
+def test_service_historical_past_payment_accepted(mock_db):
+    """
+    Requirement 6: Historical / past payments are supported.
+    A payment recorded for a past date (e.g. 7 days ago) is saved with that date,
+    and does NOT appear in today's collections.
+    """
+    service = CollectionService(mock_db)
+
+    past_date = date.today() - timedelta(days=7)
+
+    mock_member_exec = MagicMock()
+    mock_member_exec.data = [MOCK_MEMBER]
+
+    mock_cycle_exec = MagicMock()
+    mock_cycle_exec.data = [MOCK_LOAN_CYCLE]
+
+    mock_dup_exec = MagicMock()
+    mock_dup_exec.data = []
+
+    mock_collector_exec = MagicMock()
+    mock_collector_exec.data = [MOCK_COLLECTOR]
+
+    mock_insert_exec = MagicMock()
+    mock_insert_exec.data = [{
+        "id": MOCK_COLLECTION_ID,
+        "loan_cycle_id": MOCK_CYCLE_ID,
+        "member_id": MOCK_MEMBER_ID,
+        "group_id": MOCK_GROUP_ID,
+        "collector_id": MOCK_COLLECTOR_ID,
+        "week_number": 1,
+        "payment_date": past_date.isoformat(),
+        "amount_paid": 760.00,
+        "payment_status": "Paid",
+        "remarks": "Historical Week 1 payment",
+        "created_at": "2026-08-09T12:00:00Z",
+    }]
+
+    mock_paid_count_exec = MagicMock()
+    mock_paid_count_exec.data = [{"id": str(uuid4())}]
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "members":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_member_exec
+        elif table_name == "loan_cycles":
+            mock_tbl.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = mock_cycle_exec
+        elif table_name == "collectors":
+            mock_tbl.select.return_value.eq.return_value.limit.return_value.execute.return_value = mock_collector_exec
+        elif table_name == "collections":
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = mock_dup_exec
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = mock_paid_count_exec
+            mock_tbl.insert.return_value.execute.return_value = mock_insert_exec
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    data = CollectionCreate(
+        member_id=MOCK_MEMBER_ID,
+        week_number=1,
+        amount_paid=Decimal("760.00"),
+        payment_date=past_date,
+        remarks="Historical Week 1 payment",
+    )
+    result = service.record_collection(data)
+    assert result["week_number"] == 1
+    assert result["payment_date"] == past_date.isoformat()
+

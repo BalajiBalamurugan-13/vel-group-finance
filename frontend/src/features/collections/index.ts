@@ -1,5 +1,11 @@
-/**
- * VEL Finance — Collections Feature
- * This directory is reserved for the collections feature module.
- * Business implementation: NOT YET STARTED.
- */
+export * from './types';
+export * from './api/collectionApi';
+export * from './hooks/useCollections';
+export * from './components/CollectionStatusBadge';
+export * from './components/CollectionSummaryCards';
+export * from './components/CollectionFilters';
+export * from './components/CollectionTable';
+export * from './components/CollectionCard';
+export * from './components/CollectionList';
+export * from './components/RecordPaymentModal';
+export * from './components/CollectionDetailsModal';

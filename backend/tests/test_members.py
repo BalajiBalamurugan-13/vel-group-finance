@@ -247,13 +247,20 @@ def test_service_create_member_in_draft_group(mock_db):
     mock_member_exec = MagicMock()
     mock_member_exec.data = [{**MOCK_MEMBER, "group_id": MOCK_DRAFT_GROUP["id"]}]
 
+def test_service_create_member_in_draft_group_rejected(mock_db):
+    """
+    Requirement 1: Draft group -> members CANNOT be added.
+    Attempting to add a member to a Draft group must be rejected with 400.
+    """
+    service = MemberService(mock_db)
+
+    mock_group_exec = MagicMock()
+    mock_group_exec.data = [MOCK_DRAFT_GROUP]
+
     def table_router(table_name):
         mock_tbl = MagicMock()
         if table_name == "groups":
             mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_group_exec
-        elif table_name == "members":
-            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = mock_dup_exec
-            mock_tbl.insert.return_value.execute.return_value = mock_member_exec
         return mock_tbl
 
     mock_db.table.side_effect = table_router
@@ -264,10 +271,11 @@ def test_service_create_member_in_draft_group(mock_db):
         phone_number="9876543210",
         address="12, South Street, PTM",
     )
-    result = service.create_member(data)
-    assert result["member_name"] == "Murugan S"
-    assert result["joined_week"] == 1
-    assert "current_cycle" not in result or result["current_cycle"] is None
+    with pytest.raises(HTTPException) as exc:
+        service.create_member(data)
+
+    assert exc.value.status_code == 400
+    assert "only be added to an active group" in exc.value.detail.lower()
 
 
 def test_service_create_member_in_active_group_creates_disbursement(mock_db):
@@ -279,9 +287,6 @@ def test_service_create_member_in_active_group_creates_disbursement(mock_db):
 
     mock_group_exec = MagicMock()
     mock_group_exec.data = [MOCK_ACTIVE_GROUP]
-
-    mock_dup_exec = MagicMock()
-    mock_dup_exec.data = []
 
     mock_member_exec = MagicMock()
     mock_member_exec.data = [MOCK_MEMBER]
@@ -312,7 +317,6 @@ def test_service_create_member_in_active_group_creates_disbursement(mock_db):
         if table_name == "groups":
             mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_group_exec
         elif table_name == "members":
-            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = mock_dup_exec
             mock_tbl.insert.return_value.execute.return_value = mock_member_exec
         elif table_name == "loan_cycles":
             mock_tbl.insert.return_value.execute.return_value = mock_cycle_exec
@@ -347,9 +351,6 @@ def test_service_create_member_late_joining_week_5(mock_db):
     mock_group_exec = MagicMock()
     mock_group_exec.data = [MOCK_ACTIVE_GROUP]  # start_date: 2026-08-01
 
-    mock_dup_exec = MagicMock()
-    mock_dup_exec.data = []
-
     # Joined 28 days later (Week 5)
     week_5_date = date(2026, 8, 29)
     week_5_member = {
@@ -372,7 +373,6 @@ def test_service_create_member_late_joining_week_5(mock_db):
         if table_name == "groups":
             mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_group_exec
         elif table_name == "members":
-            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = mock_dup_exec
             mock_tbl.insert.return_value.execute.return_value = mock_member_exec
         elif table_name == "loan_cycles":
             mock_tbl.insert.return_value.execute.return_value = mock_cycle_exec
@@ -394,46 +394,53 @@ def test_service_create_member_late_joining_week_5(mock_db):
     assert result["immediate_collection"] == Decimal("3800.00")  # 5 × 760
 
 
-def test_service_create_member_duplicate_active_phone_rejected(mock_db):
+def test_service_create_member_same_phone_number_allowed(mock_db):
     """
-    BR-007: Member belongs to only one active group.
-    Returns 409 if phone number is already active in another group.
+    Requirement 7: Multiple members may share the same 10-digit phone number.
+    Member A and Member B both with 9876543210 must be allowed.
     """
     service = MemberService(mock_db)
 
     mock_group_exec = MagicMock()
     mock_group_exec.data = [MOCK_ACTIVE_GROUP]
 
-    mock_dup_exec = MagicMock()
-    mock_dup_exec.data = [
-        {
-            "id": str(uuid4()),
-            "status": "Active",
-            "group": {"id": str(uuid4()), "status": "Active"},
-        }
-    ]
+    mock_member_exec = MagicMock()
+    mock_member_exec.data = [{
+        **MOCK_MEMBER,
+        "id": str(uuid4()),
+        "member_name": "Member B",
+        "phone_number": "9876543210",
+    }]
+
+    mock_cycle_exec = MagicMock()
+    mock_cycle_exec.data = [{"id": str(uuid4()), "cycle_number": 1}]
+
+    mock_tx_exec = MagicMock()
+    mock_tx_exec.data = [{"id": str(uuid4()), "cash_given": 9900.00}]
 
     def table_router(table_name):
         mock_tbl = MagicMock()
         if table_name == "groups":
             mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_group_exec
         elif table_name == "members":
-            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = mock_dup_exec
+            mock_tbl.insert.return_value.execute.return_value = mock_member_exec
+        elif table_name == "loan_cycles":
+            mock_tbl.insert.return_value.execute.return_value = mock_cycle_exec
+        elif table_name == "loan_transactions":
+            mock_tbl.insert.return_value.execute.return_value = mock_tx_exec
         return mock_tbl
 
     mock_db.table.side_effect = table_router
 
     data = MemberCreate(
         group_id=MOCK_GROUP_ID,
-        member_name="Murugan S",
+        member_name="Member B",
         phone_number="9876543210",
         address="12, South Street, PTM",
     )
-    with pytest.raises(HTTPException) as exc:
-        service.create_member(data)
-
-    assert exc.value.status_code == 409
-    assert "already active" in exc.value.detail.lower()
+    result = service.create_member(data)
+    assert result["phone_number"] == "9876543210"
+    assert result["member_name"] == "Member B"
 
 
 def test_service_create_member_closed_group_rejected(mock_db):
@@ -448,13 +455,13 @@ def test_service_create_member_closed_group_rejected(mock_db):
         group_id=MOCK_CLOSED_GROUP["id"],
         member_name="Murugan S",
         phone_number="9876543210",
-        address="12, South Street",
+        address="12, South Street, PTM",
     )
     with pytest.raises(HTTPException) as exc:
         service.create_member(data)
 
     assert exc.value.status_code == 400
-    assert "closed group" in exc.value.detail.lower()
+    assert "only be added to an active group" in exc.value.detail.lower()
 
 
 def test_service_update_member_status_lifecycle(mock_db):
