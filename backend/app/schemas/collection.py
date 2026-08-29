@@ -39,6 +39,7 @@ class CollectionCreate(CollectionBase):
 class CollectionResponse(BaseModel):
     """Schema for returning Collection data with joined financial context."""
     id: UUID
+    receipt_code: Optional[str] = None  # RCP-0001 — from migration 002
     loan_cycle_id: UUID
     member_id: UUID
     group_id: UUID

@@ -34,6 +34,7 @@ from app.api.endpoints.schemes import router as schemes_router
 from app.api.endpoints.groups import router as groups_router
 from app.api.endpoints.members import router as members_router
 from app.api.endpoints.collections import router as collections_router
+from app.api.endpoints.dashboard import router as dashboard_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -43,6 +44,7 @@ api_router.include_router(schemes_router, prefix="/schemes", tags=["Schemes"])
 api_router.include_router(groups_router, prefix="/groups", tags=["Groups"])
 api_router.include_router(members_router, prefix="/members", tags=["Members"])
 api_router.include_router(collections_router, prefix="/collections", tags=["Collections"])
+api_router.include_router(dashboard_router, prefix="/dashboard", tags=["Dashboard"])
 
 # ── Future Module Routes (add as each milestone is implemented) ────────────────
 
@@ -64,11 +66,8 @@ api_router.include_router(collections_router, prefix="/collections", tags=["Coll
 # from app.api.collectors import router as collectors_router
 # api_router.include_router(collectors_router, prefix="/collectors", tags=["Collectors"])
 
-# from app.api.dashboard import router as dashboard_router
-# api_router.include_router(dashboard_router, prefix="/dashboard", tags=["Dashboard"])
-
 # from app.api.reports import router as reports_router
-# api_router.include_router(reports_router, prefix="/reports", tags=["Reports"])
+# api_router.include_router(reports_router, prefix="/reports", tags=["Reports"])  # Future milestone
 
 # from app.api.settings import router as settings_router
 # api_router.include_router(settings_router, prefix="/settings", tags=["Settings"])

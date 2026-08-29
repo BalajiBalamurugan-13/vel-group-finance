@@ -36,6 +36,11 @@ export function MemberDetailsModal({
               <h2 className="text-xl font-bold text-secondary-900">
                 {member.member_name}
               </h2>
+              {member.member_code && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-primary-50 text-primary-700 border border-primary-200/60">
+                  {member.member_code}
+                </span>
+              )}
               <MemberStatusBadge status={member.status} />
             </div>
             <p className="mt-1 flex items-center gap-1.5 text-xs text-secondary-500 font-mono">

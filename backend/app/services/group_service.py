@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import date
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID
@@ -233,6 +234,13 @@ class GroupService:
         """
         Update group status following allowed lifecycle transitions.
         Preserves historical data on closure.
+
+        Draft -> Active transition (BR-026):
+        When a Draft group is activated, the system automatically creates Loan Cycles
+        and Loan Transactions for every existing Active member that does not already
+        have a loan cycle.  This ensures no member is left without a disbursement
+        record after activation, which would cause "No active loan cycle found" errors
+        when the collector tries to record their first payment.
         """
         current_group = self.get_group_by_id(group_id)
         current_status = current_group["status"]
@@ -259,8 +267,123 @@ class GroupService:
 
         updated_group = response.data[0]
         updated_group["scheme"] = current_group.get("scheme")
+
+        # On Draft -> Active: create missing loan cycles and disbursement transactions
+        if current_status == "Draft" and new_status == "Active":
+            self._disburse_loans_for_draft_members(group_id, current_group)
+
         self._enrich_dynamic_fields(updated_group)
         return updated_group
+
+    def _disburse_loans_for_draft_members(
+        self, group_id: UUID, group: dict
+    ) -> None:
+        """
+        Called during Draft -> Active transition.
+
+        For every Active member in this group that does NOT yet have a loan cycle,
+        creates:
+          - loan_cycles row  (cycle_number=1, status=Active)
+          - loan_transactions row  (loan_amount, note_cost, cash_given per scheme)
+
+        Members who already have a cycle (e.g. group was partially activated
+        before) are skipped to preserve idempotency.
+
+        ACCOUNTING: This creates the Cash Out (disbursement) records that correspond
+        to the loan being handed to each member.  No Cash In records are created
+        here.  The collector must record payment collections separately.
+        """
+        scheme = group.get("scheme")
+        if not scheme:
+            logger.warning(
+                "Group %s has no scheme; skipping loan disbursement on activation.", group_id
+            )
+            return
+
+        loan_amount = Decimal(str(scheme["loan_amount"]))
+        note_cost = Decimal(str(scheme.get("note_cost", "0.00")))
+        cash_given = loan_amount - note_cost
+
+        # Use group start_date as disbursement date; fall back to today
+        raw_start = group.get("start_date")
+        if raw_start:
+            disbursement_date = (
+                date.fromisoformat(raw_start)
+                if isinstance(raw_start, str)
+                else raw_start
+            )
+        else:
+            disbursement_date = date.today()
+
+        # Fetch all Active members of this group
+        members_res = (
+            self.db.table("members")
+            .select("id, member_name")
+            .eq("group_id", str(group_id))
+            .eq("status", "Active")
+            .execute()
+        )
+        members = members_res.data or []
+        if not members:
+            return
+
+        # Fetch existing loan cycles for this group to avoid double-disbursement
+        existing_cycles_res = (
+            self.db.table("loan_cycles")
+            .select("member_id")
+            .eq("group_id", str(group_id))
+            .execute()
+        )
+        already_cycled = {
+            str(row["member_id"]) for row in (existing_cycles_res.data or [])
+        }
+
+        for member in members:
+            member_id = str(member["id"])
+            if member_id in already_cycled:
+                logger.info(
+                    "Member %s already has a loan cycle; skipping on group activation.",
+                    member_id,
+                )
+                continue
+
+            # Create Loan Cycle
+            cycle_insert = {
+                "member_id": member_id,
+                "group_id": str(group_id),
+                "scheme_id": scheme["id"],
+                "cycle_number": 1,
+                "start_date": disbursement_date.isoformat(),
+                "status": "Active",
+            }
+            cycle_res = self.db.table("loan_cycles").insert(cycle_insert).execute()
+            if not cycle_res.data:
+                logger.error(
+                    "Failed to create loan cycle for member %s during group activation.",
+                    member_id,
+                )
+                continue
+
+            cycle = cycle_res.data[0]
+
+            # Create Loan Transaction (Cash Out - Immutable)
+            tx_insert = {
+                "loan_cycle_id": cycle["id"],
+                "member_id": member_id,
+                "loan_amount": float(loan_amount),
+                "note_cost": float(note_cost),
+                "cash_given": float(cash_given),
+                "disbursement_date": disbursement_date.isoformat(),
+                "remarks": f"Loan disbursement on group activation for {member.get('member_name', '')}",
+            }
+            tx_res = (
+                self.db.table("loan_transactions").insert(tx_insert).execute()
+            )
+            if not tx_res.data:
+                logger.error(
+                    "Failed to create loan transaction for member %s during group activation.",
+                    member_id,
+                )
 
     def _enrich_dynamic_fields(self, group: dict) -> None:
         """

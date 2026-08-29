@@ -103,6 +103,7 @@ class LoanTransactionResponse(BaseModel):
     disbursement_date: date
     remarks: Optional[str] = None
     created_at: datetime
+    transaction_code: Optional[str] = None  # TXN-0001 — from migration 002
 
     model_config = {"from_attributes": True}
 
@@ -117,6 +118,7 @@ class LoanCycleResponse(BaseModel):
     status: str
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    cycle_code: Optional[str] = None  # LC-0001 — from migration 002
     loan_transaction: Optional[LoanTransactionResponse] = None
 
     model_config = {"from_attributes": True}
@@ -128,6 +130,7 @@ class MemberResponse(MemberBase):
     Includes calculated financial summaries derived from Scheme/Group.
     """
     id: UUID
+    member_code: Optional[str] = None  # M-0001 — from migration 002
     group_id: UUID
     joined_week: int = 1
     joined_date: Optional[date] = None

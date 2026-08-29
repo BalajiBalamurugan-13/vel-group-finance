@@ -55,11 +55,18 @@ export function CollectionTable({
               >
                 {/* Member */}
                 <td className="py-4 pl-4 pr-3 sm:pl-6">
-                  <div className="font-semibold text-secondary-900">
-                    {collection.member_name || '—'}
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-secondary-900">
+                      {collection.member_name || '—'}
+                    </span>
+                    {collection.receipt_code && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-success-50 text-success-700 border border-success-200/60">
+                        {collection.receipt_code}
+                      </span>
+                    )}
                   </div>
                   {collection.phone_number && (
-                    <div className="text-xs text-secondary-400">
+                    <div className="text-xs text-secondary-400 font-mono">
                       {collection.phone_number}
                     </div>
                   )}

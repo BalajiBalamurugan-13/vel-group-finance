@@ -2,6 +2,7 @@ export type GroupStatus = 'Draft' | 'Active' | 'Completed' | 'Renewed' | 'Closed
 
 export interface GroupSchemeSummary {
   id: string;
+  scheme_code?: string | null; // SCH-0001 — added in migration 002
   scheme_name: string;
   loan_amount: number;
   weekly_installment: number;
@@ -12,6 +13,7 @@ export interface GroupSchemeSummary {
 
 export interface Group {
   id: string;
+  group_code?: string | null; // GRP-0001 — added in migration 002
   scheme_id: string;
   location: string;
   group_name: string;

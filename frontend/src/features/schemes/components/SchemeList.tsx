@@ -38,7 +38,14 @@ export function SchemeList({ schemes, onEdit }: SchemeListProps) {
         <Card key={scheme.id} className="flex flex-col p-5">
           <div className="mb-4 flex items-start justify-between">
             <div>
-              <h3 className="font-semibold text-secondary-900">{scheme.scheme_name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-secondary-900">{scheme.scheme_name}</h3>
+                {scheme.scheme_code && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-primary-50 text-primary-700 border border-primary-200/60">
+                    {scheme.scheme_code}
+                  </span>
+                )}
+              </div>
               {scheme.description && (
                 <p className="mt-1 text-sm text-secondary-500 line-clamp-2">
                   {scheme.description}

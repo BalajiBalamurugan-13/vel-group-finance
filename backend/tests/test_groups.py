@@ -386,21 +386,41 @@ def test_service_status_lifecycle_transitions(mock_db):
     Draft -> Active -> Completed -> Closed
     Draft -> Closed
     """
+    from uuid import uuid4
+
     service = GroupService(mock_db)
 
     # 1. Draft -> Active: allowed
-    mock_db.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
-        {**MOCK_GROUP, "status": "Draft"}
-    ]
-    mock_db.table.return_value.update.return_value.eq.return_value.execute.return_value.data = [
-        {**MOCK_GROUP, "status": "Active"}
-    ]
+    # This now also triggers _disburse_loans_for_draft_members, so we need to
+    # mock the members query (returns empty = no members to disburse) and the
+    # existing loan_cycles query.
+    def draft_to_active_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "groups":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = [
+                {**MOCK_GROUP, "status": "Draft"}
+            ]
+            mock_tbl.update.return_value.eq.return_value.execute.return_value.data = [
+                {**MOCK_GROUP, "status": "Active"}
+            ]
+        elif table_name == "members":
+            # _enrich_dynamic_fields: active count
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = []
+            # _disburse_loans_for_draft_members: get members
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = []
+        elif table_name == "loan_cycles":
+            # No existing cycles
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = []
+        return mock_tbl
+
+    mock_db.table.side_effect = draft_to_active_router
     res = service.update_group_status(
         MOCK_GROUP_ID, GroupStatusUpdate(status=GroupStatus.ACTIVE)
     )
     assert res["status"] == "Active"
 
-    # 2. Active -> Completed: allowed
+    # 2. Active -> Completed: allowed (no disbursement logic for non-Draft transitions)
+    mock_db.table.side_effect = None
     mock_db.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
         {**MOCK_GROUP, "status": "Active"}
     ]
@@ -567,3 +587,110 @@ def test_group_enrich_dynamic_fields_excludes_completed_and_closed_members(mock_
     assert group["member_count"] == 1
     assert group["total_group_amount"] == Decimal("10000.00")
 
+
+def test_draft_to_active_creates_loan_cycles_for_existing_members(mock_db):
+    """
+    BR-026 / TC-GRP-003:
+    When a Draft group transitions to Active, loan cycles and loan transactions
+    must be created for every existing Active member without a cycle.
+    This prevents the "No active loan cycle found" error during first collection.
+    """
+    from uuid import uuid4
+    service = GroupService(mock_db)
+
+    draft_group = {**MOCK_GROUP, "status": "Draft"}
+    member_id_1 = str(uuid4())
+    member_id_2 = str(uuid4())
+
+    cycles_inserted = []
+    txs_inserted = []
+    members_queried = []
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "groups":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = [draft_group]
+            mock_tbl.update.return_value.eq.return_value.execute.return_value.data = [
+                {**draft_group, "status": "Active"}
+            ]
+        elif table_name == "members":
+            # Both _enrich and _disburse call members; return 2 members for all paths
+            two_members = [
+                {"id": member_id_1, "member_name": "Member A"},
+                {"id": member_id_2, "member_name": "Member B"},
+            ]
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = two_members
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = two_members
+        elif table_name == "loan_cycles":
+            # No existing cycles
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = []
+            def do_insert(data):
+                cycles_inserted.append(data)
+                return MagicMock(data=[{"id": str(uuid4())}])
+            mock_tbl.insert.side_effect = do_insert
+        elif table_name == "loan_transactions":
+            def do_tx_insert(data):
+                txs_inserted.append(data)
+                return MagicMock(data=[{"id": str(uuid4())}])
+            mock_tbl.insert.side_effect = do_tx_insert
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    result = service.update_group_status(
+        MOCK_GROUP_ID, GroupStatusUpdate(status=GroupStatus.ACTIVE)
+    )
+    assert result["status"] == "Active"
+    assert len(cycles_inserted) == 2, f"Expected 2 loan cycles, got {len(cycles_inserted)}"
+    assert len(txs_inserted) == 2, f"Expected 2 loan transactions, got {len(txs_inserted)}"
+
+
+def test_draft_to_active_skips_members_with_existing_cycles(mock_db):
+    """
+    Idempotency: members who already have a loan cycle must be skipped
+    during Draft -> Active activation to prevent double-disbursement.
+    """
+    from uuid import uuid4
+    service = GroupService(mock_db)
+
+    draft_group = {**MOCK_GROUP, "status": "Draft"}
+    member_id = str(uuid4())
+    existing_cycle_id = str(uuid4())
+
+    inserted_tables = []
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "groups":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = [draft_group]
+            mock_tbl.update.return_value.eq.return_value.execute.return_value.data = [
+                {**draft_group, "status": "Active"}
+            ]
+        elif table_name == "members":
+            one_member = [{"id": member_id, "member_name": "Already Cycled"}]
+            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = one_member
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = one_member
+        elif table_name == "loan_cycles":
+            # This member already has a cycle
+            mock_tbl.select.return_value.eq.return_value.execute.return_value.data = [
+                {"member_id": member_id}
+            ]
+            def track_insert(data):
+                inserted_tables.append("loan_cycles")
+                return MagicMock(data=[{"id": str(uuid4())}])
+            mock_tbl.insert.side_effect = track_insert
+        elif table_name == "loan_transactions":
+            def track_tx(data):
+                inserted_tables.append("loan_transactions")
+                return MagicMock(data=[{"id": str(uuid4())}])
+            mock_tbl.insert.side_effect = track_tx
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    result = service.update_group_status(
+        MOCK_GROUP_ID, GroupStatusUpdate(status=GroupStatus.ACTIVE)
+    )
+    assert result["status"] == "Active"
+    assert "loan_cycles" not in inserted_tables, "Should not create duplicate loan cycle"
+    assert "loan_transactions" not in inserted_tables, "Should not create duplicate loan transaction"

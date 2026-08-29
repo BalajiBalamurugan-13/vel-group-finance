@@ -2,6 +2,7 @@ export type SchemeStatus = 'Active' | 'Inactive';
 
 export interface Scheme {
   id: string;
+  scheme_code?: string | null; // SCH-0001 — added in migration 002
   scheme_name: string;
   description: string | null;
   loan_amount: number;

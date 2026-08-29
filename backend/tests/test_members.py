@@ -233,34 +233,31 @@ def test_service_calculate_immediate_collection():
 
 def test_service_create_member_in_draft_group(mock_db):
     """
-    Adding member to Draft group (TC-MEM-001):
-    Member record created; NO loan disbursement until activation.
+    TC-MEM-001 / BR-025 / BR-026:
+    Members CAN be added to a Draft group.  No loan cycle or loan transaction
+    is created at this stage - disbursement happens when the group is activated.
     """
     service = MemberService(mock_db)
 
     mock_group_exec = MagicMock()
     mock_group_exec.data = [MOCK_DRAFT_GROUP]
-
-    mock_dup_exec = MagicMock()
-    mock_dup_exec.data = []
 
     mock_member_exec = MagicMock()
-    mock_member_exec.data = [{**MOCK_MEMBER, "group_id": MOCK_DRAFT_GROUP["id"]}]
+    mock_member_exec.data = [{**MOCK_MEMBER, "group_id": MOCK_DRAFT_GROUP["id"], "joined_week": 1}]
 
-def test_service_create_member_in_draft_group_rejected(mock_db):
-    """
-    Requirement 1: Draft group -> members CANNOT be added.
-    Attempting to add a member to a Draft group must be rejected with 400.
-    """
-    service = MemberService(mock_db)
-
-    mock_group_exec = MagicMock()
-    mock_group_exec.data = [MOCK_DRAFT_GROUP]
+    inserted_tables = []
 
     def table_router(table_name):
         mock_tbl = MagicMock()
         if table_name == "groups":
             mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_group_exec
+        elif table_name == "members":
+            mock_tbl.insert.return_value.execute.return_value = mock_member_exec
+        else:
+            def track_insert(*a, **kw):
+                inserted_tables.append(table_name)
+                return MagicMock(data=[])
+            mock_tbl.insert.side_effect = track_insert
         return mock_tbl
 
     mock_db.table.side_effect = table_router
@@ -271,11 +268,44 @@ def test_service_create_member_in_draft_group_rejected(mock_db):
         phone_number="9876543210",
         address="12, South Street, PTM",
     )
+    result = service.create_member(data)
+
+    assert result["member_name"] == "Murugan S"
+    assert result.get("current_cycle") is None, "No loan cycle for Draft group member"
+    assert "loan_cycles" not in inserted_tables, "loan_cycles must NOT be inserted for Draft"
+    assert "loan_transactions" not in inserted_tables, "loan_transactions must NOT be inserted for Draft"
+
+
+def test_service_create_member_in_draft_group_rejected(mock_db):
+    """
+    Closed and Completed groups must reject new member addition.
+    Draft groups now ALLOW member addition (BR-025 / BR-026).
+    This test verifies Closed group rejection (the terminal state).
+    """
+    service = MemberService(mock_db)
+
+    mock_group_exec = MagicMock()
+    mock_group_exec.data = [MOCK_CLOSED_GROUP]  # Closed, not Draft
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "groups":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_group_exec
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    data = MemberCreate(
+        group_id=MOCK_CLOSED_GROUP["id"],
+        member_name="Murugan S",
+        phone_number="9876543210",
+        address="12, South Street, PTM",
+    )
     with pytest.raises(HTTPException) as exc:
         service.create_member(data)
 
     assert exc.value.status_code == 400
-    assert "only be added to an active group" in exc.value.detail.lower()
+    assert "draft or active" in exc.value.detail.lower()
 
 
 def test_service_create_member_in_active_group_creates_disbursement(mock_db):
@@ -461,7 +491,7 @@ def test_service_create_member_closed_group_rejected(mock_db):
         service.create_member(data)
 
     assert exc.value.status_code == 400
-    assert "only be added to an active group" in exc.value.detail.lower()
+    assert "draft or active" in exc.value.detail.lower() or "closed" in exc.value.detail.lower()
 
 
 def test_service_update_member_status_lifecycle(mock_db):
@@ -567,3 +597,89 @@ def test_service_create_member_same_phone_in_closed_group_allowed(mock_db):
     assert result["member_name"] == "Murugan S"
     assert result["cash_given"] == Decimal("9900.00")
 
+
+def test_member_close_cascades_to_loan_cycle(mock_db):
+    """
+    Closing a member must also close their Active loan cycles so they are
+    excluded from total_outstanding on the Dashboard.
+    Financial records are preserved (not deleted); only status is updated.
+    """
+    service = MemberService(mock_db)
+
+    mock_get_exec = MagicMock()
+    mock_get_exec.data = [MOCK_MEMBER]
+
+    mock_cycle_get_exec = MagicMock()
+    mock_cycle_get_exec.data = [{"id": MOCK_CYCLE_ID, "cycle_number": 1, "loan_transactions": []}]
+
+    mock_update_member_exec = MagicMock()
+    mock_update_member_exec.data = [{**MOCK_MEMBER, "status": "Closed"}]
+
+    mock_cycle_close_exec = MagicMock()
+    mock_cycle_close_exec.data = [{"id": MOCK_CYCLE_ID, "status": "Closed"}]
+
+    loan_cycle_close_called = []
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "members":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_get_exec
+            mock_tbl.update.return_value.eq.return_value.execute.return_value = mock_update_member_exec
+        elif table_name == "loan_cycles":
+            mock_tbl.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = mock_cycle_get_exec
+            def close_cycle(*a, **kw):
+                loan_cycle_close_called.append(True)
+                return mock_cycle_close_exec
+            mock_tbl.update.return_value.eq.return_value.eq.return_value.execute.side_effect = close_cycle
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    result = service.update_member_status(
+        MOCK_MEMBER_ID, MemberStatusUpdate(status=MemberStatus.CLOSED)
+    )
+    assert result["status"] == "Closed"
+    assert loan_cycle_close_called, "Loan cycles must be closed when member is closed"
+
+
+def test_service_create_member_draft_group_no_loan_records(mock_db):
+    """
+    Adding a member to a Draft group must NEVER insert loan_cycles or
+    loan_transactions rows.  Financial records are only created on group activation.
+    """
+    service = MemberService(mock_db)
+
+    mock_group_exec = MagicMock()
+    mock_group_exec.data = [MOCK_DRAFT_GROUP]
+
+    mock_member_exec = MagicMock()
+    mock_member_exec.data = [{**MOCK_MEMBER, "group_id": MOCK_DRAFT_GROUP["id"], "joined_week": 1}]
+
+    inserted_tables = []
+
+    def table_router(table_name):
+        mock_tbl = MagicMock()
+        if table_name == "groups":
+            mock_tbl.select.return_value.eq.return_value.execute.return_value = mock_group_exec
+        elif table_name == "members":
+            mock_tbl.insert.return_value.execute.return_value = mock_member_exec
+        else:
+            def record_insert(*args, **kwargs):
+                inserted_tables.append(table_name)
+                return MagicMock(data=[])
+            mock_tbl.insert.side_effect = record_insert
+        return mock_tbl
+
+    mock_db.table.side_effect = table_router
+
+    data = MemberCreate(
+        group_id=MOCK_DRAFT_GROUP["id"],
+        member_name="Draft Member",
+        phone_number="9876543215",
+        address="5, Main Road",
+    )
+    result = service.create_member(data)
+
+    assert result is not None
+    assert "loan_cycles" not in inserted_tables, "No loan_cycles insert for Draft member"
+    assert "loan_transactions" not in inserted_tables, "No loan_transactions insert for Draft member"

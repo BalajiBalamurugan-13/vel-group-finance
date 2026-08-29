@@ -51,6 +51,7 @@ class SchemeStatusUpdate(BaseModel):
 class SchemeResponse(SchemeBase):
     """Schema for responses returning Scheme data."""
     id: UUID
+    scheme_code: Optional[str] = None  # SCH-0001 — from migration 002
     loan_amount: Decimal
     weekly_installment: Decimal
     total_weeks: int

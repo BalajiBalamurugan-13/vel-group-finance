@@ -91,6 +91,7 @@ class GroupStatusUpdate(BaseModel):
 class GroupSchemeSummary(BaseModel):
     """Scheme information embedded in Group response."""
     id: UUID
+    scheme_code: Optional[str] = None  # SCH-0001 — from migration 002
     scheme_name: str
     loan_amount: Decimal
     weekly_installment: Decimal
@@ -108,6 +109,7 @@ class GroupResponse(BaseModel):
     and are NEVER stored in the database.
     """
     id: UUID
+    group_code: Optional[str] = None  # GRP-0001 — from migration 002
     scheme_id: UUID
     location: str
     group_name: str

@@ -27,9 +27,16 @@ export function MemberCard({
       {/* Header: Name, Phone & Status */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-secondary-900 truncate">
-            {member.member_name}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-secondary-900 truncate">
+              {member.member_name}
+            </h3>
+            {member.member_code && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-primary-50 text-primary-700 border border-primary-200/60">
+                {member.member_code}
+              </span>
+            )}
+          </div>
           <p className="text-xs font-mono text-secondary-500 mt-0.5">
             {member.phone_number}
           </p>

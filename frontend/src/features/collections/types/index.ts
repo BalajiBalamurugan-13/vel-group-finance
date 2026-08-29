@@ -2,6 +2,7 @@ export type PaymentStatus = 'Paid' | 'Pending' | 'Partial' | 'Waived';
 
 export interface Collection {
   id: string;
+  receipt_code?: string | null; // RCP-0001 — added in migration 002
   loan_cycle_id: string;
   member_id: string;
   group_id: string;

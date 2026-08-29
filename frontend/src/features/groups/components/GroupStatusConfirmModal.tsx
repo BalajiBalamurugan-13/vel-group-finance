@@ -26,7 +26,7 @@ export function GroupStatusConfirmModal({
         return {
           title: `Activate Group — ${group.group_name}`,
           description:
-            'Activating this group enables member management and weekly collection workflows. Loan disbursement will begin.',
+            'Activating this group will automatically disburse loans to all members currently in Draft and begin weekly collection workflows. This action cannot be reversed.',
           actionLabel: 'Activate Group',
           variant: 'primary' as const,
         };

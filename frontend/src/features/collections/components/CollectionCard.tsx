@@ -21,9 +21,16 @@ export function CollectionCard({
       {/* Header: Member & Status */}
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="font-semibold text-secondary-900 text-base">
-            {collection.member_name || 'Member'}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-secondary-900 text-base">
+              {collection.member_name || 'Member'}
+            </h3>
+            {collection.receipt_code && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-success-50 text-success-700 border border-success-200/60">
+                {collection.receipt_code}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-secondary-500">
             {collection.group_name} • {collection.location}
           </p>

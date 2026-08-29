@@ -42,7 +42,7 @@ class MemberService:
     ) -> int:
         """
         Calculates the week number when a member joins an active group.
-        Per docs/05_BUSINESS_FORMULAS.md Formula 6 & 15.
+        Per docs/05_BUSINESS_FORMULAS.md Formula 6 and 15.
         Week 1 = start of group.
         """
         if not group_start_date or joined_date <= group_start_date:
@@ -58,8 +58,15 @@ class MemberService:
         weekly_installment: Decimal,
     ) -> Decimal:
         """
-        Calculates immediate collection for late-joining members.
-        Per Formula 6: Immediate Collection = Current Week Number × Weekly Installment.
+        Calculates the immediate amount DUE from a late-joining member.
+        Per Formula 6: Immediate Collection = Current Week Number x Weekly Installment.
+
+        ACCOUNTING NOTE (per 04_ACCOUNTING_RULES.md cash-based model):
+        This returns the amount the collector must physically collect on the joining
+        date.  The system does NOT auto-create Paid collection records for this amount.
+        The collector must record each week payment through record_collection() once
+        cash is actually received.  Auto-inserting Paid rows without physical receipt
+        would invent cash-in data and violate the cash-based accounting model.
         """
         return Decimal(joined_week) * weekly_installment
 
@@ -128,11 +135,25 @@ class MemberService:
     def create_member(self, data: MemberCreate) -> dict:
         """
         Create a new member and add to target group.
-        - Enforces BR-007 (one active group per member phone).
-        - If group is 'Active', creates Loan Cycle and Loan Transaction immediately (BR-009, BR-021).
-        - Computes joined_week and immediate_collection for late joiners (BR-022, BR-023).
+
+        Lifecycle behaviour (per BR-025, BR-026, BR-009):
+        - Draft group: member is added in preparation; NO loan cycle or loan
+          transaction is created.  Loan disbursement happens when the group is
+          activated (group_service.update_group_status Draft -> Active).
+        - Active group: member receives the loan immediately (BR-009).  Loan
+          Cycle + Loan Transaction (Cash Out) are created at once.
+        - Closed / Completed groups: addition is rejected.
+
+        Late-joining (BR-022, BR-023, Formula 6):
+        - immediate_collection is computed and returned as an INFORMATIONAL field
+          only.  It represents the amount DUE from the member on the joining date.
+        - NO Paid collection records are auto-created.  The collector must manually
+          record each week payment through record_collection() once cash is
+          physically received.  Auto-inserting Paid rows without physical receipt
+          would invent cash-in data and violate the cash-based accounting model
+          (04_ACCOUNTING_RULES.md: "Recorded When: Collector receives payment").
         """
-        # 1. Fetch Target Group & Scheme
+        # 1. Fetch Target Group and Scheme
         group_response = (
             self.db.table("groups")
             .select("*, scheme:schemes(*)")
@@ -143,10 +164,17 @@ class MemberService:
             raise HTTPException(status_code=404, detail="Group not found")
 
         group = group_response.data[0]
-        if group["status"] != "Active":
+        group_status = group["status"]
+
+        # Only Draft and Active groups accept new members.
+        # Closed and Completed groups are terminal / read-only states.
+        if group_status not in ("Draft", "Active"):
             raise HTTPException(
                 status_code=400,
-                detail="Members can only be added to an Active group.",
+                detail=(
+                    f"Members can only be added to a Draft or Active group. "
+                    f"This group is currently '{group_status}'."
+                ),
             )
 
         scheme = group.get("scheme")
@@ -162,7 +190,10 @@ class MemberService:
         joined_date = data.joined_date or date.today()
         total_weeks = int(scheme.get("total_weeks", 10))
 
-        if group["status"] == "Active" and group.get("start_date"):
+        # joined_week is only meaningful for Active groups (loan already running).
+        # For Draft groups every member starts at Week 1 because the group has not
+        # started yet and there are no missed weeks.
+        if group_status == "Active" and group.get("start_date"):
             raw_start = group["start_date"]
             group_start = (
                 date.fromisoformat(raw_start)
@@ -197,8 +228,11 @@ class MemberService:
         new_member = member_res.data[0]
         new_member["group"] = group
 
-        # 5. Active Group: Create Loan Cycle & Loan Transaction (Cash Out)
-        if group["status"] == "Active":
+        # 5. Active Group only: Create Loan Cycle and Loan Transaction (Cash Out).
+        # Draft group members receive no financial records at creation time.
+        # Their loans are disbursed when the group is activated via
+        # group_service.update_group_status(Draft -> Active).
+        if group_status == "Active":
             loan_amount = Decimal(str(scheme["loan_amount"]))
             note_cost = Decimal(str(scheme.get("note_cost", "0.00")))
             cash_given = loan_amount - note_cost
@@ -303,7 +337,12 @@ class MemberService:
     ) -> dict:
         """
         Update member lifecycle status (Active -> Completed -> Closed).
-        Preserves all historical loan records.
+        Preserves all historical loan records (financial immutability).
+
+        On Closed transition:
+        - Also closes all Active loan cycles for this member so they are
+          excluded from total_outstanding on the Dashboard.
+        - Does NOT delete any records; only status fields are updated.
         """
         current_member = self.get_member_by_id(member_id)
         current_status = current_member["status"]
@@ -332,6 +371,19 @@ class MemberService:
                 status_code=500, detail="Failed to update member status"
             )
 
+        # Cascade: close any Active loan cycles so they no longer inflate
+        # total_outstanding on the Dashboard.
+        if new_status == "Closed":
+            try:
+                self.db.table("loan_cycles").update({"status": "Closed"}).eq(
+                    "member_id", str(member_id)
+                ).eq("status", "Active").execute()
+            except Exception as e:
+                # Log but do not abort; the member status was already updated.
+                logger.error(
+                    "Failed to close loan cycles for member %s: %s", member_id, e
+                )
+
         updated = response.data[0]
         updated["group"] = current_member.get("group")
         updated["current_cycle"] = current_member.get("current_cycle")
@@ -342,7 +394,7 @@ class MemberService:
         """
         Calculates dynamic fields for member responses:
         - loan_amount, note_cost, cash_given, weekly_installment
-        - immediate_collection for late joiners
+        - immediate_collection for late joiners (INFORMATIONAL - amount due, not paid)
         """
         group = member.get("group")
         if group:

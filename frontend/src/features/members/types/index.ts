@@ -2,6 +2,7 @@ export type MemberStatus = 'Active' | 'Completed' | 'Closed';
 
 export interface LoanTransaction {
   id: string;
+  transaction_code?: string | null; // TXN-0001 — added in migration 002
   loan_cycle_id: string;
   member_id: string;
   loan_amount: string | number;
@@ -14,6 +15,7 @@ export interface LoanTransaction {
 
 export interface LoanCycle {
   id: string;
+  cycle_code?: string | null; // LC-0001 — added in migration 002
   member_id: string;
   group_id: string;
   scheme_id: string;
@@ -26,6 +28,7 @@ export interface LoanCycle {
 
 export interface Member {
   id: string;
+  member_code?: string | null; // M-0001 — added in migration 002
   group_id: string;
   member_name: string;
   phone_number: string;

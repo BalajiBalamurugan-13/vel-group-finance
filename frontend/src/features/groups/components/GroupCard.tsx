@@ -22,9 +22,16 @@ export function GroupCard({
       {/* Header: Name + Status Badge */}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-base font-semibold text-secondary-900">
-            {group.group_name}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold text-secondary-900">
+              {group.group_name}
+            </h3>
+            {group.group_code && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-primary-50 text-primary-700 border border-primary-200/60">
+                {group.group_code}
+              </span>
+            )}
+          </div>
           <div className="mt-1 flex items-center gap-3 text-xs text-secondary-500">
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5 text-secondary-400" />

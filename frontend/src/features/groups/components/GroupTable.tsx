@@ -56,7 +56,14 @@ export function GroupTable({
                 className="hover:bg-secondary-50/50 transition-colors"
               >
                 <td className="px-6 py-4 font-semibold text-secondary-900">
-                  {group.group_name}
+                  <div className="flex items-center gap-2">
+                    <span>{group.group_name}</span>
+                    {group.group_code && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-primary-50 text-primary-700 border border-primary-200/60">
+                        {group.group_code}
+                      </span>
+                    )}
+                  </div>
                   {group.remarks && (
                     <span className="block text-xs font-normal text-secondary-500 line-clamp-1">
                       {group.remarks}

@@ -62,8 +62,15 @@ export function MemberTable({
                   className="transition-colors hover:bg-secondary-50/50"
                 >
                   <td className="px-6 py-4">
-                    <div className="font-medium text-secondary-900">
-                      {member.member_name}
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-secondary-900">
+                        {member.member_name}
+                      </span>
+                      {member.member_code && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-primary-50 text-primary-700 border border-primary-200/60">
+                          {member.member_code}
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-secondary-500 font-mono mt-0.5">
                       {member.phone_number}

@@ -25,8 +25,9 @@ export function MemberFormModal({
   const { mutateAsync: createMember, isPending: isCreating } = useCreateMember();
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Available groups for enrollment: Active groups only
-  const eligibleGroups = groups.filter((g) => g.status === 'Active');
+  // Available groups for enrollment: Draft and Active groups only.
+  // Draft groups accept members but do not disburse loans until activated (BR-025, BR-026).
+  const eligibleGroups = groups.filter((g) => g.status === 'Draft' || g.status === 'Active');
 
   const {
     register,
