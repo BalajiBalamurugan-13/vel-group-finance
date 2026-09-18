@@ -14,12 +14,15 @@ interface MemberFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultGroupId?: string;
+  /** Called with the created member name after successful creation */
+  onSuccess?: (memberName: string) => void;
 }
 
 export function MemberFormModal({
   isOpen,
   onClose,
   defaultGroupId,
+  onSuccess,
 }: MemberFormModalProps) {
   const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
   const { mutateAsync: createMember, isPending: isCreating } = useCreateMember();
@@ -62,7 +65,7 @@ export function MemberFormModal({
   const onSubmit = async (data: MemberCreate) => {
     setApiError(null);
     try {
-      await createMember({
+      const createdMember = await createMember({
         group_id: data.group_id,
         member_name: data.member_name.trim(),
         phone_number: data.phone_number.trim(),
@@ -72,6 +75,7 @@ export function MemberFormModal({
         id_proof: data.id_proof?.trim() || undefined,
         remarks: data.remarks?.trim() || undefined,
       });
+      onSuccess?.(createdMember.member_name);
       handleClose();
     } catch (err: unknown) {
       const apiErr = err as ApiError;
@@ -83,7 +87,7 @@ export function MemberFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-secondary-900/50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="w-full max-w-lg my-8 rounded-xl bg-surface p-6 shadow-xl">
+      <div className="w-full max-w-lg my-8 rounded-xl bg-surface p-4 sm:p-6 shadow-xl">
         <h2 className="mb-4 text-xl font-semibold text-secondary-900">
           Add New Member
         </h2>

@@ -49,6 +49,12 @@ export interface Member {
   weekly_installment?: string | number | null;
   immediate_collection?: string | number | null;
   current_cycle?: LoanCycle | null;
+  /** Number of Paid collection records — populated by backend bulk query */
+  weeks_paid?: number;
+  /** Sum of amount_paid for Paid collections — populated by backend bulk query */
+  total_paid_amount?: number;
+  /** Authoritative outstanding balance = (total_weeks - weeks_paid) * weekly_installment (Formula 5) */
+  outstanding_amount?: string | number | null;
   created_at: string;
   updated_at: string;
 }

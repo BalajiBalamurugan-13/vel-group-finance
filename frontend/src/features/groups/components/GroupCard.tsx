@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Edit2, Play, CheckCircle2, XCircle, Users, Calendar, MapPin } from 'lucide-react';
+import { Edit2, Play, CheckCircle2, Users, Calendar, MapPin } from 'lucide-react';
 import { GroupStatusBadge } from './GroupStatusBadge';
 import type { Group, GroupStatus } from '../types';
 
@@ -17,119 +17,150 @@ export function GroupCard({
   onRequestStatusChange,
   formatMoney,
 }: GroupCardProps) {
+  const schemeName = group.scheme?.scheme_name || 'N/A';
+
   return (
-    <Card className="flex flex-col p-4">
-      {/* Header: Name + Status Badge */}
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-secondary-900">
+    <Card className="flex flex-col p-0 overflow-hidden">
+      {/* Card Header: Name + Code + Status */}
+      <div className="px-3.5 pt-3 pb-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-semibold text-secondary-900 leading-snug break-words">
               {group.group_name}
             </h3>
-            {group.group_code && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-primary-50 text-primary-700 border border-primary-200/60">
-                {group.group_code}
-              </span>
-            )}
-          </div>
-          <div className="mt-1 flex items-center gap-3 text-xs text-secondary-500">
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5 text-secondary-400" />
-              {group.location}
-            </span>
-            {group.start_date && (
-              <span className="inline-flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5 text-secondary-400" />
-                {group.start_date}
-              </span>
-            )}
+            <div className="mt-1 flex items-center gap-2 flex-wrap">
+              {group.group_code && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-secondary-100 text-secondary-600 flex-shrink-0">
+                  {group.group_code}
+                </span>
+              )}
+              <GroupStatusBadge status={group.status} />
+            </div>
           </div>
         </div>
-        <GroupStatusBadge status={group.status} />
+
+        {/* Meta: Location + Date */}
+        <div className="mt-2 flex items-center gap-3 text-xs text-secondary-500 flex-wrap">
+          <span className="inline-flex items-center gap-1 min-w-0">
+            <MapPin className="h-3 w-3 text-secondary-400 flex-shrink-0" />
+            <span className="truncate">{group.location}</span>
+          </span>
+          {group.start_date && (
+            <span className="inline-flex items-center gap-1 flex-shrink-0">
+              <Calendar className="h-3 w-3 text-secondary-400" />
+              {group.start_date}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Scheme & Stats Block */}
-      <div className="mb-4 space-y-2 rounded-lg bg-secondary-50 p-3">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-secondary-500">Scheme</span>
-          <span className="font-medium text-secondary-900">
-            {group.scheme?.scheme_name || 'N/A'}
-          </span>
-        </div>
+      {/* Stats Block */}
+      <div className="mx-3.5 mb-2.5 rounded-lg bg-secondary-50 p-2.5">
+        <div className="grid grid-cols-3 gap-1.5 text-center">
+          {/* Scheme */}
+          <div className="col-span-3 pb-1.5 border-b border-secondary-200/70">
+            <div className="text-[10px] font-medium uppercase tracking-wider text-secondary-400">
+              Scheme
+            </div>
+            <div className="text-xs font-semibold text-secondary-900 truncate mt-0.5">
+              {schemeName}
+            </div>
+          </div>
 
-        <div className="flex items-center justify-between text-xs">
-          <span className="inline-flex items-center gap-1 text-secondary-500">
-            <Users className="h-3.5 w-3.5" />
-            Members
-          </span>
-          <span className="font-medium text-secondary-900">
-            {group.member_count}
-          </span>
-        </div>
+          {/* Members */}
+          <div className="pt-1.5">
+            <div className="text-[10px] font-medium uppercase tracking-wider text-secondary-400">
+              <Users className="h-3 w-3 inline-block mr-0.5 -mt-0.5" />
+              Members
+            </div>
+            <div className="text-sm font-bold text-secondary-900 mt-0.5">
+              {group.member_count}
+            </div>
+          </div>
 
-        <div className="flex items-center justify-between border-t border-secondary-200 pt-2 text-xs">
-          <span className="text-secondary-500">Total Group Amount</span>
-          <span className="font-semibold text-secondary-900">
-            {formatMoney(group.total_group_amount)}
-          </span>
+          {/* Total Amount */}
+          <div className="pt-1.5 col-span-2">
+            <div className="text-[10px] font-medium uppercase tracking-wider text-secondary-400">
+              Total Amount
+            </div>
+            <div className="text-sm font-bold text-secondary-900 tabular-nums mt-0.5">
+              {formatMoney(group.total_group_amount)}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Remarks if any */}
       {group.remarks && (
-        <p className="mb-3 text-xs text-secondary-500 line-clamp-1 italic">
-          {group.remarks}
-        </p>
+        <div className="px-3.5 pb-2">
+          <p className="text-[11px] text-secondary-500 line-clamp-1 italic">
+            {group.remarks}
+          </p>
+        </div>
       )}
 
-      {/* Action Buttons (Touch targets >= 44px) */}
-      <div className="mt-auto flex flex-wrap items-center gap-2 pt-2 border-t border-border">
-        {group.status !== 'Closed' && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 min-h-[44px]"
-            leftIcon={<Edit2 className="h-4 w-4" />}
-            onClick={() => onEdit(group)}
-          >
-            Edit
-          </Button>
-        )}
-
+      {/* Action Buttons — Clean lifecycle */}
+      <div className="mt-auto px-3.5 py-2.5 border-t border-border/50 bg-secondary-50/30 flex items-center gap-2">
         {group.status === 'Draft' && (
-          <Button
-            variant="primary"
-            size="sm"
-            className="flex-1 min-h-[44px]"
-            leftIcon={<Play className="h-4 w-4" />}
-            onClick={() => onRequestStatusChange(group, 'Active')}
-          >
-            Activate
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon={<Edit2 className="h-3.5 w-3.5" />}
+              onClick={() => onEdit(group)}
+              className="text-secondary-600 hover:text-secondary-900"
+            >
+              Edit
+            </Button>
+            <div className="flex-1" />
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Play className="h-3.5 w-3.5" />}
+              onClick={() => onRequestStatusChange(group, 'Active')}
+            >
+              Activate
+            </Button>
+          </>
         )}
 
         {group.status === 'Active' && (
-          <Button
-            variant="primary"
-            size="sm"
-            className="flex-1 min-h-[44px]"
-            leftIcon={<CheckCircle2 className="h-4 w-4" />}
-            onClick={() => onRequestStatusChange(group, 'Completed')}
-          >
-            Complete
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon={<Edit2 className="h-3.5 w-3.5" />}
+              onClick={() => onEdit(group)}
+              className="text-secondary-600 hover:text-secondary-900"
+            >
+              Edit
+            </Button>
+            <div className="flex-1" />
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
+              onClick={() => onRequestStatusChange(group, 'Completed')}
+            >
+              Complete
+            </Button>
+          </>
         )}
 
-        {group.status !== 'Closed' && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="min-h-[44px] text-error-600 hover:bg-error-50"
-            leftIcon={<XCircle className="h-4 w-4" />}
-            onClick={() => onRequestStatusChange(group, 'Closed')}
-          >
-            Close
-          </Button>
+        {group.status === 'Completed' && (
+          <div className="w-full text-center">
+            <span className="text-xs text-secondary-400 font-medium">
+              Loan cycle completed
+            </span>
+          </div>
+        )}
+
+        {group.status === 'Closed' && (
+          <div className="w-full text-center">
+            <span className="text-xs text-secondary-400 font-medium">
+              Group closed
+            </span>
+          </div>
         )}
       </div>
     </Card>

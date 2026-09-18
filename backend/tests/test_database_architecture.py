@@ -1,4 +1,4 @@
-﻿"""
+"""
 VEL Finance — Database Architecture & Codes Test Suite
 ======================================================
 Tests verifying:
@@ -223,3 +223,34 @@ def test_admin_cleanup_reference_file_exists():
     assert "members" in content
     assert "groups" in content
     assert "schemes" in content
+
+
+def test_reset_dev_data_only_file_integrity():
+    """reset_dev_data_only.sql must exist and restart identity sequences for all 7 entities."""
+    reset_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "supabase", "reset_dev_data_only.sql")
+    )
+    assert os.path.exists(reset_path), f"Reset script not found at {reset_path}"
+
+    with open(reset_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # All 7 business tables must be cleared in FK order
+    for table in ["collections", "loan_transactions", "loan_cycles", "members", "groups", "schemes", "collectors"]:
+        assert f"DELETE FROM {table}" in content
+
+    # All 7 identity sequence columns must be restarted with 1
+    sequences = [
+        ("collections", "receipt_seq"),
+        ("loan_transactions", "transaction_seq"),
+        ("loan_cycles", "cycle_seq"),
+        ("members", "member_seq"),
+        ("groups", "group_seq"),
+        ("schemes", "scheme_seq"),
+        ("collectors", "collector_seq"),
+    ]
+    for table, seq in sequences:
+        assert f"ALTER TABLE {table}" in content
+        assert f"ALTER COLUMN {seq}" in content
+        assert "RESTART WITH 1" in content
+

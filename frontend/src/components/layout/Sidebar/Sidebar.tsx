@@ -20,6 +20,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import velLogo from '@/assets/Vel finance logo white.png';
 import { cn } from '@/lib/cn';
 import { ROUTES } from '@/constants';
 import { STORAGE_KEYS } from '@/utils';
@@ -59,11 +60,11 @@ export function Sidebar() {
       <div className="h-16 flex items-center px-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3 overflow-hidden">
           {/* Logo mark */}
-          <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-sm" aria-hidden="true">
-              V
-            </span>
-          </div>
+          <img
+            src={velLogo}
+            alt="VEL Finance"
+            className="h-9 w-9 object-contain flex-shrink-0"
+          />
           <AnimatePresence>
             {!isCollapsed && (
               <motion.div

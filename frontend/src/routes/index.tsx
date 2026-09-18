@@ -50,7 +50,7 @@ const NotFoundPage = lazy(() =>
 // eslint-disable-next-line react-refresh/only-export-components
 function LazyPage({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<LoadingState />}>
+    <Suspense fallback={<LoadingState fullPage />}>
       {children}
     </Suspense>
   );

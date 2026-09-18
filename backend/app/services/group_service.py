@@ -95,7 +95,7 @@ class GroupService:
         if search:
             query = query.ilike("group_name", f"%{search.strip()}%")
 
-        query = query.order("created_at", desc=True)
+        query = query.order("created_at", desc=False)
         response = query.execute()
 
         groups = response.data or []

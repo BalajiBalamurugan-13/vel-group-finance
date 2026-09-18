@@ -67,13 +67,13 @@ export function UpdateGroupFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-secondary-900/50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="w-full max-w-md my-8 rounded-xl bg-surface p-6 shadow-xl">
-        <h2 className="mb-4 text-xl font-semibold text-secondary-900">
+      <div className="w-full max-w-md my-8 rounded-xl bg-surface p-5 sm:p-6 shadow-xl">
+        <h2 className="mb-4 text-lg font-bold text-secondary-900">
           Edit Group
         </h2>
 
         {apiError && (
-          <div className="mb-4 rounded-lg bg-error-50 p-3 text-sm text-error-600">
+          <div className="mb-4 rounded-lg bg-error-50 p-3 text-sm text-error-600 border border-error-200">
             {apiError}
           </div>
         )}
@@ -81,7 +81,7 @@ export function UpdateGroupFormModal({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input
             id="edit_group_name"
-            label="Group Name"
+            label="Group Name *"
             {...register('group_name', {
               required: 'Group name is required',
               maxLength: 255,
@@ -91,7 +91,7 @@ export function UpdateGroupFormModal({
 
           <Input
             id="edit_location"
-            label="Location"
+            label="Location *"
             {...register('location', {
               required: 'Location is required',
               maxLength: 100,
@@ -99,42 +99,46 @@ export function UpdateGroupFormModal({
             errorMessage={errors.location?.message}
           />
 
-          {/* Scheme (Immutable notice) */}
-          <div className="rounded-lg bg-secondary-50 p-3 text-xs text-secondary-600 border border-border">
-            <span className="font-semibold text-secondary-800 block mb-0.5">
-              Assigned Scheme: {group.scheme?.scheme_name || 'N/A'}
+          {/* Scheme (Immutable) */}
+          <div className="rounded-lg bg-secondary-50 p-3 text-xs text-secondary-500 border border-border">
+            <span className="font-semibold text-secondary-800 block">
+              Scheme: {group.scheme?.scheme_name || 'N/A'}
             </span>
-            <span>
-              Per business rules, financial schemes cannot be changed after a group is created.
+            <span className="text-[11px]">
+              Cannot be changed after group creation.
             </span>
           </div>
 
           <Input
             id="edit_start_date"
             type="date"
-            label="Start Date (Optional)"
-            {...register('start_date')}
+            label="Start Date *"
+            required
+            {...register('start_date', {
+              required: 'Start date is required',
+            })}
             errorMessage={errors.start_date?.message}
           />
 
           <Input
             id="edit_remarks"
             label="Remarks (Optional)"
-            placeholder="Add any operational notes..."
+            placeholder="Operational notes..."
             {...register('remarks')}
             errorMessage={errors.remarks?.message}
           />
 
-          <div className="mt-6 flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-3 border-t border-border">
             <Button
               variant="ghost"
+              size="sm"
               type="button"
               onClick={handleClose}
               disabled={isPending}
             >
               Cancel
             </Button>
-            <Button type="submit" isLoading={isPending}>
+            <Button type="submit" size="sm" isLoading={isPending}>
               Save Changes
             </Button>
           </div>

@@ -11,12 +11,15 @@ interface UpdateMemberFormModalProps {
   member: Member | null;
   isOpen: boolean;
   onClose: () => void;
+  /** Called after successful update */
+  onSuccess?: () => void;
 }
 
 export function UpdateMemberFormModal({
   member,
   isOpen,
   onClose,
+  onSuccess,
 }: UpdateMemberFormModalProps) {
   const { mutateAsync: updateMember, isPending: isUpdating } = useUpdateMember();
   const [apiError, setApiError] = useState<string | null>(null);
@@ -73,6 +76,7 @@ export function UpdateMemberFormModal({
           remarks: data.remarks?.trim() || undefined,
         },
       });
+      onSuccess?.();
       handleClose();
     } catch (err: unknown) {
       const apiErr = err as ApiError;

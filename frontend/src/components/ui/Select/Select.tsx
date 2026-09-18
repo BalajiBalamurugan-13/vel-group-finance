@@ -1,28 +1,39 @@
 /**
- * VEL Finance — Input Component
+ * VEL Finance — Select Component
  * ─────────────────────────────────────────────────────────────────────────────
- * Form input with label, helper text, and error message support.
- * Per 09_DESIGN_SYSTEM.md: every input must support label, placeholder,
- * helper text, and error message.
+ * Form select dropdown with label, helper text, error message, left icon,
+ * and built-in right Chevron arrow support.
+ *
+ * Ensures proper spacing between icons and text, vertical alignment,
+ * dropdown arrow positioning on the far right, and clean truncation for
+ * long text/Tamil values.
  */
-import { forwardRef, type InputHTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, type SelectHTMLAttributes, type ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface SelectOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
+export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   helperText?: string;
   errorMessage?: string;
   leftElement?: ReactNode;
-  rightElement?: ReactNode;
-  /** Unique ID — required when label is provided for proper association */
-  id: string;
+  id?: string;
+  children?: ReactNode;
+  options?: SelectOption[];
+  placeholder?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   (
     {
       id,
@@ -30,16 +41,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       helperText,
       errorMessage,
       leftElement,
-      rightElement,
       className,
       disabled,
+      children,
+      options,
+      placeholder,
       ...props
     },
     ref,
   ) => {
     const hasError = Boolean(errorMessage);
-    const descriptionId = helperText ? `${id}-description` : undefined;
-    const errorId = hasError ? `${id}-error` : undefined;
+    const descriptionId = helperText && id ? `${id}-description` : undefined;
+    const errorId = hasError && id ? `${id}-error` : undefined;
 
     return (
       <div className="flex flex-col gap-1.5">
@@ -58,17 +71,17 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           </label>
         )}
 
-        {/* Input Wrapper */}
+        {/* Select Wrapper */}
         <div className="relative flex items-center">
-          {/* Left Element */}
+          {/* Left Element (e.g. MapPin, Users icon) */}
           {leftElement && (
-            <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center justify-center text-secondary-400">
+            <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center justify-center text-secondary-400 z-10">
               {leftElement}
             </div>
           )}
 
-          {/* Input */}
-          <input
+          {/* Native Select */}
+          <select
             ref={ref}
             id={id}
             disabled={disabled}
@@ -77,15 +90,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               [descriptionId, errorId].filter(Boolean).join(' ') || undefined
             }
             className={cn(
-              // Base
+              // Base: full width, 44px min-height, border, background, typography
               'w-full h-11 min-h-[44px] rounded-lg border bg-surface text-sm text-secondary-900',
-              'placeholder:text-secondary-400',
-              'transition-colors duration-fast',
-              // Focus
+              'transition-colors duration-fast appearance-none cursor-pointer',
+              'truncate',
+              // Focus state
               'focus:outline-none focus:ring-2 focus:ring-offset-0',
-              // Padding
+              // Spacing: proper clearance for leftElement and right Chevron arrow
               leftElement ? 'pl-10' : 'pl-3.5',
-              rightElement ? 'pr-10' : 'pr-3.5',
+              'pr-9',
               // State: normal
               !hasError && [
                 'border-border',
@@ -102,14 +115,25 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               className,
             )}
             {...props}
-          />
+          >
+            {placeholder && <option value="">{placeholder}</option>}
+            {options
+              ? options.map((opt) => (
+                  <option
+                    key={opt.value}
+                    value={opt.value}
+                    disabled={opt.disabled}
+                  >
+                    {opt.label}
+                  </option>
+                ))
+              : children}
+          </select>
 
-          {/* Right Element */}
-          {rightElement && (
-            <div className="absolute inset-y-0 right-3 flex items-center justify-center text-secondary-400">
-              {rightElement}
-            </div>
-          )}
+          {/* Chevron Dropdown Arrow (Pinned far right, vertically centered) */}
+          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center justify-center text-secondary-400">
+            <ChevronDown className="h-4 w-4 shrink-0" />
+          </div>
         </div>
 
         {/* Helper Text */}
@@ -130,4 +154,4 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   },
 );
 
-Input.displayName = 'Input';
+Select.displayName = 'Select';

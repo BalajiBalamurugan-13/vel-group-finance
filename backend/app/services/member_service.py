@@ -78,6 +78,7 @@ class MemberService:
     ) -> list[dict]:
         """
         Get all members matching optional filters (group_id, status, search).
+        Includes weeks_paid (count of Paid collections) for repayment progress display.
         """
         query = self.db.table("members").select(
             "*, group:groups(*, scheme:schemes(*))"
@@ -90,12 +91,63 @@ class MemberService:
         if search:
             query = query.ilike("member_name", f"%{search.strip()}%")
 
-        query = query.order("created_at", desc=True)
+        query = query.order("created_at", desc=False)
         response = query.execute()
 
         members = response.data or []
+        if not members:
+            return members
+
         for m in members:
             self._enrich_member_calculations(m)
+
+        # ── Bulk-fetch repayment progress (weeks_paid / total_paid) ────────────
+        # A single query fetches paid collections for all returned members so we
+        # never issue one query per member.  This matches the data that
+        # MemberDetailsModal computes via useCollections({ member_id }) on the
+        # frontend (payment_status == 'Paid', count = weeks_paid).
+        member_ids = [str(m["id"]) for m in members]
+        try:
+            coll_res = (
+                self.db.table("collections")
+                .select("member_id, amount_paid")
+                .in_("member_id", member_ids)
+                .eq("payment_status", "Paid")
+                .execute()
+            )
+            paid_rows = coll_res.data or []
+        except Exception:
+            paid_rows = []
+
+        # Aggregate: {member_id: {weeks_paid, total_paid_amount}}
+        progress: dict[str, dict] = {}
+        for row in paid_rows:
+            mid = str(row["member_id"])
+            if mid not in progress:
+                progress[mid] = {"weeks_paid": 0, "total_paid_amount": Decimal("0.00")}
+            progress[mid]["weeks_paid"] += 1
+            progress[mid]["total_paid_amount"] += Decimal(
+                str(row.get("amount_paid") or "0.00")
+            )
+
+        for m in members:
+            mid = str(m["id"])
+            weeks_paid = progress.get(mid, {}).get("weeks_paid", 0)
+            m["weeks_paid"] = weeks_paid
+            m["total_paid_amount"] = float(
+                progress.get(mid, {}).get("total_paid_amount", Decimal("0.00"))
+            )
+            # Authoritative Formula 5: Outstanding = remaining_installments × weekly_installment
+            # (Only Active members contribute to outstanding; Completed/Closed = 0.0)
+            if m.get("status") == "Active":
+                group = m.get("group") or {}
+                scheme = group.get("scheme") or {}
+                total_wks = int(scheme.get("total_weeks") or 0)
+                weekly_inst = Decimal(str(scheme.get("weekly_installment") or "0.00"))
+                remaining = max(0, total_wks - weeks_paid)
+                m["outstanding_amount"] = float(Decimal(remaining) * weekly_inst)
+            else:
+                m["outstanding_amount"] = 0.0
 
         return members
 
@@ -128,6 +180,37 @@ class MemberService:
             txs = cycle.pop("loan_transactions", [])
             cycle["loan_transaction"] = txs[0] if txs else None
             member["current_cycle"] = cycle
+
+        # Fetch paid collections for single member
+        try:
+            coll_res = (
+                self.db.table("collections")
+                .select("amount_paid")
+                .eq("member_id", str(member_id))
+                .eq("payment_status", "Paid")
+                .execute()
+            )
+            paid_rows = coll_res.data or []
+            weeks_paid = len(paid_rows)
+            total_paid = sum(
+                Decimal(str(r.get("amount_paid") or "0.00")) for r in paid_rows
+            )
+        except Exception:
+            weeks_paid = 0
+            total_paid = Decimal("0.00")
+
+        member["weeks_paid"] = weeks_paid
+        member["total_paid_amount"] = float(total_paid)
+
+        if member.get("status") == "Active":
+            group = member.get("group") or {}
+            scheme = group.get("scheme") or {}
+            total_wks = int(scheme.get("total_weeks") or 0)
+            weekly_inst = Decimal(str(scheme.get("weekly_installment") or "0.00"))
+            remaining = max(0, total_wks - weeks_paid)
+            member["outstanding_amount"] = float(Decimal(remaining) * weekly_inst)
+        else:
+            member["outstanding_amount"] = 0.0
 
         self._enrich_member_calculations(member)
         return member
@@ -395,7 +478,17 @@ class MemberService:
         Calculates dynamic fields for member responses:
         - loan_amount, note_cost, cash_given, weekly_installment
         - immediate_collection for late joiners (INFORMATIONAL - amount due, not paid)
+        - weeks_paid / total_paid_amount: defaults to 0 here; get_members() populates
+          via a single bulk collection query after all members are fetched.
         """
+        # Repayment progress — defaults; overridden by get_members() bulk query
+        if "weeks_paid" not in member:
+            member["weeks_paid"] = 0
+        if "total_paid_amount" not in member:
+            member["total_paid_amount"] = 0.0
+        if "outstanding_amount" not in member:
+            member["outstanding_amount"] = 0.0
+
         group = member.get("group")
         if group:
             member["group_name"] = group.get("group_name")

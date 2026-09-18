@@ -1,36 +1,32 @@
 /**
  * VEL Finance — Mobile Header Component
  * ─────────────────────────────────────────────────────────────────────────────
- * Sticky header for mobile layout.
- * Optimized for one-handed usage (per 08_UI_UX_GUIDELINES.md).
+ * Enterprise mobile header with VEL Finance branded identity.
+ * Uses the actual VEL Finance logo asset for professional presentation.
  */
-import { Search } from 'lucide-react';
-import { APP } from '@/constants';
+import velLogo from '@/assets/Vel finance logo white.png';
 
 export function MobileHeader() {
   return (
     <header
-      className="sticky top-0 z-sticky flex-shrink-0 h-14 flex items-center justify-between px-4 bg-surface border-b border-border"
+      className="sticky top-0 z-sticky flex-shrink-0 h-14 flex items-center px-4 bg-surface border-b border-border"
       role="banner"
     >
-      {/* Brand */}
-      <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-md bg-primary-600 flex items-center justify-center">
-          <span className="text-white font-bold text-xs" aria-hidden="true">
-            V
+      <div className="flex items-center gap-2.5">
+        <img
+          src={velLogo}
+          alt="VEL Finance"
+          className="h-8 w-8 object-contain"
+        />
+        <div className="leading-tight">
+          <span className="font-bold text-secondary-900 text-sm tracking-tight block">
+            VEL Finance
+          </span>
+          <span className="text-[10px] text-secondary-400 font-medium">
+            Group Finance
           </span>
         </div>
-        <span className="font-semibold text-secondary-900 text-sm">{APP.NAME}</span>
       </div>
-
-      {/* Search icon — placeholder for future search */}
-      <button
-        className="p-2 rounded-lg text-secondary-500 hover:bg-secondary-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-        aria-label="Search"
-        title="Search"
-      >
-        <Search className="w-5 h-5" aria-hidden="true" />
-      </button>
     </header>
   );
 }

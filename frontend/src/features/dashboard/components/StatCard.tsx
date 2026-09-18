@@ -66,20 +66,20 @@ export function StatCard({
       id={id}
       className={cn(
         'bg-surface border border-border rounded-xl shadow-sm',
-        'border-l-4 p-5',
+        'border-l-4 p-3.5 sm:p-4',
         'transition-shadow duration-200 hover:shadow-md',
         styles.accent,
         className,
       )}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-secondary-500 uppercase tracking-wide truncate">
+          <p className="text-[11px] font-medium text-secondary-500 uppercase tracking-wide truncate">
             {label}
           </p>
           <p
             className={cn(
-              'mt-1.5 text-2xl font-bold text-secondary-900 truncate',
+              'mt-1 text-xl sm:text-2xl font-bold text-secondary-900 truncate',
               isCurrency && 'font-mono',
             )}
             aria-label={`${label}: ${displayValue}`}
@@ -87,14 +87,14 @@ export function StatCard({
             {displayValue}
           </p>
           {sublabel && (
-            <p className="mt-1 text-xs text-secondary-400 truncate">{sublabel}</p>
+            <p className="mt-0.5 text-[11px] text-secondary-400 truncate">{sublabel}</p>
           )}
         </div>
 
         <div
           className={cn(
             'flex-shrink-0 flex items-center justify-center',
-            'h-11 w-11 rounded-xl',
+            'h-9 w-9 sm:h-11 sm:w-11 rounded-lg sm:rounded-xl',
             styles.iconBg,
             styles.iconText,
           )}

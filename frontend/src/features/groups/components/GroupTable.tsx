@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Edit2, Play, CheckCircle2, XCircle } from 'lucide-react';
+import { Edit2, Play, CheckCircle2 } from 'lucide-react';
 import { GroupStatusBadge } from './GroupStatusBadge';
 import type { Group, GroupStatus } from '../types';
 
@@ -21,30 +21,30 @@ export function GroupTable({
     <Card noPadding className="overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="bg-secondary-50 text-xs font-semibold uppercase text-secondary-500 border-b border-border">
+          <thead className="bg-secondary-50 text-[11px] font-semibold uppercase tracking-wider text-secondary-500 border-b border-border">
             <tr>
-              <th scope="col" className="px-6 py-3.5">
-                Group Name
+              <th scope="col" className="px-5 py-3">
+                Group
               </th>
-              <th scope="col" className="px-6 py-3.5">
+              <th scope="col" className="px-5 py-3">
                 Location
               </th>
-              <th scope="col" className="px-6 py-3.5">
+              <th scope="col" className="px-5 py-3">
                 Scheme
               </th>
-              <th scope="col" className="px-6 py-3.5 text-center">
+              <th scope="col" className="px-5 py-3 text-center">
                 Members
               </th>
-              <th scope="col" className="px-6 py-3.5 text-right">
+              <th scope="col" className="px-5 py-3 text-right">
                 Total Amount
               </th>
-              <th scope="col" className="px-6 py-3.5">
+              <th scope="col" className="px-5 py-3">
                 Start Date
               </th>
-              <th scope="col" className="px-6 py-3.5">
+              <th scope="col" className="px-5 py-3">
                 Status
               </th>
-              <th scope="col" className="px-6 py-3.5 text-right">
+              <th scope="col" className="px-5 py-3 text-right">
                 Actions
               </th>
             </tr>
@@ -55,31 +55,33 @@ export function GroupTable({
                 key={group.id}
                 className="hover:bg-secondary-50/50 transition-colors"
               >
-                <td className="px-6 py-4 font-semibold text-secondary-900">
-                  <div className="flex items-center gap-2">
-                    <span>{group.group_name}</span>
+                <td className="px-5 py-3.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-semibold text-secondary-900 truncate max-w-[200px]">
+                      {group.group_name}
+                    </span>
                     {group.group_code && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-primary-50 text-primary-700 border border-primary-200/60">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-secondary-100 text-secondary-600 flex-shrink-0">
                         {group.group_code}
                       </span>
                     )}
                   </div>
                   {group.remarks && (
-                    <span className="block text-xs font-normal text-secondary-500 line-clamp-1">
+                    <span className="block text-[11px] font-normal text-secondary-400 line-clamp-1 mt-0.5">
                       {group.remarks}
                     </span>
                   )}
                 </td>
-                <td className="px-6 py-4 text-secondary-700 font-medium">
+                <td className="px-5 py-3.5 text-secondary-700 font-medium">
                   {group.location}
                 </td>
-                <td className="px-6 py-4 text-secondary-600">
+                <td className="px-5 py-3.5 text-secondary-600">
                   {group.scheme ? (
                     <div>
                       <span className="font-medium text-secondary-900">
                         {group.scheme.scheme_name}
                       </span>
-                      <span className="block text-xs text-secondary-500">
+                      <span className="block text-[11px] text-secondary-400">
                         {formatMoney(group.scheme.loan_amount)} · {group.scheme.total_weeks} wks
                       </span>
                     </div>
@@ -87,65 +89,74 @@ export function GroupTable({
                     'N/A'
                   )}
                 </td>
-                <td className="px-6 py-4 text-center font-medium text-secondary-900">
+                <td className="px-5 py-3.5 text-center font-semibold text-secondary-900">
                   {group.member_count}
                 </td>
-                <td className="px-6 py-4 text-right font-semibold text-secondary-900">
+                <td className="px-5 py-3.5 text-right font-semibold text-secondary-900 tabular-nums">
                   {formatMoney(group.total_group_amount)}
                 </td>
-                <td className="px-6 py-4 text-secondary-600">
+                <td className="px-5 py-3.5 text-secondary-600 tabular-nums">
                   {group.start_date || '—'}
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-5 py-3.5">
                   <GroupStatusBadge status={group.status} />
                 </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex items-center justify-end gap-1.5">
-                    {group.status !== 'Closed' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        leftIcon={<Edit2 className="h-3.5 w-3.5" />}
-                        onClick={() => onEdit(group)}
-                        title="Edit metadata"
-                      >
-                        Edit
-                      </Button>
-                    )}
-
+                <td className="px-5 py-3.5 text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    {/* Draft: Edit + Activate */}
                     {group.status === 'Draft' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        leftIcon={<Play className="h-3.5 w-3.5 text-primary-600" />}
-                        onClick={() => onRequestStatusChange(group, 'Active')}
-                      >
-                        Activate
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          leftIcon={<Edit2 className="h-3.5 w-3.5" />}
+                          onClick={() => onEdit(group)}
+                          title="Edit metadata"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          leftIcon={<Play className="h-3.5 w-3.5 text-primary-600" />}
+                          onClick={() => onRequestStatusChange(group, 'Active')}
+                        >
+                          Activate
+                        </Button>
+                      </>
                     )}
 
+                    {/* Active: Edit + Complete */}
                     {group.status === 'Active' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        leftIcon={<CheckCircle2 className="h-3.5 w-3.5 text-info-600" />}
-                        onClick={() => onRequestStatusChange(group, 'Completed')}
-                      >
-                        Complete
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          leftIcon={<Edit2 className="h-3.5 w-3.5" />}
+                          onClick={() => onEdit(group)}
+                          title="Edit metadata"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          leftIcon={<CheckCircle2 className="h-3.5 w-3.5 text-primary-600" />}
+                          onClick={() => onRequestStatusChange(group, 'Completed')}
+                        >
+                          Complete
+                        </Button>
+                      </>
                     )}
 
-                    {group.status !== 'Closed' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-error-600 hover:bg-error-50 hover:text-error-700"
-                        leftIcon={<XCircle className="h-3.5 w-3.5" />}
-                        onClick={() => onRequestStatusChange(group, 'Closed')}
-                        title="Close group"
-                      >
-                        Close
-                      </Button>
+                    {/* Completed: Read-only */}
+                    {group.status === 'Completed' && (
+                      <span className="text-xs text-secondary-400">Completed</span>
+                    )}
+
+                    {/* Closed: Read-only */}
+                    {group.status === 'Closed' && (
+                      <span className="text-xs text-secondary-400">Closed</span>
                     )}
                   </div>
                 </td>

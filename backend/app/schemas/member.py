@@ -143,6 +143,9 @@ class MemberResponse(MemberBase):
     cash_given: Optional[Decimal] = None
     weekly_installment: Optional[Decimal] = None
     immediate_collection: Optional[Decimal] = None
+    weeks_paid: Optional[int] = 0
+    total_paid_amount: Optional[Decimal] = None
+    outstanding_amount: Optional[Decimal] = None
     current_cycle: Optional[LoanCycleResponse] = None
     created_at: datetime
     updated_at: datetime

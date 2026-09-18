@@ -16,7 +16,6 @@
  *    How much cash is available?"
  */
 import { PageContainer } from '@/components/common/PageContainer';
-import { PageHeader } from '@/components/common/PageHeader';
 import { useDocumentTitle } from '@/hooks';
 import {
   useDashboard,
@@ -49,7 +48,9 @@ export function DashboardPage() {
       'Unable to load dashboard. Please try again.';
     return (
       <PageContainer>
-        <PageHeader title="Dashboard" subtitle="Business overview and key metrics" />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold text-secondary-900">Dashboard</h1>
+        </div>
         <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
           <AlertCircle className="h-12 w-12 text-error-500" aria-hidden="true" />
           <div>
@@ -71,7 +72,9 @@ export function DashboardPage() {
   if (isLoading) {
     return (
       <PageContainer>
-        <PageHeader title="Dashboard" subtitle="Business overview and key metrics" />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold text-secondary-900">Dashboard</h1>
+        </div>
         <DashboardSkeleton />
       </PageContainer>
     );
@@ -83,30 +86,27 @@ export function DashboardPage() {
   return (
     <PageContainer>
       {/* Header */}
-      <PageHeader
-        title="Dashboard"
-        subtitle="Business overview and key metrics"
-        action={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            aria-label="Refresh dashboard"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${isFetching ? 'animate-spin text-primary-500' : 'text-secondary-500'}`}
-              aria-hidden="true"
-            />
-            <span className="ml-1.5 hidden sm:inline text-secondary-600 text-sm">Refresh</span>
-          </Button>
-        }
-      />
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-secondary-900">Dashboard</h1>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          aria-label="Refresh dashboard"
+        >
+          <RefreshCw
+            className={`h-4 w-4 ${isFetching ? 'animate-spin text-primary-500' : 'text-secondary-500'}`}
+            aria-hidden="true"
+          />
+          <span className="ml-1.5 hidden sm:inline text-secondary-600 text-sm">Refresh</span>
+        </Button>
+      </div>
 
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* ── Primary KPI Cards ──────────────────────────────────────────────── */}
         <section aria-label="Financial summary">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             <StatCard
               id="stat-available-cash"
               label="Available Cash"
@@ -135,7 +135,7 @@ export function DashboardPage() {
               isCurrency
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
             <StatCard
               id="stat-total-loan-amount"
               label="Total Loan Amount"
@@ -159,7 +159,7 @@ export function DashboardPage() {
 
         {/* ── Secondary Count Cards ──────────────────────────────────────────── */}
         <section aria-label="Group and member counts">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard
               id="stat-active-groups"
               label="Active Groups"
@@ -195,10 +195,10 @@ export function DashboardPage() {
 
         {/* ── Location + Recent Collections ──────────────────────────────────── */}
         <section aria-label="Location summary and recent activity">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Active groups by location */}
             <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+              <div className="px-4 py-3 border-b border-border flex items-center gap-2">
                 <LayoutDashboard className="h-4 w-4 text-primary-500" aria-hidden="true" />
                 <h2 className="text-sm font-semibold text-secondary-900">
                   Active Groups by Location
@@ -209,7 +209,7 @@ export function DashboardPage() {
 
             {/* Recent paid collections */}
             <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+              <div className="px-4 py-3 border-b border-border flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-success-600" aria-hidden="true" />
                 <h2 className="text-sm font-semibold text-secondary-900">
                   Recent Collections

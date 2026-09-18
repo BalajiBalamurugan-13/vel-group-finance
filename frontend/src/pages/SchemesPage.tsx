@@ -20,25 +20,18 @@ export function SchemesPage() {
 
   return (
     <PageContainer>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-semibold text-secondary-900 break-words">
-            Scheme Management
-          </h1>
-          <p className="mt-1 text-sm text-secondary-500">
-            Manage financial schemes used for creating groups.
-          </p>
-        </div>
-        <div className="flex-shrink-0">
-          <Button
-            variant="primary"
-            className="w-full sm:w-auto"
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={() => setIsCreateOpen(true)}
-          >
-            New Scheme
-          </Button>
-        </div>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-secondary-900">
+          Scheme Management
+        </h1>
+        <Button
+          variant="primary"
+          size="sm"
+          leftIcon={<Plus className="h-4 w-4" />}
+          onClick={() => setIsCreateOpen(true)}
+        >
+          New Scheme
+        </Button>
       </div>
 
       {isLoading ? (

@@ -1,6 +1,5 @@
-import { Search, X } from 'lucide-react';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
+import { Search, Users, X } from 'lucide-react';
+import { Input, Select, Button } from '@/components/ui';
 import type { Group } from '@/features/groups/types';
 import type { CollectionFiltersState } from '../types';
 
@@ -47,42 +46,44 @@ export function CollectionFilters({
   );
 
   return (
-    <div className="flex flex-col md:flex-row gap-3 mb-6">
+    <div className="flex flex-col gap-2 mb-4">
       {/* Search Input */}
-      <div className="relative flex-1">
+      <div className="min-w-0">
         <Input
           id="collection-search-input"
           type="text"
-          placeholder="Search collections by member or group..."
+          placeholder="Search by member or group..."
           value={filters.search || ''}
           onChange={handleSearchChange}
-          leftElement={<Search className="w-4 h-4 text-secondary-400" />}
-          className="w-full"
+          leftElement={<Search className="h-4 w-4" />}
         />
       </div>
 
-      <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3">
+      <div className="flex flex-col sm:flex-row gap-2">
         {/* Group Dropdown */}
-        <select
-          value={filters.group_id || 'All'}
-          onChange={handleGroupChange}
-          className="h-10 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[140px]"
-          aria-label="Filter by Group"
-        >
-          <option value="All">All Groups</option>
-          {activeGroups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.group_name} ({g.location})
-            </option>
-          ))}
-        </select>
+        <div className="w-full sm:w-56 min-w-0">
+          <Select
+            id="collection-group-filter"
+            value={filters.group_id || 'All'}
+            onChange={handleGroupChange}
+            leftElement={<Users className="h-4 w-4" />}
+            aria-label="Filter by Group"
+          >
+            <option value="All">All Groups</option>
+            {activeGroups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.group_name} ({g.location})
+              </option>
+            ))}
+          </Select>
+        </div>
 
         {/* Date Filter */}
         <input
           type="date"
           value={filters.payment_date || ''}
           onChange={handleDateChange}
-          className="h-10 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="h-11 min-h-[44px] px-3 py-2 bg-surface border border-border rounded-lg text-sm text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 w-full sm:w-auto"
           aria-label="Filter by Payment Date"
         />
 
@@ -92,7 +93,7 @@ export function CollectionFilters({
             variant="ghost"
             size="sm"
             onClick={handleClear}
-            className="h-10 text-secondary-500 hover:text-secondary-800"
+            className="h-11 text-secondary-500 hover:text-secondary-800"
           >
             <X className="w-4 h-4 mr-1" />
             Clear

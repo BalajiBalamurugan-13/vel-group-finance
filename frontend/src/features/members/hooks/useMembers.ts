@@ -4,7 +4,10 @@ import type { MemberFiltersState } from '../types';
 
 export const MEMBERS_QUERY_KEY = ['members'];
 
-export function useMembers(filters?: MemberFiltersState) {
+export function useMembers(
+  filters?: MemberFiltersState,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: [
       ...MEMBERS_QUERY_KEY,
@@ -18,6 +21,7 @@ export function useMembers(filters?: MemberFiltersState) {
         group_id: filters?.group_id,
         search: filters?.search,
       }),
+    enabled: options?.enabled ?? true,
   });
 }
 

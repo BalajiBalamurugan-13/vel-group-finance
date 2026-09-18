@@ -5,8 +5,9 @@
  * grouped by business location.
  * On mobile the table transforms into stacked cards.
  */
+import { useNavigate } from 'react-router-dom';
 import type { GroupLocationSummary } from '../types';
-import { MapPin, Layers, Users } from 'lucide-react';
+import { MapPin, Layers, Users, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 interface GroupLocationListProps {
@@ -14,6 +15,12 @@ interface GroupLocationListProps {
 }
 
 export function GroupLocationList({ locations }: GroupLocationListProps) {
+  const navigate = useNavigate();
+
+  const handleLocationClick = (locationName: string) => {
+    navigate(`/groups?location=${encodeURIComponent(locationName)}`);
+  };
+
   if (locations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-10 text-center text-secondary-400">
@@ -39,18 +46,31 @@ export function GroupLocationList({ locations }: GroupLocationListProps) {
               <th className="px-4 py-3 text-center text-xs font-semibold text-secondary-500 uppercase tracking-wide">
                 Active Members
               </th>
+              <th className="px-3 py-3 w-10">
+                <span className="sr-only">View Groups</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {locations.map((loc) => (
               <tr
                 key={loc.location}
-                className="hover:bg-secondary-50/40 transition-colors duration-150"
+                onClick={() => handleLocationClick(loc.location)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleLocationClick(loc.location);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                className="group cursor-pointer hover:bg-primary-50/40 focus:bg-primary-50/50 focus:outline-none transition-colors duration-150"
+                aria-label={`View groups in ${loc.location}`}
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <MapPin className="h-3.5 w-3.5 text-primary-500 flex-shrink-0" aria-hidden="true" />
-                    <span className="font-medium text-secondary-800">{loc.location}</span>
+                    <MapPin className="h-3.5 w-3.5 text-primary-500 flex-shrink-0 group-hover:text-primary-600" aria-hidden="true" />
+                    <span className="font-medium text-secondary-800 group-hover:text-primary-700">{loc.location}</span>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-center">
@@ -65,6 +85,9 @@ export function GroupLocationList({ locations }: GroupLocationListProps) {
                     {loc.active_members}
                   </span>
                 </td>
+                <td className="px-3 py-3 text-right">
+                  <ChevronRight className="h-4 w-4 text-secondary-400 group-hover:text-primary-600 transition-colors inline-block" />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -74,17 +97,31 @@ export function GroupLocationList({ locations }: GroupLocationListProps) {
       {/* Mobile card list */}
       <div className="sm:hidden divide-y divide-border">
         {locations.map((loc) => (
-          <div key={loc.location} className="flex items-center gap-3 px-4 py-3">
-            <div className="flex-shrink-0 flex items-center justify-center h-9 w-9 rounded-lg bg-primary-100">
-              <MapPin className="h-4 w-4 text-primary-600" aria-hidden="true" />
+          <div
+            key={loc.location}
+            onClick={() => handleLocationClick(loc.location)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleLocationClick(loc.location);
+              }
+            }}
+            tabIndex={0}
+            role="button"
+            className="group flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-primary-50/40 active:bg-primary-50/60 transition-colors"
+            aria-label={`View groups in ${loc.location}`}
+          >
+            <div className="flex-shrink-0 flex items-center justify-center h-9 w-9 rounded-lg bg-primary-100 text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors">
+              <MapPin className="h-4 w-4" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-secondary-800 truncate">{loc.location}</p>
+              <p className="font-semibold text-secondary-800 group-hover:text-primary-700 truncate">{loc.location}</p>
               <p className="text-xs text-secondary-500 mt-0.5">
                 {loc.active_groups} {loc.active_groups === 1 ? 'group' : 'groups'} ·{' '}
                 {loc.active_members} {loc.active_members === 1 ? 'member' : 'members'}
               </p>
             </div>
+            <ChevronRight className="h-4 w-4 text-secondary-400 group-hover:text-primary-600 flex-shrink-0" />
           </div>
         ))}
       </div>

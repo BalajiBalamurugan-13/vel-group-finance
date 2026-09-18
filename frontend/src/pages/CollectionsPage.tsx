@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { PageHeader } from '@/components/common/PageHeader';
+import { PageContainer } from '@/components/common/PageContainer';
 import { Button } from '@/components/ui/Button';
+import { Toast } from '@/components/ui/Toast';
 import { useDocumentTitle } from '@/hooks';
+import { formatCurrency } from '@/utils/format';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import {
   CollectionList,
@@ -17,8 +19,16 @@ import {
   type CollectionFiltersState,
 } from '@/features/collections';
 
+interface ToastState {
+  message: string;
+  description?: string;
+}
+
 export function CollectionsPage() {
   useDocumentTitle('Collections | VEL Finance');
+
+  // Toast State
+  const [successToast, setSuccessToast] = useState<ToastState | null>(null);
 
   // Filter State
   const [filters, setFilters] = useState<CollectionFiltersState>({});
@@ -47,22 +57,32 @@ export function CollectionsPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
+      {/* ── Success Toast ────────────────────────────────────────────────────── */}
+      {successToast && (
+        <Toast
+          message={successToast.message}
+          description={successToast.description}
+          variant="success"
+          duration={1800}
+          onClose={() => setSuccessToast(null)}
+        />
+      )}
+
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
-      <PageHeader
-        title="Weekly Collections"
-        subtitle="Record customer weekly payments, track installment cash inflows, and review outstanding amounts."
-        action={
-          <Button
-            onClick={() => setIsRecordModalOpen(true)}
-            className="flex items-center gap-2 min-h-[44px] px-4 font-semibold shadow-xs"
-            aria-label="Record Weekly Collection Payment"
-          >
-            <Plus className="h-4 w-4" />
-            Record Payment
-          </Button>
-        }
-      />
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-secondary-900">
+          Weekly Collections
+        </h1>
+        <Button
+          size="sm"
+          onClick={() => setIsRecordModalOpen(true)}
+          leftIcon={<Plus className="h-4 w-4" />}
+          aria-label="Record Weekly Collection Payment"
+        >
+          Record Payment
+        </Button>
+      </div>
 
       {/* ── Summary Cards ────────────────────────────────────────────────────── */}
       <CollectionSummaryCards
@@ -72,11 +92,13 @@ export function CollectionsPage() {
       />
 
       {/* ── Search & Filter Controls ────────────────────────────────────────── */}
-      <CollectionFilters
-        filters={filters}
-        groups={groups}
-        onFilterChange={setFilters}
-      />
+      <div className="mt-4">
+        <CollectionFilters
+          filters={filters}
+          groups={groups}
+          onFilterChange={setFilters}
+        />
+      </div>
 
       {/* ── Collections List (Table / Mobile Cards) ─────────────────────────── */}
       <CollectionList
@@ -90,6 +112,12 @@ export function CollectionsPage() {
       <RecordPaymentModal
         isOpen={isRecordModalOpen}
         onClose={() => setIsRecordModalOpen(false)}
+        onSuccess={({ week, memberName, amount }) => {
+          setSuccessToast({
+            message: 'Payment Recorded',
+            description: `Week ${week} • ${memberName} • ${formatCurrency(amount)}`,
+          });
+        }}
       />
 
       {/* ── Collection Details Modal ─────────────────────────────────────────── */}
@@ -98,7 +126,7 @@ export function CollectionsPage() {
         isOpen={Boolean(selectedCollection)}
         onClose={() => setSelectedCollection(null)}
       />
-    </div>
+    </PageContainer>
   );
 }
 

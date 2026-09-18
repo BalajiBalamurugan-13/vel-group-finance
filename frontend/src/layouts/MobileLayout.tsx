@@ -15,9 +15,9 @@ export function MobileLayout() {
       {/* Sticky top header */}
       <MobileHeader />
 
-      {/* Scrollable content area */}
+      {/* Scrollable content area with VEL Finance watermark */}
       <main
-        className="flex-1 overflow-y-auto"
+        className="flex-1 overflow-y-auto vel-content-area"
         id="main-content"
         tabIndex={-1}
         aria-label="Main content"

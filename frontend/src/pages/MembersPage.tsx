@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { PageContainer } from '@/components/common/PageContainer';
 import { LoadingState } from '@/components/common/LoadingState';
 import { Button } from '@/components/ui/Button';
+import { Toast } from '@/components/ui/Toast';
 import { useDocumentTitle } from '@/hooks';
 import { Plus } from 'lucide-react';
 import { useGroups } from '@/features/groups/hooks/useGroups';
@@ -18,6 +19,11 @@ import {
   type MemberFiltersState,
   type MemberStatus,
 } from '@/features/members';
+
+interface ToastState {
+  message: string;
+  description?: string;
+}
 
 export function MembersPage() {
   useDocumentTitle('Members');
@@ -38,6 +44,7 @@ export function MembersPage() {
     member: null,
     targetStatus: null,
   });
+  const [successToast, setSuccessToast] = useState<ToastState | null>(null);
 
   const { data: members = [], isLoading, error } = useMembers(filters);
   const { data: groups = [] } = useGroups();
@@ -76,30 +83,34 @@ export function MembersPage() {
 
   return (
     <PageContainer>
+      {/* Success Toast */}
+      {successToast && (
+        <Toast
+          message={successToast.message}
+          description={successToast.description}
+          variant="success"
+          duration={1800}
+          onClose={() => setSuccessToast(null)}
+        />
+      )}
+
       {/* Header */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-semibold text-secondary-900 break-words">
-            Members
-          </h1>
-          <p className="mt-1 text-sm text-secondary-500">
-            Manage members, track loan disbursements, and monitor active memberships.
-          </p>
-        </div>
-        <div className="flex-shrink-0">
-          <Button
-            variant="primary"
-            className="w-full sm:w-auto"
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={() => setIsCreateOpen(true)}
-          >
-            New Member
-          </Button>
-        </div>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-secondary-900">
+          Members
+        </h1>
+        <Button
+          variant="primary"
+          size="sm"
+          leftIcon={<Plus className="h-4 w-4" />}
+          onClick={() => setIsCreateOpen(true)}
+        >
+          New Member
+        </Button>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="mb-6">
+      <div className="mb-4">
         <MemberFilters
           filters={filters}
           onFilterChange={setFilters}
@@ -129,12 +140,24 @@ export function MembersPage() {
             ? filters.group_id
             : undefined
         }
+        onSuccess={(memberName) => {
+          setSuccessToast({
+            message: 'Member Added',
+            description: `${memberName} was added successfully.`,
+          });
+        }}
       />
 
       <UpdateMemberFormModal
         member={editingMember}
         isOpen={Boolean(editingMember)}
         onClose={() => setEditingMember(null)}
+        onSuccess={() => {
+          setSuccessToast({
+            message: 'Member Updated',
+            description: 'Member details saved successfully.',
+          });
+        }}
       />
 
       <MemberDetailsModal

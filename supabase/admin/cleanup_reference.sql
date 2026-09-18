@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- VEL Finance — Admin Cleanup Reference
 -- ============================================================
 -- PURPOSE:
@@ -67,17 +67,27 @@
 -- FULL RESET (development only — removes ALL business data)
 -- ============================================================
 -- Use when you want to start fresh without rebuilding the schema.
--- Does NOT delete schemes or collectors (reference data).
--- Run in this exact order:
-
--- TRUNCATE TABLE collections       RESTART IDENTITY CASCADE; -- careful: CASCADE skips FK checks
--- If you prefer explicit order:
+-- Run in this exact FK order and restart identity sequences:
+--
+-- Option 1: Run supabase/reset_dev_data_only.sql
+--
+-- Option 2: Step-by-step SQL:
 -- DELETE FROM collections;
 -- DELETE FROM loan_transactions;
 -- DELETE FROM loan_cycles;
 -- DELETE FROM members;
 -- DELETE FROM groups;
--- (Schemes and collectors are reference data — keep them unless you want to reset everything)
+-- DELETE FROM schemes;
+-- DELETE FROM collectors;
+--
+-- RESTART IDENTITY SEQUENCES (so codes start from 0001 again):
+-- ALTER TABLE collections       ALTER COLUMN receipt_seq     RESTART WITH 1;
+-- ALTER TABLE loan_transactions ALTER COLUMN transaction_seq RESTART WITH 1;
+-- ALTER TABLE loan_cycles       ALTER COLUMN cycle_seq       RESTART WITH 1;
+-- ALTER TABLE members           ALTER COLUMN member_seq      RESTART WITH 1;
+-- ALTER TABLE groups            ALTER COLUMN group_seq       RESTART WITH 1;
+-- ALTER TABLE schemes           ALTER COLUMN scheme_seq      RESTART WITH 1;
+-- ALTER TABLE collectors        ALTER COLUMN collector_seq   RESTART WITH 1;
 
 -- ============================================================
 -- READABLE ADMIN VIEWS (query these in Table Editor for easy lookup)
