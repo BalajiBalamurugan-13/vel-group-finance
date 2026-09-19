@@ -40,7 +40,7 @@ export function EmptyState({ icon, title, description, action, className }: Empt
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center text-center py-16 px-6',
+        'flex flex-col items-center justify-center text-center py-12 px-6',
         className,
       )}
     >

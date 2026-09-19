@@ -36,7 +36,7 @@ export function GroupLocationList({ locations }: GroupLocationListProps) {
       <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-sm" aria-label="Active groups by location">
           <thead>
-            <tr className="border-b border-border bg-secondary-50/60">
+            <tr className="border-b border-border bg-secondary-50">
               <th className="px-4 py-3 text-left text-xs font-semibold text-secondary-500 uppercase tracking-wide">
                 Location
               </th>
@@ -108,10 +108,10 @@ export function GroupLocationList({ locations }: GroupLocationListProps) {
             }}
             tabIndex={0}
             role="button"
-            className="group flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-primary-50/40 active:bg-primary-50/60 transition-colors"
+            className="group flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-primary-50/40 active:bg-primary-50/60 transition-colors"
             aria-label={`View groups in ${loc.location}`}
           >
-            <div className="flex-shrink-0 flex items-center justify-center h-9 w-9 rounded-lg bg-primary-100 text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors">
+            <div className="flex-shrink-0 flex items-center justify-center h-8 w-8 rounded-lg bg-primary-100 text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors">
               <MapPin className="h-4 w-4" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">

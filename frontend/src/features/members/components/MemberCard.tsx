@@ -38,54 +38,61 @@ export function MemberCard({
       : 0;
 
   return (
-    <div className="rounded-xl border border-border bg-surface shadow-xs overflow-hidden flex flex-col justify-between">
+    <div className="relative rounded-xl border border-border bg-surface shadow-sm overflow-hidden flex flex-col justify-between">
       <div>
-        {/* ── Header: Member Name, Code, Phone, Group, Status ──────────────── */}
-        <div className="px-4.5 pt-4 pb-3 border-b border-border/40">
-          <div className="flex items-start justify-between gap-2.5">
+        {/* ── Header: Member Name, Code, Status, Group & Phone ────────────── */}
+        <div className="px-4 pt-3 pb-2">
+          <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-secondary-900 text-sm leading-snug break-words">
-                {member.member_name}
-              </h3>
-              <div className="mt-1 flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-semibold text-secondary-900 text-sm leading-snug break-words">
+                  {member.member_name}
+                </h3>
                 {member.member_code && (
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-secondary-100 text-secondary-600 flex-shrink-0">
                     {member.member_code}
                   </span>
                 )}
-                <span className="font-mono text-[11px] text-secondary-500 tracking-tight">
-                  {member.phone_number}
-                </span>
               </div>
-              {member.group_name && (
-                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-secondary-600 font-medium">
-                  <Users className="h-3.5 w-3.5 text-secondary-400 flex-shrink-0" aria-hidden="true" />
-                  <span className="break-words leading-snug">{member.group_name}</span>
-                </div>
-              )}
+              <div className="mt-1 flex items-center gap-2 text-xs text-secondary-500 flex-wrap">
+                {member.group_name && (
+                  <span className="inline-flex items-center gap-1 font-medium text-secondary-600 truncate max-w-[200px]">
+                    <Users className="h-3 w-3 text-secondary-400 flex-shrink-0" aria-hidden="true" />
+                    <span className="truncate">{member.group_name}</span>
+                  </span>
+                )}
+                {member.group_name && member.phone_number && (
+                  <span className="text-secondary-300">•</span>
+                )}
+                {member.phone_number && (
+                  <span className="font-mono text-[11px] text-secondary-500 tracking-tight">
+                    {member.phone_number}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 pt-0.5">
               <MemberStatusBadge status={member.status} />
             </div>
           </div>
         </div>
 
         {/* ── Financial Stats: Balance & Weekly ───────────────────────────── */}
-        <div className="px-4.5 py-3 bg-secondary-50/40 border-b border-border/40">
+        <div className="px-4 py-2 bg-secondary-50/60 border-y border-border">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-secondary-500">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
                 Balance
               </div>
-              <div className="mt-0.5 text-sm font-bold text-secondary-900 tabular-nums">
+              <div className="mt-0.5 text-xs font-bold text-secondary-900 font-mono tabular-nums">
                 {formatCurrency(balance)}
               </div>
             </div>
-            <div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-secondary-500">
+            <div className="text-right">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
                 Weekly
               </div>
-              <div className="mt-0.5 text-sm font-bold text-secondary-900 tabular-nums">
+              <div className="mt-0.5 text-xs font-bold text-secondary-900 font-mono tabular-nums">
                 {weeklyInstallment > 0 ? formatCurrency(weeklyInstallment) : '—'}
               </div>
             </div>
@@ -93,38 +100,35 @@ export function MemberCard({
         </div>
 
         {/* ── Repayment Progress ─────────────────────────────────────────── */}
-        <div className="px-4.5 py-3">
+        <div className="px-4 py-2">
           {member.status === 'Active' && totalWeeks > 0 ? (
             <div>
-              <div className="flex items-center justify-between text-[11px] font-medium mb-1.5">
-                <span className="text-secondary-500 uppercase tracking-wider text-[10px]">
+              <div className="flex items-center justify-between text-[10px] font-medium mb-1">
+                <span className="text-secondary-400 uppercase tracking-wider font-semibold">
                   Repayment Progress
                 </span>
-                <span className="text-secondary-700 tabular-nums font-medium">
-                  {weeksPaid} / {totalWeeks} weeks
+                <span className="text-secondary-700 tabular-nums font-semibold">
+                  {weeksPaid} / {totalWeeks} wks ({Math.round(progressPct)}%)
                 </span>
               </div>
-              <div className="vel-progress-bar">
+              <div className="vel-progress-bar h-1.5">
                 <div
                   className="vel-progress-bar-fill"
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
-              <div className="mt-1 text-right text-[10px] text-secondary-400">
-                {Math.round(progressPct)}% complete
-              </div>
             </div>
           ) : (
-            <div className="text-xs text-secondary-400 py-1">
+            <div className="text-xs text-secondary-400 py-0.5">
               {member.status === 'Completed' ? 'Loan fully settled' : 'No active loan cycle'}
             </div>
           )}
 
           {/* Late Joining Notice */}
           {immediateCollection > 0 && member.joined_week > 1 && (
-            <div className="mt-2.5 flex items-center justify-between rounded-md bg-warning-50 border border-warning-200/60 px-2.5 py-1.5 text-[11px] font-medium text-warning-800">
+            <div className="mt-1.5 flex items-center justify-between rounded bg-warning-50 border border-warning-200/60 px-2 py-1 text-[11px] font-medium text-warning-800">
               <span>Joined Week {member.joined_week}</span>
-              <span className="tabular-nums">
+              <span className="tabular-nums font-mono">
                 Due: {formatCurrency(immediateCollection)}
               </span>
             </div>
@@ -133,13 +137,13 @@ export function MemberCard({
       </div>
 
       {/* ── Actions ───────────────────────────────────────────────────────── */}
-      <div className="px-4.5 py-2.5 border-t border-border/40 bg-secondary-50/20 flex items-center gap-2 mt-auto">
+      <div className="px-4 py-2 border-t border-border bg-secondary-50/50 flex items-center gap-2 mt-auto">
         <Button
           variant="outline"
           size="sm"
           leftIcon={<Eye className="h-3.5 w-3.5" />}
           onClick={() => onViewDetails(member)}
-          className="flex-1"
+          className="flex-1 text-secondary-700"
         >
           Details
         </Button>
@@ -150,7 +154,7 @@ export function MemberCard({
           aria-label={`Edit ${member.member_name}`}
           className="px-2.5 text-secondary-500 hover:text-secondary-700"
         >
-          <Edit className="h-4 w-4" />
+          <Edit className="h-3.5 w-3.5" />
         </Button>
         {member.status === 'Active' && (
           <Button
@@ -160,7 +164,7 @@ export function MemberCard({
             onClick={() => onRequestStatusChange(member, 'Completed')}
             aria-label={`Mark ${member.member_name} as completed`}
           >
-            <CheckCircle2 className="h-4 w-4" />
+            <CheckCircle2 className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>

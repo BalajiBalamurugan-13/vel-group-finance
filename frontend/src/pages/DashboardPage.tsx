@@ -103,7 +103,7 @@ export function DashboardPage() {
         </Button>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* ── Primary KPI Cards ──────────────────────────────────────────────── */}
         <section aria-label="Financial summary">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">

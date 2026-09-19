@@ -8,6 +8,7 @@
 import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { CheckCircle2, XCircle, X } from 'lucide-react';
+import { TOAST_DURATION_MS } from '@/constants/app';
 
 export type ToastVariant = 'success' | 'error';
 
@@ -44,7 +45,7 @@ export function Toast({
   message,
   description,
   variant = 'success',
-  duration = 1800,
+  duration = TOAST_DURATION_MS,
   onClose,
   icon,
 }: ToastProps) {
@@ -56,7 +57,7 @@ export function Toast({
     setTimeout(() => {
       setIsVisible(false);
       onClose();
-    }, 200);
+    }, 150);
   }, [onClose]);
 
   useEffect(() => {

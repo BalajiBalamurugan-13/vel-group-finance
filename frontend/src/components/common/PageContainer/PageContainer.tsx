@@ -23,7 +23,7 @@ export function PageContainer({ children, className, noPadding = false }: PageCo
     <div
       className={cn(
         'w-full flex-1 min-w-0',
-        !noPadding && 'px-4 py-6 sm:px-6 lg:px-8 xl:px-10',
+        !noPadding && 'px-4 py-4 sm:px-6 lg:px-8 xl:px-10',
         className,
       )}
     >

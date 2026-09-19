@@ -240,6 +240,7 @@
  */
 .vel-content-area {
   position: relative;
+  isolation: isolate;
 }
 
 .vel-content-area::before {
@@ -248,16 +249,16 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 280px;
-  height: 280px;
+  width: 260px;
+  height: 260px;
   background-image: url('/src/assets/Vel finance logo white.png');
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  opacity: 0.04;
+  opacity: 0.02;
   pointer-events: none;
   user-select: none;
-  z-index: 0;
+  z-index: -1;
 }
 
 @media (min-width: 1024px) {

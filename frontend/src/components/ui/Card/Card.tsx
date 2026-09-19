@@ -18,7 +18,7 @@ function CardHeader({ children, className }: CardHeaderProps) {
   return (
     <div
       className={cn(
-        'px-6 py-4 border-b border-border flex items-center justify-between gap-4',
+        'px-4 py-3 border-b border-border flex items-center justify-between gap-3',
         className,
       )}
     >
@@ -33,7 +33,7 @@ interface CardContentProps {
 }
 
 function CardContent({ children, className }: CardContentProps) {
-  return <div className={cn('px-6 py-4', className)}>{children}</div>;
+  return <div className={cn('px-4 py-3', className)}>{children}</div>;
 }
 
 interface CardFooterProps {
@@ -45,7 +45,7 @@ function CardFooter({ children, className }: CardFooterProps) {
   return (
     <div
       className={cn(
-        'px-6 py-4 border-t border-border bg-secondary-50/50 rounded-b-xl',
+        'px-4 py-2.5 border-t border-border bg-secondary-50/50 rounded-b-xl',
         className,
       )}
     >
@@ -66,7 +66,7 @@ export function Card({ children, className, noPadding = false, ...props }: CardP
   return (
     <div
       className={cn(
-        'bg-surface border border-border rounded-xl',
+        'relative bg-surface border border-border rounded-xl',
         'shadow-sm',
         !noPadding && '',
         className,

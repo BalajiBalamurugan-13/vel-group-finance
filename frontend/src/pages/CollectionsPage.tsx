@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { PageContainer } from '@/components/common/PageContainer';
 import { Button } from '@/components/ui/Button';
 import { Toast } from '@/components/ui/Toast';
+import { TOAST_DURATION_MS } from '@/constants/app';
 import { useDocumentTitle } from '@/hooks';
 import { formatCurrency } from '@/utils/format';
 import { useGroups } from '@/features/groups/hooks/useGroups';
@@ -64,7 +65,7 @@ export function CollectionsPage() {
           message={successToast.message}
           description={successToast.description}
           variant="success"
-          duration={1800}
+          duration={TOAST_DURATION_MS}
           onClose={() => setSuccessToast(null)}
         />
       )}

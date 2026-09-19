@@ -23,28 +23,28 @@ export function GroupTable({
         <table className="w-full text-left text-sm">
           <thead className="bg-secondary-50 text-[11px] font-semibold uppercase tracking-wider text-secondary-500 border-b border-border">
             <tr>
-              <th scope="col" className="px-5 py-3">
+              <th scope="col" className="px-4 py-2.5">
                 Group
               </th>
-              <th scope="col" className="px-5 py-3">
+              <th scope="col" className="px-4 py-2.5">
                 Location
               </th>
-              <th scope="col" className="px-5 py-3">
+              <th scope="col" className="px-4 py-2.5">
                 Scheme
               </th>
-              <th scope="col" className="px-5 py-3 text-center">
+              <th scope="col" className="px-4 py-2.5 text-center">
                 Members
               </th>
-              <th scope="col" className="px-5 py-3 text-right">
+              <th scope="col" className="px-4 py-2.5 text-right">
                 Total Amount
               </th>
-              <th scope="col" className="px-5 py-3">
+              <th scope="col" className="px-4 py-2.5">
                 Start Date
               </th>
-              <th scope="col" className="px-5 py-3">
+              <th scope="col" className="px-4 py-2.5">
                 Status
               </th>
-              <th scope="col" className="px-5 py-3 text-right">
+              <th scope="col" className="px-4 py-2.5 text-right">
                 Actions
               </th>
             </tr>
@@ -55,7 +55,7 @@ export function GroupTable({
                 key={group.id}
                 className="hover:bg-secondary-50/50 transition-colors"
               >
-                <td className="px-5 py-3.5">
+                <td className="px-4 py-3">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-semibold text-secondary-900 truncate max-w-[200px]">
                       {group.group_name}
@@ -72,10 +72,10 @@ export function GroupTable({
                     </span>
                   )}
                 </td>
-                <td className="px-5 py-3.5 text-secondary-700 font-medium">
+                <td className="px-4 py-3 text-secondary-700 font-medium">
                   {group.location}
                 </td>
-                <td className="px-5 py-3.5 text-secondary-600">
+                <td className="px-4 py-3 text-secondary-600">
                   {group.scheme ? (
                     <div>
                       <span className="font-medium text-secondary-900">
@@ -89,19 +89,19 @@ export function GroupTable({
                     'N/A'
                   )}
                 </td>
-                <td className="px-5 py-3.5 text-center font-semibold text-secondary-900">
+                <td className="px-4 py-3 text-center font-semibold text-secondary-900">
                   {group.member_count}
                 </td>
-                <td className="px-5 py-3.5 text-right font-semibold text-secondary-900 tabular-nums">
+                <td className="px-4 py-3 text-right font-semibold text-secondary-900 tabular-nums">
                   {formatMoney(group.total_group_amount)}
                 </td>
-                <td className="px-5 py-3.5 text-secondary-600 tabular-nums">
+                <td className="px-4 py-3 text-secondary-600 tabular-nums">
                   {group.start_date || '—'}
                 </td>
-                <td className="px-5 py-3.5">
+                <td className="px-4 py-3">
                   <GroupStatusBadge status={group.status} />
                 </td>
-                <td className="px-5 py-3.5 text-right">
+                <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
                     {/* Draft: Edit + Activate */}
                     {group.status === 'Draft' && (

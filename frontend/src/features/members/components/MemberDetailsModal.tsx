@@ -3,7 +3,7 @@ import { formatCurrency, formatDate } from '@/utils/format';
 import { MemberStatusBadge } from './MemberStatusBadge';
 import type { Member } from '../types';
 import { useCollections } from '@/features/collections/hooks/useCollections';
-import { CreditCard, History, MapPin, Phone, Shield, User } from 'lucide-react';
+import { CreditCard, History, MapPin, Phone, Shield, User, X } from 'lucide-react';
 
 interface MemberDetailsModalProps {
   member: Member | null;
@@ -45,42 +45,60 @@ export function MemberDetailsModal({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-secondary-900/50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="w-full max-w-xl my-8 rounded-xl bg-surface p-4 sm:p-6 shadow-xl">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
-          <div className="min-w-0">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-secondary-900/50 backdrop-blur-xs"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="member-details-title"
+    >
+      <div className="relative w-full max-w-xl rounded-2xl bg-surface shadow-2xl border border-border max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header — Always pinned at top */}
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 flex-shrink-0 bg-surface">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-bold text-secondary-900 truncate">
+              <h2
+                id="member-details-title"
+                className="text-base sm:text-lg font-bold text-secondary-900 truncate"
+              >
                 {member.member_name}
               </h2>
               {member.member_code && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-primary-50 text-primary-700 border border-primary-200/60">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-primary-50 text-primary-700 border border-primary-200/60">
                   {member.member_code}
                 </span>
               )}
               <MemberStatusBadge status={member.status} />
             </div>
             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-secondary-500 font-mono">
-              <Phone className="h-3.5 w-3.5" />
+              <Phone className="h-3 w-3 text-secondary-400" />
               {member.phone_number}
             </p>
           </div>
-          {onEdit && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                onClose();
-                onEdit(member);
-              }}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onEdit(member);
+                }}
+              >
+                Edit
+              </Button>
+            )}
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-secondary-400 hover:bg-secondary-100 hover:text-secondary-600 transition-colors flex items-center justify-center min-h-[36px] min-w-[36px]"
+              aria-label="Close dialog"
             >
-              Edit
-            </Button>
-          )}
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        <div className="mt-4 space-y-4 text-sm">
+        {/* Scrollable Content Body */}
+        <div className="overflow-y-auto p-4 sm:p-6 space-y-3.5 text-sm flex-1">
           {/* Group Name Banner */}
           <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-lg bg-secondary-50 p-3">
             <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -295,9 +313,9 @@ export function MemberDetailsModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="mt-5 flex justify-end border-t border-border pt-3">
-          <Button variant="outline" onClick={onClose}>
+        {/* Footer — Always pinned at bottom */}
+        <div className="flex items-center justify-end border-t border-border px-4 py-2.5 sm:px-6 sm:py-3 bg-secondary-50/50 flex-shrink-0">
+          <Button variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>
         </div>

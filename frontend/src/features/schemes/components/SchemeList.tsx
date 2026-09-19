@@ -37,17 +37,19 @@ export function SchemeList({ schemes, onEdit }: SchemeListProps) {
       {schemes.map((scheme) => (
         <Card key={scheme.id} className="flex flex-col p-0 overflow-hidden">
           {/* Card Header */}
-          <div className="px-4 pt-3.5 pb-3 border-b border-border/50">
+          <div className="px-4 pt-3 pb-2 border-b border-border">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <h3 className="font-semibold text-secondary-900 text-sm truncate leading-snug">
-                  {scheme.scheme_name}
-                </h3>
-                {scheme.scheme_code && (
-                  <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-secondary-100 text-secondary-600">
-                    {scheme.scheme_code}
-                  </span>
-                )}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-secondary-900 text-sm truncate leading-snug">
+                    {scheme.scheme_name}
+                  </h3>
+                  {scheme.scheme_code && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-secondary-100 text-secondary-600">
+                      {scheme.scheme_code}
+                    </span>
+                  )}
+                </div>
               </div>
               <Badge
                 variant={scheme.status === 'Active' ? 'success' : 'neutral'}
@@ -57,51 +59,51 @@ export function SchemeList({ schemes, onEdit }: SchemeListProps) {
               </Badge>
             </div>
             {scheme.description && (
-              <p className="mt-1.5 text-xs text-secondary-500 line-clamp-2">
+              <p className="mt-1 text-xs text-secondary-500 line-clamp-1">
                 {scheme.description}
               </p>
             )}
           </div>
 
-          {/* Financial Grid — Natural hierarchy, not edge-to-edge stretch */}
-          <div className="px-4 py-3 flex-1">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+          {/* Financial Grid */}
+          <div className="px-4 py-2.5 bg-secondary-50/60 border-b border-border flex-1">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
               {/* Loan Amount — Primary KPI */}
               <div>
-                <div className="text-[10px] font-medium uppercase tracking-wider text-secondary-400">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
                   Loan Amount
                 </div>
-                <div className="text-base font-bold text-secondary-900 tabular-nums">
+                <div className="text-sm font-bold text-secondary-900 tabular-nums font-mono mt-0.5">
                   {formatMoney(scheme.loan_amount)}
                 </div>
               </div>
 
               {/* Weekly Installment */}
               <div>
-                <div className="text-[10px] font-medium uppercase tracking-wider text-secondary-400">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
                   Weekly Installment
                 </div>
-                <div className="text-base font-bold text-primary-700 tabular-nums">
+                <div className="text-sm font-bold text-primary-700 tabular-nums font-mono mt-0.5">
                   {formatMoney(scheme.weekly_installment)}
                 </div>
               </div>
 
               {/* Duration */}
               <div>
-                <div className="text-[10px] font-medium uppercase tracking-wider text-secondary-400">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
                   Duration
                 </div>
-                <div className="text-sm font-semibold text-secondary-900">
+                <div className="text-xs font-semibold text-secondary-800 mt-0.5">
                   {scheme.total_weeks} Weeks
                 </div>
               </div>
 
               {/* Note Cost */}
               <div>
-                <div className="text-[10px] font-medium uppercase tracking-wider text-secondary-400">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
                   Note Cost
                 </div>
-                <div className="text-sm font-semibold text-secondary-900 tabular-nums">
+                <div className="text-xs font-semibold text-secondary-800 tabular-nums font-mono mt-0.5">
                   {formatMoney(scheme.note_cost)}
                 </div>
               </div>
@@ -109,7 +111,7 @@ export function SchemeList({ schemes, onEdit }: SchemeListProps) {
           </div>
 
           {/* Actions — Compact, bottom-aligned */}
-          <div className="px-4 py-2.5 border-t border-border/50 flex items-center gap-2 bg-secondary-50/40">
+          <div className="px-4 py-2 border-t border-border flex items-center gap-2 bg-secondary-50/50">
             <Button
               variant="ghost"
               size="sm"

@@ -28,8 +28,8 @@ export const QUERY_GC_TIME = 10 * 60 * 1000;
 /** Debounce delay for search inputs in milliseconds */
 export const SEARCH_DEBOUNCE_MS = 300;
 
-/** Toast notification auto-dismiss duration in milliseconds (1.8 seconds) */
-export const TOAST_DURATION_MS = 1800;
+/** Toast notification auto-dismiss duration in milliseconds (0.4 seconds) */
+export const TOAST_DURATION_MS = 400;
 
 /** Maximum length for text inputs (general) */
 export const MAX_TEXT_LENGTH = 255;

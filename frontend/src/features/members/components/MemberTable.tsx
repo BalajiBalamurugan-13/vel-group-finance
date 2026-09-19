@@ -18,33 +18,33 @@ export function MemberTable({
   onRequestStatusChange,
 }: MemberTableProps) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm text-secondary-600">
-          <thead className="border-b border-border bg-secondary-50/50 text-xs font-semibold text-secondary-700 uppercase tracking-wider">
+          <thead className="border-b border-border bg-secondary-50 text-xs font-semibold text-secondary-500 uppercase tracking-wider">
             <tr>
-              <th scope="col" className="px-6 py-4">
+              <th scope="col" className="px-4 py-3">
                 Member
               </th>
-              <th scope="col" className="px-6 py-4">
+              <th scope="col" className="px-4 py-3">
                 Group / Location
               </th>
-              <th scope="col" className="px-6 py-4 text-right">
+              <th scope="col" className="px-4 py-3 text-right">
                 Loan Amount
               </th>
-              <th scope="col" className="px-6 py-4 text-right">
+              <th scope="col" className="px-4 py-3 text-right">
                 Cash Given
               </th>
-              <th scope="col" className="px-6 py-4 text-right">
+              <th scope="col" className="px-4 py-3 text-right">
                 Weekly Inst.
               </th>
-              <th scope="col" className="px-6 py-4 text-center">
+              <th scope="col" className="px-4 py-3 text-center">
                 Joined Week
               </th>
-              <th scope="col" className="px-6 py-4 text-center">
+              <th scope="col" className="px-4 py-3 text-center">
                 Status
               </th>
-              <th scope="col" className="px-6 py-4 text-right">
+              <th scope="col" className="px-4 py-3 text-right">
                 Actions
               </th>
             </tr>
@@ -61,7 +61,7 @@ export function MemberTable({
                   key={member.id}
                   className="transition-colors hover:bg-secondary-50/50"
                 >
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-secondary-900">
                         {member.member_name}
@@ -76,7 +76,7 @@ export function MemberTable({
                       {member.phone_number}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <div className="font-medium text-secondary-900">
                       {member.group_name || '—'}
                     </div>
@@ -86,18 +86,18 @@ export function MemberTable({
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right font-medium text-secondary-900">
+                  <td className="px-4 py-3 text-right font-medium text-secondary-900">
                     {loanAmount > 0 ? formatCurrency(loanAmount) : '—'}
                   </td>
-                  <td className="px-6 py-4 text-right font-medium text-success-600">
+                  <td className="px-4 py-3 text-right font-medium text-success-600">
                     {cashGiven > 0 ? formatCurrency(cashGiven) : '—'}
                   </td>
-                  <td className="px-6 py-4 text-right font-medium text-secondary-900">
+                  <td className="px-4 py-3 text-right font-medium text-secondary-900">
                     {weeklyInstallment > 0
                       ? formatCurrency(weeklyInstallment)
                       : '—'}
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-4 py-3 text-center">
                     <span className="inline-flex items-center rounded-md bg-secondary-100 px-2 py-0.5 text-xs font-medium text-secondary-700">
                       W{member.joined_week}
                     </span>
@@ -107,10 +107,10 @@ export function MemberTable({
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-4 py-3 text-center">
                     <MemberStatusBadge status={member.status} />
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <Button
                         variant="ghost"

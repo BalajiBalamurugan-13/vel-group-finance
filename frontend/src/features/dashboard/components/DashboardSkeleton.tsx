@@ -9,16 +9,16 @@ import { CardSkeleton, Skeleton } from '@/components/ui/Skeleton';
 
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-8" role="status" aria-label="Loading dashboard...">
+    <div className="space-y-4" role="status" aria-label="Loading dashboard...">
       {/* Primary KPI row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <CardSkeleton key={i} />
         ))}
       </div>
 
       {/* Secondary count row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
@@ -31,7 +31,7 @@ export function DashboardSkeleton() {
       </div>
 
       {/* Two-column bottom section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Location list skeleton */}
         <div className="bg-surface border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border">
