@@ -254,3 +254,33 @@ def test_reset_dev_data_only_file_integrity():
         assert f"ALTER COLUMN {seq}" in content
         assert "RESTART WITH 1" in content
 
+
+def test_migration_003_file_integrity():
+    """Migration 003 file must exist and contain investments table, funding_source, and views."""
+    migration_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "supabase", "migrations", "003_accounting_profit_model.sql")
+    )
+    assert os.path.exists(migration_path), f"Migration 003 not found at {migration_path}"
+
+    with open(migration_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Section A: investments table
+    assert "CREATE TABLE IF NOT EXISTS investments" in content
+    assert "investment_seq" in content
+    assert "investment_code" in content
+    assert "investment_type" in content
+    assert "'Initial', 'Additional'" in content
+
+    # Section B: groups funding_source
+    assert "ALTER TABLE groups" in content
+    assert "funding_source" in content
+    assert "'Recycled Collections'" in content
+
+    # Section C: RLS
+    assert "ALTER TABLE investments ENABLE ROW LEVEL SECURITY;" in content
+
+    # Section E: Admin views
+    assert "v_investments_readable" in content
+    assert "v_groups_readable" in content
+

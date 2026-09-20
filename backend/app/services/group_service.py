@@ -172,11 +172,20 @@ class GroupService:
             "scheme_id": str(data.scheme_id),
             "group_name": group_name,
             "start_date": data.start_date.isoformat() if data.start_date else None,
+            "funding_source": data.funding_source or "Recycled Collections",
             "remarks": data.remarks,
             "status": GroupStatus.DRAFT.value,
         }
 
-        response = self.db.table("groups").insert(insert_data).execute()
+        try:
+            response = self.db.table("groups").insert(insert_data).execute()
+        except Exception as e:
+            if "funding_source" in str(e).lower():
+                insert_data.pop("funding_source", None)
+                response = self.db.table("groups").insert(insert_data).execute()
+            else:
+                raise
+
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to create group")
 
@@ -216,12 +225,27 @@ class GroupService:
         if "start_date" in update_dict and update_dict["start_date"] is not None:
             update_dict["start_date"] = update_dict["start_date"].isoformat()
 
-        response = (
-            self.db.table("groups")
-            .update(update_dict)
-            .eq("id", str(group_id))
-            .execute()
-        )
+        try:
+            response = (
+                self.db.table("groups")
+                .update(update_dict)
+                .eq("id", str(group_id))
+                .execute()
+            )
+        except Exception as e:
+            if "funding_source" in str(e).lower() and "funding_source" in update_dict:
+                update_dict.pop("funding_source", None)
+                if not update_dict:
+                    return current_group
+                response = (
+                    self.db.table("groups")
+                    .update(update_dict)
+                    .eq("id", str(group_id))
+                    .execute()
+                )
+            else:
+                raise
+
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to update group")
 
@@ -419,6 +443,9 @@ class GroupService:
             group["total_group_amount"] = loan_amount * member_count
         else:
             group["total_group_amount"] = Decimal("0.00")
+
+        if not group.get("funding_source"):
+            group["funding_source"] = "Recycled Collections"
 
 
 def get_group_service(db: Client) -> GroupService:

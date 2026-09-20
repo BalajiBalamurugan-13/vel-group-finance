@@ -18,6 +18,8 @@ export const ROUTES = {
   GROUPS: '/groups',
   MEMBERS: '/members',
   COLLECTIONS: '/collections',
+  PROFIT: '/profit',
+  LOAN_RISK: '/loan-risk',
   REPORTS: '/reports',
   SCHEMES: '/schemes',
   SETTINGS: '/settings',

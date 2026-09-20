@@ -11,6 +11,8 @@ export interface GroupSchemeSummary {
   status: string;
 }
 
+export type GroupFundingSource = 'Initial Investment' | 'Additional Investment' | 'Recycled Collections';
+
 export interface Group {
   id: string;
   group_code?: string | null; // GRP-0001 — added in migration 002
@@ -18,6 +20,7 @@ export interface Group {
   location: string;
   group_name: string;
   start_date: string | null;
+  funding_source?: GroupFundingSource;
   status: GroupStatus;
   remarks: string | null;
   member_count: number;
@@ -32,6 +35,7 @@ export interface GroupCreate {
   scheme_id: string;
   group_name?: string;
   start_date?: string;
+  funding_source?: GroupFundingSource;
   remarks?: string;
 }
 
@@ -39,6 +43,7 @@ export interface GroupUpdate {
   group_name?: string;
   location?: string;
   start_date?: string;
+  funding_source?: GroupFundingSource;
   remarks?: string;
 }
 

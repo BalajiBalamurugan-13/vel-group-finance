@@ -32,6 +32,12 @@ const MembersPage = lazy(() =>
 const CollectionsPage = lazy(() =>
   import('@/pages/CollectionsPage').then((m) => ({ default: m.CollectionsPage })),
 );
+const ProfitPage = lazy(() =>
+  import('@/pages/ProfitPage').then((m) => ({ default: m.ProfitPage })),
+);
+const LoanRiskPage = lazy(() =>
+  import('@/pages/LoanRiskPage').then((m) => ({ default: m.LoanRiskPage })),
+);
 const ReportsPage = lazy(() =>
   import('@/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
@@ -101,6 +107,22 @@ export const routes: RouteObject[] = [
         element: (
           <LazyPage>
             <CollectionsPage />
+          </LazyPage>
+        ),
+      },
+      {
+        path: ROUTES.PROFIT,
+        element: (
+          <LazyPage>
+            <ProfitPage />
+          </LazyPage>
+        ),
+      },
+      {
+        path: ROUTES.LOAN_RISK,
+        element: (
+          <LazyPage>
+            <LoanRiskPage />
           </LazyPage>
         ),
       },

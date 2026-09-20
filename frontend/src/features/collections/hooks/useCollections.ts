@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { collectionApi } from '../api/collectionApi';
 import type { CollectionFiltersState } from '../types';
 
@@ -24,6 +24,7 @@ export function useCollections(filters?: CollectionFiltersState) {
         from_date: filters?.from_date,
         to_date: filters?.to_date,
       }),
+    placeholderData: keepPreviousData,
   });
 }
 

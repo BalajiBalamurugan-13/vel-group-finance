@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { groupApi } from '../api/groupApi';
 import type { GroupFiltersState } from '../types';
 
@@ -18,6 +18,7 @@ export function useGroups(filters?: GroupFiltersState) {
         location: filters?.location,
         search: filters?.search,
       }),
+    placeholderData: keepPreviousData,
   });
 }
 

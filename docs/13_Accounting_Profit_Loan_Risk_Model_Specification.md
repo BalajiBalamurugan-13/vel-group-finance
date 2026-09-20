@@ -1,677 +1,822 @@
-# VEL Finance — Accounting, Profit & Loan Risk Model Specification
+# VEL Finance — Accounting & Profit Model
 
-**Status:** Draft for Review  
-**Purpose:** Define the accounting/business rules before implementing Profit, Capital/Investment, Weekly Financial Analysis, and Loan Risk/Loss.
+## 1. Purpose
+
+This document captures the agreed business and accounting logic for the VEL Finance Group Finance application before implementation.
+
+The main purpose is to correctly represent:
+
+* Initial Investment
+* Additional Investment
+* Business growth through recycled collections
+* Loan economics
+* Contractual Profit
+* Actual Collections
+* Outstanding / overdue amounts
+* Loan Loss for genuinely problematic loans
+* Weekly business performance
+
+Accounting correctness is more important than UI changes.
+
+Do not invent accounting formulas or change existing accounting behavior without reviewing the business logic first.
 
 ---
 
-## 1. Core Principles
+# 2. Business Starting Point
 
-1. Accounting correctness is the highest priority.
-2. The backend/database is the financial source of truth.
-3. Frontend code must not invent financial formulas.
-4. Existing accounting behavior must not be changed without review.
-5. Normal overdue payments are **not** automatically loan losses.
-6. Owner investment and recycled business cash are separate concepts.
-7. Contractual Profit and actual cash collection are separate concepts.
-8. Unresolved accounting decisions must be marked **TBD**, not invented during implementation.
-9. Working financial code should not be unnecessarily refactored.
+VEL Finance started on:
+
+**9 August 2026**
+
+The amount put into the business on **9 August 2026** is the **Initial Investment**.
+
+This is the starting capital of the business.
+
+The first business week therefore starts on:
+
+**Sunday, 9 August 2026**
 
 ---
 
-## 2. Current Loan Model
+# 3. Weekly Business Cycle
+
+Customer collections are made on Sundays.
+
+Therefore, the business should follow a Sunday-based weekly cycle.
+
+Example:
+
+| Week   | Sunday           |
+| ------ | ---------------- |
+| Week 1 | 9 August 2026    |
+| Week 2 | 16 August 2026   |
+| Week 3 | 23 August 2026   |
+| Week 4 | 30 August 2026   |
+| Week 5 | 6 September 2026 |
+
+The relevant week should be determined from the date.
+
+This weekly cycle should be used for the business growth and financial analysis.
+
+---
+
+# 4. Initial Investment
+
+The investment made on **9 August 2026** is the Initial Investment.
+
+It belongs to:
+
+**Week 1**
+
+The Initial Investment is the owner's starting money used to start the business.
+
+It must be kept separate from:
+
+* Customer collections
+* Recycled business cash
+* Profit
+* Additional Investment
+
+The application should show the Initial Investment separately.
+
+---
+
+# 5. Additional Investment
+
+If the owner puts more money into the business after the starting investment, it is an **Additional Investment**.
+
+For example:
+
+```text
+9 August 2026
+Initial Investment
+
+Later week
+Additional Investment
+```
+
+The additional amount belongs to the date/week in which it was actually added.
+
+It should not be treated as if it existed from the beginning.
+
+The application should therefore be able to show:
+
+* Initial Investment
+* Additional Investment
+* Date
+* Week
+* Total investment added over time
+
+---
+
+# 6. Recycled Collections Are Not Investment
+
+Money collected from existing customers and then used to create new groups is **not Additional Investment**.
+
+Example:
+
+```text
+Initial Investment
+        ↓
+Initial Groups
+        ↓
+Customer Collections
+        ↓
+Business Cash
+        ↓
+New Groups
+```
+
+The money used for the new groups came from the business's existing collections.
+
+Therefore it is:
+
+**Recycled Business Cash**
+
+and not:
+
+**Additional Investment**
+
+This distinction is important for understanding how the business is growing.
+
+---
+
+# 7. Group Created Date
+
+Every group should have a **Created Date**.
+
+This is important because the group must be connected to the correct financial week.
+
+Example:
+
+| Group   | Created Date | Week   |
+| ------- | ------------ | ------ |
+| Group 1 | 9 Aug 2026   | Week 1 |
+| Group 2 | 9 Aug 2026   | Week 1 |
+| Group 3 | 23 Aug 2026  | Week 3 |
+| Group 4 | 23 Aug 2026  | Week 3 |
+
+The Created Date will allow the system to determine the relevant business week.
+
+This is also needed to understand how the business expanded over time.
+
+---
+
+# 8. Group Funding Source
+
+When groups are created, we should be able to identify where the money used to create the group came from.
+
+The three relevant categories are:
+
+### 1. Initial Investment
+
+Groups created using the original money put into the business on 9 August.
+
+### 2. Additional Investment
+
+Groups created using money that the owner added later.
+
+### 3. Recycled Collections
+
+Groups created using money collected from existing customers and reused by the business.
+
+These three categories should remain separate.
+
+---
+
+# 9. Group Capital Requirement
+
+When calculating the money required to create a group, use the **full loan amount per customer**.
 
 Current example:
 
-- Loan amount: **₹10,000**
-- Weekly installment: **₹760**
-- Tenure: **18 weeks**
-- Total contractual repayment: **₹13,680**
+```text
+Loan Amount = ₹10,000 per customer
+```
 
-### Formula
+If a group has 10 members:
 
 ```text
-Total Contractual Repayment
-= Weekly Installment × Total Weeks
+10 × ₹10,000
+= ₹1,00,000
+```
 
-= ₹760 × 18
+Therefore, the capital required for the group is ₹1,00,000.
+
+The internal ₹100 note/card calculation should not be used for this calculation.
+
+---
+
+# 10. Current Loan Model
+
+The current loan example is:
+
+* Loan Amount: ₹10,000
+* Weekly Payment: ₹760
+* Total Weeks: 18
+
+Total contractual repayment:
+
+```text
+₹760 × 18
 = ₹13,680
 ```
-
-### Contractual Profit
-
-```text
-Contractual Profit
-= Total Contractual Repayment − Loan Principal
-
-= ₹13,680 − ₹10,000
-= ₹3,680
-```
-
-This represents the contractual economics of a successfully completed loan.
-
----
-
-## 3. Dynamic Loan Model
-
-The accounting engine must not hard-code:
-
-- ₹10,000
-- ₹760
-- 18 weeks
-- Any single future loan amount
-
-The model must work dynamically from the applicable scheme/loan.
-
-Generic model:
-
-```text
-Total Contractual Repayment
-= Weekly Installment × Total Weeks
-
-Contractual Profit
-= Total Contractual Repayment − Loan Principal
-```
-
-It must support future loan amounts such as ₹20,000 or ₹30,000 and future scheme variations.
-
----
-
-## 4. ₹100 Note/Card Cost — Scope Clarification
-
-The ₹100 note/card amount was calculated separately for audit/business understanding.
-
-For the application:
-
-- The customer's loan amount remains the full loan amount.
-- Do not expose a ₹9,900 / ₹100 split in the customer loan model.
-- Do not add the ₹100 to Profit.
-- Do not treat it as customer income.
-- Do not give it separate Profit UI treatment.
-
-This audit calculation should not become a core customer-facing accounting concept.
-
----
-
-## 5. Capital / Investment
-
-### Initial Investment
-
-Initial Investment is owner capital introduced when VEL Finance started.
-
-It must remain separate from:
-
-- Customer collections
-- Loan principal
-- Profit
-
-The system should support the investment amount and date/week.
-
-### Additional Investment
-
-Additional Investment is further owner money added after the initial investment.
-
-Each addition should be identifiable by:
-
-- Amount
-- Date
-- Week/period
-- Investment type/source
-
-Example:
-
-```text
-Initial Investment: ₹X
-
-Additional Investment — Week N: ₹2,00,000
-
-Additional Investment — Later Week: ₹1,00,000
-```
-
-### Recycled Collections
-
-Customer collections reused to create new groups are **not additional investment**.
-
-Example:
-
-```text
-Week 1:
-Collections ≈ ₹50,000
-
-Week 2:
-That business cash is reused to create new groups.
-```
-
-This is recycled business cash.
-
-The system must distinguish:
-
-```text
-Owner Capital
-vs.
-Recycled Business Cash
-```
-
----
-
-## 6. Group Growth & Capital Deployment
-
-For group growth analysis, the system should eventually identify:
-
-- Group
-- Creation date/week
-- Member count
-- Loan amount per member
-- Total loan capital deployed
-- Funding source
-
-Funding sources:
-
-1. Initial Investment
-2. Additional Investment
-3. Recycled Collections
-
-### Important Rule
-
-Capital required to start a group is calculated using the **full loan amount**, not an internal audit split.
-
-Example:
-
-```text
-10 members × ₹10,000
-= ₹1,00,000 loan capital
-```
-
----
-
-## 7. Loan Economics
-
-Each loan should have:
-
-- Loan Principal
-- Weekly Installment
-- Total Weeks
-- Total Contractual Repayment
-- Contractual Profit
-
-Generic model:
-
-```text
-Loan Principal = P
-Weekly Installment = W
-Total Weeks = N
-
-Total Contractual Repayment = W × N
-
-Contractual Profit = (W × N) − P
-```
-
----
-
-## 8. Contractual Profit vs Actual Cash
-
-This distinction is mandatory.
-
-### Contractual Profit
-
-Contractual Profit is based on the customer's agreed repayment schedule.
-
-For the current scheme:
-
-```text
-₹760 × 18 = ₹13,680
-
-₹13,680 − ₹10,000 = ₹3,680 contractual profit
-```
-
-This does **not** mean ₹3,680 has already been received as cash when the loan is created.
-
-### Actual Collection
-
-Actual Collection is money actually received from customers.
 
 Therefore:
 
 ```text
-Contractual Profit ≠ Actual Cash Collected
+Contractual Profit
+= ₹13,680 − ₹10,000
+
+= ₹3,680
 ```
 
-Both must remain available as separate concepts.
+This ₹3,680 is the contractual profit of the loan if the customer completes the agreed repayment schedule.
 
 ---
 
-## 9. Principal Recovery Analysis
+# 11. Dynamic Loan Amount
 
-Principal recovery can be shown as a separate management analysis.
+The current loan amount is ₹10,000, but the business may use different loan amounts in the future.
 
-For the current scheme:
+For example:
+
+* ₹20,000
+* ₹30,000
+* Other amounts
+
+Therefore, the Profit calculation must not be hard-coded to ₹10,000.
+
+The calculation should use the actual loan amount and the applicable weekly repayment and tenure.
+
+General calculation:
 
 ```text
-Week 13:
-₹760 × 13 = ₹9,880
+Total Contractual Repayment
+= Weekly Payment × Number of Weeks
 
-Remaining principal:
-₹10,000 − ₹9,880 = ₹120
+Contractual Profit
+= Total Contractual Repayment − Loan Amount
 ```
 
-During Week 14, the first ₹120 completes recovery of the original ₹10,000 principal.
+---
 
-The remaining scheduled amount represents contractual margin.
+# 12. ₹100 Note/Card Amount
 
-This is a **capital-recovery analysis**, not a replacement for the primary Contractual Profit formula.
+The ₹100 amount was calculated separately for audit/business understanding.
 
-Future schemes must calculate this dynamically.
+For the application:
+
+* The customer loan amount remains ₹10,000 in the current example.
+* The application should not focus on the ₹9,900 / ₹100 split.
+* The ₹100 should not be added to Profit.
+* The ₹100 should not be treated as customer income.
+
+The application should focus on the agreed loan amount and repayment model.
+
+This same principle should apply when different loan amounts are used.
 
 ---
 
-## 10. Collections
+# 13. Contractual Profit
 
-Collections should distinguish:
+Profit should not simply mean the amount of cash collected so far.
 
-### Expected Collection
-Amount contractually expected according to the schedule.
+The business works based on the customer's agreed repayment schedule.
 
-### Actual Collection
-Amount actually received.
+For the current example:
 
-### Outstanding
-Amount still due.
+```text
+Loan Amount = ₹10,000
 
-### Overdue
-An amount that was due previously but has not yet been collected.
+₹760 × 18
+= ₹13,680 contractual repayment
 
-### Recovered Overdue
-Previously overdue amount that is subsequently collected.
+₹13,680 − ₹10,000
+= ₹3,680 contractual profit
+```
+
+Therefore, the primary loan Profit calculation is based on the **contractual repayment**.
+
+This should remain separate from actual cash collection.
 
 ---
 
-## 11. Overdue Payment Rule
+# 14. Actual Collections
 
-A missed payment is **not automatically a Loan Loss**.
+Actual Collections represent the money that customers have actually paid.
+
+Example:
+
+If the customer is expected to pay ₹760 but pays ₹760:
+
+```text
+Actual Collection = ₹760
+```
+
+If the customer does not pay:
+
+```text
+Actual Collection = ₹0
+```
+
+The missed amount remains outstanding/overdue.
+
+---
+
+# 15. Overdue Payments
+
+A customer missing a payment does not automatically mean the business has suffered a loss.
 
 Example:
 
 ```text
-Week 5 missed = ₹760
-Week 6 missed = ₹760
-
-Overdue = ₹1,520
+Week 1 missed = ₹760
+Week 2 missed = ₹760
 ```
 
-If the customer pays ₹1,520 later, it is recovered normally.
+The customer is overdue by:
 
-It remains a collection/recovery issue, not a loss.
+```text
+₹1,520
+```
 
-The business expects most temporary missed payments to eventually be collected.
+The business will normally continue collection efforts.
+
+If the customer pays the ₹1,520 in a later week, the money has been recovered.
+
+Therefore:
+
+**Overdue ≠ Loan Loss**
+
+This distinction is very important because the business expects most temporarily missed payments to eventually be collected.
 
 ---
 
-# 12. Loan Risk / Loan Loss
+# 16. Collection Page
 
-Loan Loss is intended for the smaller number of genuinely problematic loans.
+The Collections page should allow the business to identify:
 
-The risk flow should conceptually be:
+* Customers who paid
+* Customers who did not pay
+* Amount expected
+* Amount actually received
+* Outstanding amount
+* Overdue amount
+* Customers who have missed multiple weeks
+
+This is where normal collection mismatches should be visible.
+
+A customer being overdue should not automatically affect the Profit calculation as a Loan Loss.
+
+---
+
+# 17. Loan Risk / Loan Loss
+
+Loan Loss is intended for the **worst-case scenario**.
+
+The business may have many groups and many customers.
+
+For example:
+
+* 30 groups
+* Most groups/customers paying normally
+* Some customers temporarily missing payments
+* A small number of customers continuing to remain unpaid for a long period
+
+The Loan Loss concept is intended for those genuinely problematic cases.
+
+It is not intended for every missed payment.
+
+---
+
+# 18. Loan Risk Flow
+
+The general concept is:
 
 ```text
 Current
    ↓
-Overdue / Recovery
+Overdue
    ↓
 At Risk
    ↓
-Loss Recognized
+Loan Loss
 ```
 
 ### Current
 
 Customer is paying normally.
 
-### Overdue / Recovery
+### Overdue
 
-Customer has missed one or more payments but the business continues collection efforts.
-
-**Not a loss.**
+Customer has missed payment(s), but the business is still expecting to collect the money.
 
 ### At Risk
 
-Customer has remained unpaid for a prolonged period and requires special attention.
+Customer has remained unpaid for a longer period and requires special attention.
 
-At Risk does not automatically mean the money is lost.
+### Loan Loss
 
-### Loss Recognized
+The business determines that the relevant amount has become a genuine loss.
 
-The business intentionally recognizes an amount as a Loan Loss after determining that the relevant amount is genuinely unrecoverable or should be treated as a loss under the approved business rule.
-
-This must not happen merely because a customer missed a payment.
+The exact method for deciding when a customer moves into the final Loan Loss category will be decided before implementation.
 
 ---
 
-## 13. Loan Risk / Loss Page
+# 19. Separate Loan Risk / Loss Page
 
-A separate page should handle this scenario rather than mixing it into normal Profit.
+The Loan Risk/Loss situation should have a separate page rather than mixing everything into the normal Profit page.
 
-The page should support:
+The page should allow the business to see customers such as:
 
-- Overdue customers
-- Total overdue amount
-- At-risk customers
-- Potential exposure
-- Prolonged non-payment
-- Recognized loan losses
-- Customer/group/loan details
-- Weeks overdue
-- Last payment date
-- Outstanding amount
-- Risk status
+| Customer   | Group    | Weeks Overdue | Outstanding | Status    |
+| ---------- | -------- | ------------: | ----------: | --------- |
+| Customer A | Group 12 |             1 |        ₹760 | Overdue   |
+| Customer B | Group 18 |             2 |      ₹1,520 | Overdue   |
+| Customer C | Group 7  |             5 |      ₹3,800 | At Risk   |
+| Customer D | Group 3  |             8 |      ₹6,080 | Loan Loss |
 
-Illustrative example:
+These are only examples of how the information can be displayed.
 
-| Customer | Group | Weeks Overdue | Outstanding | Status |
-|---|---|---:|---:|---|
-| Customer A | Group 12 | 1 | ₹760 | Recovery |
-| Customer B | Group 18 | 2 | ₹1,520 | Recovery |
-| Customer C | Group 7 | 5 | ₹3,800 | At Risk |
-| Customer D | Group 3 | 8 | ₹6,080 | Potential Loss |
+The important information is:
 
-These are examples only.
+* Customer
+* Group
+* Outstanding amount
+* Weeks overdue
+* Last payment
+* Risk status
+* Loan Loss amount where applicable
 
 ---
 
-## 14. Loss Recognition Rule — TBD
+# 20. Loan Loss and Profit
 
-The exact rule for:
+Normal overdue amounts should not automatically reduce the contractual Profit.
 
-```text
-Overdue / Recovery
-→ At Risk
-→ Loss Recognized
-```
-
-must be explicitly approved before implementation.
-
-The application must not invent a rule such as:
-
-- Loss after 2 weeks
-- Loss after 4 weeks
-- Loss after a fixed number of missed payments
-
-unless the business approves it.
-
----
-
-## 15. Profit and Loan Loss
-
-Maintain these concepts separately:
+The business should be able to see:
 
 ### Contractual Profit
 
-```text
-Total Contractual Repayment − Loan Principal
-```
+What the loans are expected to generate according to the agreed repayment schedules.
 
-### Recognized Loan Loss
+### Loan Loss
 
-Amount intentionally recognized as unrecoverable.
+The amount that has actually been recognized as a problematic/unrecoverable loan amount.
 
-### Adjusted Profit
+This allows the business to understand both:
 
-Management-level conceptual view:
-
-```text
-Adjusted Profit
-= Contractual Profit − Recognized Loan Loss
-```
-
-This allows problematic loans to be reflected without treating ordinary overdue payments as losses.
-
-Exact reporting treatment remains subject to the final loss-recognition rule.
+* The normal earning potential of the loan business
+* The impact of genuinely problematic customers
 
 ---
 
-## 16. Weekly Financial View
+# 21. Principal Recovery
 
-The system should eventually support weekly analysis.
+Principal recovery can also be viewed separately.
 
-### Capital
+For the current ₹10,000 loan:
 
-- Initial Investment
-- Additional Investment
-- Total Owner Capital
+```text
+Week 13:
 
-### Deployment
+₹760 × 13
+= ₹9,880
+```
 
-- Groups Created
-- Members Added
-- Loan Capital Deployed
-- Funding Source
+Remaining principal:
+
+```text
+₹10,000 − ₹9,880
+= ₹120
+```
+
+During Week 14, ₹120 of the scheduled ₹760 completes recovery of the original ₹10,000 principal.
+
+The remaining amount represents the contractual margin.
+
+This is useful for understanding how the deployed loan capital is recovered.
+
+It should remain separate from the main Contractual Profit calculation.
+
+---
+
+# 22. Weekly Investment and Business Growth
+
+The business should be able to see how it grows week by week from the initial investment.
+
+For example:
+
+### Week 1 — 9 August
+
+```text
+Initial Investment
+        ↓
+Initial Groups
+        ↓
+Loan Capital Deployed
+```
+
+### Later Week
+
+```text
+Customer Collections
+        ↓
+Business Cash
+        ↓
+Reused for New Groups
+```
+
+### Later Additional Investment
+
+```text
+Additional Investment
+        ↓
+Additional Owner Capital
+        ↓
+Used for Business Growth
+```
+
+The application should distinguish these sources.
+
+This will allow us to understand:
+
+* How much owner money was initially invested
+* How much additional owner money was added
+* How many groups were created from that investment
+* How many groups were subsequently created from recycled collections
+* How much loan capital was deployed over time
+* How the business expanded from the original investment
+
+---
+
+# 23. Weekly Financial Information
+
+The weekly financial view should eventually allow us to see the important numbers for each Sunday-based business week.
+
+Relevant information includes:
+
+### Investment
+
+* Initial Investment
+* Additional Investment
+* Total Owner Investment
+
+### Business Growth
+
+* Groups Created
+* Members Added
+* Loan Capital Deployed
+* Funding Source
 
 ### Collections
 
-- Expected Collection
-- Actual Collection
-- Outstanding
-- Overdue
-- Recovered Overdue
+* Expected Collection
+* Actual Collection
+* Outstanding
+* Overdue
 
-### Profitability
+### Profit
 
-- Contractual Profit
-- Recognized Loan Loss
-- Adjusted Profit
+* Contractual Profit
+* Loan Loss where applicable
 
-### Risk
-
-- Overdue Customers
-- At-Risk Customers
-- Potential Exposure
-- Recognized Loss
-
-Capital movement must not be confused with Profit.
+The exact UI can be finalized during implementation.
 
 ---
 
-## 17. Cash vs Profit
+# 24. Capital vs Collections
 
-Cash movement and Profit remain separate.
+Owner Investment and Customer Collections must remain separate.
 
-Conceptually:
+For example:
 
 ```text
-Opening Business Cash
-+ Owner Investments
-+ Customer Collections
-− Loan Disbursements
-− Other Approved Business Cash Expenses
-= Available Business Cash
+Initial Investment
+= Owner Money
 ```
 
-The existing cash calculation must be reviewed against this model before any change.
+Whereas:
 
-No existing cash formula should be silently replaced during Profit implementation.
+```text
+Customer Collection
+= Business-generated cash
+```
+
+If that collection is later used to create another group, it remains recycled business cash.
+
+It does not become another owner investment.
 
 ---
 
-## 18. Financial Data Integrity
+# 25. Capital vs Profit
 
-The implementation should preserve traceability:
+Owner Investment is not Profit.
+
+For example:
+
+```text
+Owner adds ₹5,00,000
+```
+
+This does not mean:
+
+```text
+Profit = ₹5,00,000
+```
+
+It means:
+
+```text
+Owner Capital = ₹5,00,000
+```
+
+Profit comes from the economics of the loans and their contractual repayment.
+
+---
+
+# 26. Cash vs Profit
+
+Cash movement and Profit should remain separate.
+
+Customer collections represent actual cash received.
+
+Contractual Profit represents the contractual economics of the loans.
+
+Owner Investment represents money introduced by the owner.
+
+Recycled Collections represent business cash being reused.
+
+These should not be combined into one number and called Profit.
+
+---
+
+# 27. Historical Information
+
+The system should preserve the history of:
+
+* Investment dates
+* Group Created Dates
+* Loan creation
+* Collections
+* Overdue amounts
+* Loan Risk
+* Loan Loss
+
+Historical records should not be deleted simply because a loan later becomes problematic.
+
+The original loan and collection history should remain available.
+
+---
+
+# 28. Scalability
+
+The model must work as the business grows.
+
+Today:
+
+```text
+₹10,000 loan
+```
+
+Future:
+
+```text
+₹20,000
+₹30,000
+or other loan amounts
+```
+
+The same calculations should continue to work.
+
+The business may also grow from a few groups to:
+
+```text
+20 groups
+25 groups
+30 groups
+100+ groups
+```
+
+The system should continue to distinguish:
+
+* Owner Investment
+* Recycled Collections
+* Loan Capital
+* Contractual Profit
+* Collections
+* Overdue
+* Loan Loss
+
+---
+
+# 29. Implementation Approach
+
+Before implementation, the existing database and backend should be reviewed against this agreed business logic.
+
+The implementation should be done carefully without unnecessary refactoring.
+
+The order should be:
+
+1. Review existing accounting/data structure.
+2. Identify what already exists.
+3. Identify only the missing pieces.
+4. Implement backend/database changes where required.
+5. Test the accounting calculations.
+6. Implement the frontend views.
+7. Manually verify the results.
+
+Backend/database remains the source of truth for financial calculations.
+
+The implementation should not change unrelated working features.
+
+---
+
+# 30. Important Business Rules
+
+The following rules must be preserved:
+
+1. **9 August 2026 is the business starting date.**
+2. **9 August 2026 is Week 1.**
+3. **Sunday is the beginning of each financial week.**
+4. **The investment made on 9 August is Initial Investment.**
+5. **Later owner money is Additional Investment.**
+6. **Customer collections reused for new groups are Recycled Collections, not Investment.**
+7. **Every group should have a Created Date.**
+8. **Group creation should be associated with its financial week.**
+9. **Group funding source should distinguish Initial Investment, Additional Investment, and Recycled Collections.**
+10. **Current customer loan amount is ₹10,000.**
+11. **Current weekly payment is ₹760.**
+12. **Current tenure is 18 weeks.**
+13. **Current contractual repayment is ₹13,680.**
+14. **Current contractual loan Profit is ₹3,680.**
+15. **Loan formulas must remain dynamic for future loan amounts and schemes.**
+16. **The ₹100 internal audit calculation is not part of customer Profit.**
+17. **Missed/overdue payments are not automatically Loan Loss.**
+18. **Most overdue payments are expected to be recovered later.**
+19. **Loan Loss is for genuinely problematic/worst-case loans.**
+20. **Loan Risk/Loss should be visible separately from normal Collections.**
+21. **Contractual Profit and actual cash collected must remain separate.**
+22. **Owner Investment and Profit must remain separate.**
+23. **Recycled Collections and Owner Investment must remain separate.**
+24. **Do not invent accounting formulas or change existing accounting behavior without review.**
+25. **Do not unnecessarily refactor working financial code.**
+
+---
+
+# 31. Final Business Model
+
+The business model can be understood as:
+
+```text
+Owner Initial Investment
+        ↓
+Initial Groups
+        ↓
+Loans Given
+        ↓
+Customer Collections
+        ↓
+Business Cash
+        ↓
+New Groups Using Recycled Collections
+        ↓
+Further Business Growth
+```
+
+At the same time:
+
+```text
+Loan
+   ↓
+Contractual Repayment
+   ↓
+Contractual Profit
+```
+
+And for problematic customers:
 
 ```text
 Customer
-→ Group
-→ Loan Cycle
-→ Loan Transaction
-→ Collection
-→ Risk/Loss Status
+   ↓
+Overdue
+   ↓
+Long-Term Risk
+   ↓
+Loan Loss if genuinely required
 ```
 
-Where a Loan Loss is recognized, the system should be able to identify:
-
-- Customer
-- Group
-- Loan
-- Relevant outstanding amount
-- Amount recognized as loss
-- Recognition date
-- Status/action
-- Optional business reason/note
-
-Recognizing a loss must not erase collection history.
+These are separate parts of the business and should remain separate in the application.
 
 ---
 
-## 19. Historical Data Protection
+# 32. Final Check Before Implementation
 
-Loss recognition must not:
+Before starting implementation, we should verify only the remaining business decisions that have not yet been explicitly agreed.
 
-- Delete the loan
-- Delete collections
-- Change the original loan amount
-- Rewrite historical payment records
+The implementation should not make assumptions on behalf of the business.
 
-A loss should be represented as a separate status/event/financial record according to the final implementation design.
+If a required accounting rule is unclear, it should be asked and confirmed before coding.
 
----
-
-## 20. Scalability
-
-The model must work for:
-
-- A few groups
-- 20–30 groups
-- Hundreds of customers
-- Multiple schemes
-- Different loan amounts
-- Different installments
-- Different tenures
-
-No accounting formula should depend on one fixed loan amount or one fixed weekly installment.
-
----
-
-## 21. Implementation Scope
-
-### Phase 1 — Accounting/Data Review
-
-Before coding:
-
-- Review current database schema
-- Review existing backend services
-- Identify reusable fields
-- Identify missing fields/tables
-- Identify existing formulas that conflict with this model
-- Identify cash-accounting implications
-
-**No code changes during this phase.**
-
-### Phase 2 — Backend Accounting Model
-
-Implement only approved accounting logic.
-
-Backend/database remains the source of truth.
-
-### Phase 3 — Backend Testing
-
-Test:
-
-- Loan calculations
-- Contractual Profit
-- Investment tracking
-- Group deployment
-- Collection behavior
-- Overdue behavior
-- Risk status
-- Loan Loss
-- Weekly aggregation
-
-### Phase 4 — Frontend
-
-After backend verification:
-
-- Profit page
-- Capital/Investment section
-- Weekly financial view
-- Loan Risk/Loss page
-
-### Phase 5 — Manual Verification
-
-The user manually tests the application in the browser.
-
-Implementation agents should not be instructed to open browser tabs or perform visual browser testing on the user's behalf.
-
----
-
-## 22. Non-Negotiable Rules
-
-1. Do not invent accounting formulas.
-2. Do not change existing accounting behavior without review.
-3. Do not treat overdue payments as automatic losses.
-4. Do not treat recycled collections as owner investment.
-5. Do not treat the ₹100 audit calculation as customer profit.
-6. Do not hard-code ₹10,000, ₹760, or 18 weeks into the accounting engine.
-7. Do not mix contractual Profit with actual cash collection.
-8. Do not delete or rewrite historical financial records.
-9. Do not make frontend-only financial calculations that contradict backend data.
-10. Do not unnecessarily refactor working financial code.
-11. Do not implement unresolved accounting decisions by assumption.
-12. Every financial change must be testable and traceable.
-
----
-
-## 23. Current Approved Example
-
-```text
-Customer Loan Principal: ₹10,000
-Weekly Installment: ₹760
-Total Weeks: 18
-
-Contractual Repayment:
-₹760 × 18 = ₹13,680
-
-Contractual Profit:
-₹13,680 − ₹10,000 = ₹3,680
-```
-
-Temporary missed payments remain overdue/recovery amounts until recovered or formally recognized as Loan Loss.
-
-The ₹100 note/card calculation is excluded from the customer-facing Profit model.
-
----
-
-## 24. Final Accounting Philosophy
-
-VEL Finance should answer four separate questions:
-
-### 1. How much owner money have we put into the business?
-**Capital / Investment**
-
-### 2. What should our loans generate if customers fulfill their agreements?
-**Contractual Profit**
-
-### 3. How much money has actually been collected?
-**Collections / Cash**
-
-### 4. Which loans have become genuinely problematic?
-**Loan Risk / Loan Loss**
-
-The overall business flow is:
-
-**Capital → Deployment → Contractual Economics → Collections → Risk → Loss**
-
-These concepts must remain separate.
-
----
-
-## 25. Approval Gate Before Coding
-
-This specification must be reviewed and approved before implementation begins.
-
-Any unresolved accounting rule must remain marked **TBD** and be discussed before code is written.
-
-Once approved, this document becomes the baseline reference for:
-
-- Profit
-- Capital/Investment
-- Weekly Financial Analysis
-- Loan Risk/Loss
-
-implementation in VEL Finance.
+Once the agreed rules are confirmed, implementation can begin.

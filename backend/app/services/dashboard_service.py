@@ -46,14 +46,15 @@ class DashboardService:
         """
         today = date.today()
 
-        # ── Monetary totals ───────────────────────────────────────────────────
+        # ── Collections totals ────────────────────────────────────────────────
         total_cash_in = self._get_total_cash_in()
-        total_cash_out = self._get_total_cash_out()
-        available_cash = total_cash_in - total_cash_out  # Formula 11
         todays_collection = self._get_todays_collection(today)
+
+        # ── Loan transaction totals (single query for all 3 columns) ───────────
+        total_cash_out, total_loan_amount, total_note_cost = self._get_loan_transaction_totals()
+
+        available_cash = total_cash_in - total_cash_out  # Formula 11
         total_disbursement = total_cash_out  # cash_given = actual cash handed to members
-        total_loan_amount = self._get_total_loan_amount()  # loan principal (before note deduction)
-        total_note_cost = self._get_total_note_cost()      # note cost collected upfront as income
         total_outstanding = self._get_total_outstanding()
 
         # ── Count metrics ─────────────────────────────────────────────────────
@@ -101,37 +102,11 @@ class DashboardService:
                 .execute()
             )
             return sum(
-                (Decimal(str(row["amount_paid"])) for row in (res.data or [])),
+                (Decimal(str(row["amount_paid"])) for row in (res.data or []) if "amount_paid" in row and row["amount_paid"] is not None),
                 Decimal("0.00"),
             )
         except Exception:
             logger.exception("Failed to compute total_cash_in")
-            return Decimal("0.00")
-
-    def _get_total_cash_out(self) -> Decimal:
-        """
-        Formula 11 (Cash Out component) + Formula 17:
-        Cash Out = SUM(loan_transactions.cash_given)
-
-        Per docs/04_ACCOUNTING_RULES.md — Cash Summary:
-        "Cash Out = Total Loan Disbursements"
-
-        Per docs/05_BUSINESS_FORMULAS.md — Formula 17:
-        "Total Cash Disbursed = Cash Given Per Member × Current Number of Members"
-        (We use the actual sum of recorded transactions, not a formula recalculation.)
-        """
-        try:
-            res = (
-                self.db.table("loan_transactions")
-                .select("cash_given")
-                .execute()
-            )
-            return sum(
-                (Decimal(str(row["cash_given"])) for row in (res.data or [])),
-                Decimal("0.00"),
-            )
-        except Exception:
-            logger.exception("Failed to compute total_cash_out")
             return Decimal("0.00")
 
     def _get_todays_collection(self, today: date) -> Decimal:
@@ -148,60 +123,46 @@ class DashboardService:
                 .execute()
             )
             return sum(
-                (Decimal(str(row["amount_paid"])) for row in (res.data or [])),
+                (Decimal(str(row["amount_paid"])) for row in (res.data or []) if "amount_paid" in row and row["amount_paid"] is not None),
                 Decimal("0.00"),
             )
         except Exception:
             logger.exception("Failed to compute todays_collection")
             return Decimal("0.00")
 
-
-    def _get_total_loan_amount(self) -> Decimal:
+    def _get_loan_transaction_totals(self) -> tuple[Decimal, Decimal, Decimal]:
         """
-        Formula 16 / Dashboard accounting:
-        Total Loan Amount = SUM(loan_transactions.loan_amount)
+        Single query for all loan transactions.
+        Returns (total_cash_out, total_loan_amount, total_note_cost).
 
-        This is the PRINCIPAL issued to members (e.g. 10,000 per member).
-        It differs from total_cash_out which is SUM(cash_given) = loan_amount - note_cost.
+        Previously three separate queries hitting the same table:
+        - _get_total_cash_out:    SELECT cash_given
+        - _get_total_loan_amount: SELECT loan_amount
+        - _get_total_note_cost:   SELECT note_cost
 
-        Per docs/04_ACCOUNTING_RULES.md:
-          Loan Amount 10,000 | Note Cost 100 | Cash Given 9,900
-          => The business ISSUED 10,000 in loan principal, though only 9,900 left the vault.
-        """
-        try:
-            res = (
-                self.db.table("loan_transactions")
-                .select("loan_amount")
-                .execute()
-            )
-            return sum(
-                (Decimal(str(row["loan_amount"])) for row in (res.data or [])),
-                Decimal("0.00"),
-            )
-        except Exception:
-            logger.exception("Failed to compute total_loan_amount")
-            return Decimal("0.00")
-
-    def _get_total_note_cost(self) -> Decimal:
-        """
-        Total Note Cost = SUM(loan_transactions.note_cost)
-
-        Note cost is deducted before disbursement and recognised immediately
-        as business income (per 04_ACCOUNTING_RULES.md - Note Cost Deduction).
+        Now one query that fetches all 3 columns and computes sums from
+        a single result set, saving 2 round-trips to Supabase.
         """
         try:
             res = (
                 self.db.table("loan_transactions")
-                .select("note_cost")
+                .select("cash_given, loan_amount, note_cost")
                 .execute()
             )
-            return sum(
-                (Decimal(str(row["note_cost"])) for row in (res.data or [])),
-                Decimal("0.00"),
-            )
+            total_cash_out = Decimal("0.00")
+            total_loan_amount = Decimal("0.00")
+            total_note_cost = Decimal("0.00")
+            for row in (res.data or []):
+                if "cash_given" in row and row["cash_given"] is not None:
+                    total_cash_out += Decimal(str(row["cash_given"]))
+                if "loan_amount" in row and row["loan_amount"] is not None:
+                    total_loan_amount += Decimal(str(row["loan_amount"]))
+                if "note_cost" in row and row["note_cost"] is not None:
+                    total_note_cost += Decimal(str(row["note_cost"]))
+            return total_cash_out, total_loan_amount, total_note_cost
         except Exception:
-            logger.exception("Failed to compute total_note_cost")
-            return Decimal("0.00")
+            logger.exception("Failed to compute loan transaction totals")
+            return Decimal("0.00"), Decimal("0.00"), Decimal("0.00")
 
     def _get_total_outstanding(self) -> Decimal:
         """

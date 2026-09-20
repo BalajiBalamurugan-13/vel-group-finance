@@ -29,7 +29,7 @@ export default defineConfig({
         },
       },
     },
-    sourcemap: true,
+    sourcemap: false,
     target: 'es2020',
   },
   server: {

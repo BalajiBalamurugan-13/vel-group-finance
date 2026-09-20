@@ -20,6 +20,7 @@ class GroupBase(BaseModel):
     location: str = Field(..., min_length=1, max_length=100)
     group_name: str = Field(..., min_length=1, max_length=255)
     start_date: Optional[date] = None
+    funding_source: Optional[str] = "Recycled Collections"
     remarks: Optional[str] = None
 
 
@@ -29,6 +30,7 @@ class GroupCreate(BaseModel):
     scheme_id: UUID
     group_name: Optional[str] = Field(None, min_length=1, max_length=255)
     start_date: Optional[date] = None
+    funding_source: Optional[str] = "Recycled Collections"
     remarks: Optional[str] = None
 
     @field_validator("location")
@@ -49,6 +51,15 @@ class GroupCreate(BaseModel):
             return trimmed
         return v
 
+    @field_validator("funding_source")
+    @classmethod
+    def validate_funding_source(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            valid_sources = {"Initial Investment", "Additional Investment", "Recycled Collections"}
+            if v not in valid_sources:
+                raise ValueError(f"funding_source must be one of {valid_sources}")
+        return v
+
 
 class GroupUpdate(BaseModel):
     """
@@ -58,6 +69,7 @@ class GroupUpdate(BaseModel):
     group_name: Optional[str] = Field(None, min_length=1, max_length=255)
     location: Optional[str] = Field(None, min_length=1, max_length=100)
     start_date: Optional[date] = None
+    funding_source: Optional[str] = None
     remarks: Optional[str] = None
 
     model_config = {"extra": "forbid"}
@@ -80,6 +92,15 @@ class GroupUpdate(BaseModel):
             if not trimmed:
                 raise ValueError("Group name cannot be empty or only whitespace")
             return trimmed
+        return v
+
+    @field_validator("funding_source")
+    @classmethod
+    def validate_funding_source(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            valid_sources = {"Initial Investment", "Additional Investment", "Recycled Collections"}
+            if v not in valid_sources:
+                raise ValueError(f"funding_source must be one of {valid_sources}")
         return v
 
 
@@ -114,6 +135,7 @@ class GroupResponse(BaseModel):
     location: str
     group_name: str
     start_date: Optional[date] = None
+    funding_source: Optional[str] = "Recycled Collections"
     status: GroupStatus
     remarks: Optional[str] = None
     member_count: int = 0

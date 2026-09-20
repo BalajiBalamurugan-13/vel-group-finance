@@ -66,7 +66,7 @@ export function Card({ children, className, noPadding = false, ...props }: CardP
   return (
     <div
       className={cn(
-        'relative bg-surface border border-border rounded-xl',
+        'relative bg-surface/92 backdrop-blur-md border border-border/80 rounded-xl',
         'shadow-sm',
         !noPadding && '',
         className,

@@ -232,39 +232,84 @@
   transition-duration: var(--duration-normal);
 }
 
-/* ── VEL Finance Watermark ───────────────────────────────────────────────── */
+/* ── VEL Finance Glowing Watermark ───────────────────────────────────────── */
 /*
- * Subtle branded background watermark using the actual VEL Finance logo.
- * Applied to the main scrollable content area in both mobile and desktop layouts.
- * The watermark sits behind all content and never interferes with interaction.
+ * Branded background watermark with golden aura glow using the VEL Finance emblem.
+ * Applied across all pages in both mobile and desktop layouts.
+ * ::before provides a warm glowing gold aura behind the content.
+ * ::after provides an authentic banknote-style watermark over white card surfaces (multiply blend).
  */
 .vel-content-area {
   position: relative;
   isolation: isolate;
 }
 
+/* 1. Golden Glowing Aura behind content */
 .vel-content-area::before {
   content: '';
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 260px;
-  height: 260px;
-  background-image: url('/src/assets/Vel finance logo white.png');
+  width: 290px;
+  height: 290px;
+  background-image: url('/images/vel-logo-gold.png');
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  opacity: 0.02;
+  opacity: 0.28;
+  filter: drop-shadow(0 0 25px rgba(234, 179, 8, 0.8))
+          drop-shadow(0 0 50px rgba(245, 158, 11, 0.55))
+          drop-shadow(0 0 90px rgba(217, 119, 6, 0.35));
   pointer-events: none;
   user-select: none;
   z-index: -1;
+  animation: vel-golden-glow 6s ease-in-out infinite alternate;
+}
+
+/* 2. Soft watermark visible on white cards */
+.vel-content-area::after {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 290px;
+  height: 290px;
+  background-image: url('/images/vel-logo-gold.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.10;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  user-select: none;
+  z-index: 5;
 }
 
 @media (min-width: 1024px) {
-  .vel-content-area::before {
-    width: 380px;
-    height: 380px;
+  .vel-content-area::before,
+  .vel-content-area::after {
+    width: 440px;
+    height: 440px;
+    left: calc(50% + 120px); /* Balance with desktop sidebar width */
+  }
+}
+
+@keyframes vel-golden-glow {
+  0% {
+    filter: drop-shadow(0 0 20px rgba(234, 179, 8, 0.65))
+            drop-shadow(0 0 45px rgba(245, 158, 11, 0.45))
+            drop-shadow(0 0 75px rgba(217, 119, 6, 0.25));
+    opacity: 0.25;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+  100% {
+    filter: drop-shadow(0 0 35px rgba(245, 158, 11, 0.95))
+            drop-shadow(0 0 70px rgba(234, 179, 8, 0.7))
+            drop-shadow(0 0 115px rgba(217, 119, 6, 0.45));
+    opacity: 0.34;
+    transform: translate(-50%, -50%) scale(1.02);
   }
 }
 

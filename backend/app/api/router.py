@@ -35,6 +35,9 @@ from app.api.endpoints.groups import router as groups_router
 from app.api.endpoints.members import router as members_router
 from app.api.endpoints.collections import router as collections_router
 from app.api.endpoints.dashboard import router as dashboard_router
+from app.api.endpoints.investments import router as investments_router
+from app.api.endpoints.profit import router as profit_router
+from app.api.endpoints.loan_risk import router as loan_risk_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -45,6 +48,9 @@ api_router.include_router(groups_router, prefix="/groups", tags=["Groups"])
 api_router.include_router(members_router, prefix="/members", tags=["Members"])
 api_router.include_router(collections_router, prefix="/collections", tags=["Collections"])
 api_router.include_router(dashboard_router, prefix="/dashboard", tags=["Dashboard"])
+api_router.include_router(investments_router, prefix="/investments", tags=["Investments"])
+api_router.include_router(profit_router, prefix="/profit", tags=["Profit"])
+api_router.include_router(loan_risk_router, prefix="/loan-risk", tags=["Loan Risk"])
 
 # ── Future Module Routes (add as each milestone is implemented) ────────────────
 

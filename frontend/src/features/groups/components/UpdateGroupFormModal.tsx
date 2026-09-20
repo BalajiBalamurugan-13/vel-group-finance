@@ -33,6 +33,7 @@ export function UpdateGroupFormModal({
         group_name: group.group_name,
         location: group.location,
         start_date: group.start_date || '',
+        funding_source: group.funding_source || 'Recycled Collections',
         remarks: group.remarks || '',
       });
     }
@@ -55,6 +56,7 @@ export function UpdateGroupFormModal({
           group_name: data.group_name?.trim() || undefined,
           location: data.location?.trim() || undefined,
           start_date: data.start_date || undefined,
+          funding_source: data.funding_source || undefined,
           remarks: data.remarks?.trim() || undefined,
         },
       });
@@ -119,6 +121,22 @@ export function UpdateGroupFormModal({
             })}
             errorMessage={errors.start_date?.message}
           />
+
+          {/* Funding Source (Section 8) */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="edit_funding_source" className="text-sm font-medium text-secondary-900">
+              Funding Source
+            </label>
+            <select
+              id="edit_funding_source"
+              {...register('funding_source')}
+              className="w-full h-10 px-3 rounded-lg border border-border bg-surface text-secondary-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+            >
+              <option value="Recycled Collections">Recycled Collections</option>
+              <option value="Initial Investment">Initial Investment</option>
+              <option value="Additional Investment">Additional Investment</option>
+            </select>
+          </div>
 
           <Input
             id="edit_remarks"

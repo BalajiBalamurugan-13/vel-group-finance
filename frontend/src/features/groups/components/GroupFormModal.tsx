@@ -34,6 +34,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
       group_name: '',
       scheme_id: '',
       start_date: new Date().toISOString().split('T')[0],
+      funding_source: 'Recycled Collections',
       remarks: '',
     },
   });
@@ -70,6 +71,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
         scheme_id: data.scheme_id,
         group_name: data.group_name?.trim() || undefined,
         start_date: data.start_date || undefined,
+        funding_source: data.funding_source || 'Recycled Collections',
         remarks: data.remarks?.trim() || undefined,
       });
       onSuccess?.(createdGroup);
@@ -211,6 +213,28 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
             })}
             errorMessage={errors.start_date?.message}
           />
+
+          {/* Funding Source (Section 8) */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="funding_source" className="text-sm font-medium text-secondary-900">
+              Funding Source
+            </label>
+            <select
+              id="funding_source"
+              {...register('funding_source')}
+              className={cn(
+                'w-full h-10 px-3 rounded-lg border border-border bg-surface text-secondary-900 text-sm',
+                'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500'
+              )}
+            >
+              <option value="Recycled Collections">Recycled Collections (Default business cash)</option>
+              <option value="Initial Investment">Initial Investment (Owner starting capital)</option>
+              <option value="Additional Investment">Additional Investment (Owner capital added later)</option>
+            </select>
+            <p className="text-[11px] text-secondary-600 font-medium">
+              Source of capital used to disburse this group&apos;s loans (Section 8).
+            </p>
+          </div>
 
           {/* Remarks */}
           <Input
