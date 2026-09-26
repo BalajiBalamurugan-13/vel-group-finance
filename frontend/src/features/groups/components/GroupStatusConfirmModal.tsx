@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/Button';
 import type { Group, GroupStatus } from '../types';
 
@@ -18,6 +20,29 @@ export function GroupStatusConfirmModal({
   onConfirm,
   isLoading,
 }: GroupStatusConfirmModalProps) {
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isLoading) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isLoading, onClose]);
+
   if (!isOpen || !group || !targetStatus) return null;
 
   const getModalConfig = () => {
@@ -64,9 +89,21 @@ export function GroupStatusConfirmModal({
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-secondary-900/50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-xl bg-surface p-4 sm:p-6 shadow-xl">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-xs"
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isLoading) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl bg-surface p-5 sm:p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-base font-bold text-secondary-900">
           {config.title}
         </h2>
@@ -74,12 +111,12 @@ export function GroupStatusConfirmModal({
           {config.description}
         </p>
         {config.warning && (
-          <p className="mt-2 text-xs font-medium text-warning-700 bg-warning-50 rounded-md px-2.5 py-1.5">
+          <p className="mt-2.5 text-xs font-medium text-warning-700 bg-warning-50 rounded-md px-2.5 py-1.5 border border-warning-200">
             {config.warning}
           </p>
         )}
 
-        <div className="mt-5 flex justify-end gap-3">
+        <div className="mt-5 flex justify-end gap-3 pt-3 border-t border-border">
           <Button
             variant="ghost"
             size="sm"
@@ -100,6 +137,7 @@ export function GroupStatusConfirmModal({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

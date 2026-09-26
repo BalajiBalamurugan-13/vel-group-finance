@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { X, AlertCircle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -36,6 +37,17 @@ export function RecordPaymentModal({
 }: RecordPaymentModalProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
 
   // Optional: fetch initial member if provided to auto-select their group
   const { data: initialMember } = useMember(initialMemberId || '');
@@ -117,14 +129,26 @@ export function RecordPaymentModal({
     }
   }, [initialMemberId, setValue]);
 
-  if (!isOpen) return null;
-
   const handleClose = () => {
     setErrorMessage(null);
     setSelectedGroupId('');
     reset();
     onClose();
   };
+
+  // ESC key listener
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const onSubmit = async (values: FormValues) => {
     setErrorMessage(null);
@@ -159,48 +183,54 @@ export function RecordPaymentModal({
 
   const expectedWeekly = Number(selectedMember?.weekly_installment || 0);
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-secondary-900/40 backdrop-blur-xs"
+      className="fixed inset-0 z-modal flex items-end sm:items-center justify-center p-0 sm:p-4 bg-secondary-900/60 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
       aria-labelledby="record-payment-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
     >
-        <div className="relative w-full max-w-lg rounded-2xl bg-surface p-4 sm:p-6 shadow-xl border border-border max-h-[90vh] overflow-y-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
-            <div>
-              <h2
-                id="record-payment-title"
-                className="text-lg font-bold text-secondary-900"
-              >
-                Record Weekly Payment
-              </h2>
-              <p className="text-xs text-secondary-500 mt-0.5">
-                Cash In • Weekly installment
-              </p>
-            </div>
-            <button
-              onClick={handleClose}
-              className="rounded-lg p-2 text-secondary-400 hover:bg-secondary-100 hover:text-secondary-600 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-              aria-label="Close dialog"
+      <div className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl bg-surface shadow-2xl border border-border max-h-[92dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden">
+        {/* Pinned Header — Always visible at top */}
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 flex-shrink-0 bg-surface">
+          <div>
+            <h2
+              id="record-payment-title"
+              className="text-base sm:text-lg font-bold text-secondary-900"
             >
-              <X className="w-5 h-5" />
-            </button>
+              Record Weekly Payment
+            </h2>
+            <p className="text-xs text-secondary-500 mt-0.5">
+              Cash In • Weekly installment collection
+            </p>
           </div>
+          <button
+            onClick={handleClose}
+            className="rounded-lg p-2 text-secondary-400 hover:bg-secondary-100 hover:text-secondary-600 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center -mr-1"
+            aria-label="Close dialog"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-          {/* Error Alert */}
-          {errorMessage && (
-            <div className="mb-4 flex items-start gap-3 rounded-lg bg-error-50 p-3 text-sm border border-error-200">
-              <AlertCircle className="w-5 h-5 text-error-600 shrink-0 mt-0.5" />
-              <div>
-                <div className="font-semibold text-error-900">Payment Error</div>
-                <div className="text-xs text-error-700 mt-0.5">{errorMessage}</div>
+        {/* Form wrapping scrollable body and pinned footer */}
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden min-h-0">
+          {/* Scrollable Form Body */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {/* Error Alert */}
+            {errorMessage && (
+              <div className="flex items-start gap-3 rounded-lg bg-error-50 p-3 text-sm border border-error-200">
+                <AlertCircle className="w-5 h-5 text-error-600 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-semibold text-error-900">Payment Error</div>
+                  <div className="text-xs text-error-700 mt-0.5">{errorMessage}</div>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Step 1: Group Selection */}
             <div>
               <label
@@ -217,7 +247,7 @@ export function RecordPaymentModal({
                     setSelectedGroupId(e.target.value);
                     setValue('member_id', '');
                   }}
-                  className="w-full h-11 min-h-[44px] px-3 py-2 bg-surface border border-border rounded-lg text-sm text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none truncate font-sans cursor-pointer pr-8"
+                  className="w-full h-11 min-h-[44px] px-3 py-2 bg-surface border border-border rounded-lg text-base sm:text-sm text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none truncate font-sans cursor-pointer pr-8"
                   disabled={isLoadingGroups}
                 >
                   <option value="">
@@ -249,7 +279,7 @@ export function RecordPaymentModal({
                 <select
                   id="member_id_select"
                   {...register('member_id', { required: 'Please select a member' })}
-                  className="w-full h-11 min-h-[44px] px-3 py-2 bg-surface border border-border rounded-lg text-sm text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none truncate font-sans cursor-pointer pr-8 disabled:bg-secondary-50 disabled:text-secondary-400 disabled:cursor-not-allowed"
+                  className="w-full h-11 min-h-[44px] px-3 py-2 bg-surface border border-border rounded-lg text-base sm:text-sm text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none truncate font-sans cursor-pointer pr-8 disabled:bg-secondary-50 disabled:text-secondary-400 disabled:cursor-not-allowed"
                   disabled={!selectedGroupId || isLoadingMembers}
                 >
                   <option value="">
@@ -280,7 +310,7 @@ export function RecordPaymentModal({
 
             {/* Read-Only Scheme / Group Context */}
             {selectedMember && (
-              <div className="rounded-lg bg-secondary-50 p-3 border border-secondary-200/80 text-xs space-y-1.5">
+              <div className="rounded-xl bg-secondary-50/80 p-3.5 border border-secondary-200/80 text-xs space-y-1.5 shadow-xs">
                 <div className="flex justify-between items-start gap-2 text-secondary-700">
                   <span className="font-medium flex-shrink-0">Member:</span>
                   <span className="font-semibold text-secondary-900 break-words text-right flex-1">
@@ -293,22 +323,22 @@ export function RecordPaymentModal({
                     {selectedMember.group_name} {selectedMember.location ? `(${selectedMember.location})` : ''}
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-secondary-700">
+                <div className="flex justify-between items-center text-secondary-700 pt-1 border-t border-secondary-200/60">
                   <span className="font-medium">Standard Installment:</span>
-                  <span className="font-bold text-primary-700 text-sm">
+                  <span className="font-bold text-primary-700 text-sm font-mono">
                     {formatCurrency(expectedWeekly)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-secondary-700">
                   <span className="font-medium">Weeks Paid:</span>
-                  <span className="font-semibold text-secondary-900">
+                  <span className="font-semibold text-secondary-900 font-mono">
                     {paidWeeksCount}
                   </span>
                 </div>
                 {selectedMember.immediate_collection && Number(selectedMember.immediate_collection) > 0 && (
                   <div className="flex justify-between items-center text-warning-700">
                     <span className="font-medium">Immediate Due:</span>
-                    <span className="font-semibold">
+                    <span className="font-semibold font-mono">
                       {formatCurrency(Number(selectedMember.immediate_collection))}
                     </span>
                   </div>
@@ -377,31 +407,38 @@ export function RecordPaymentModal({
                 id="collection-remarks"
                 rows={2}
                 {...register('remarks')}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="Optional notes..."
+                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-base sm:text-sm text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder:text-secondary-400"
+                placeholder="Optional collection notes..."
               />
             </div>
+          </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onClose}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                isLoading={isSubmitting || recordMutation.isPending}
-              >
-                Record Payment (Week {nextPayableWeek})
-              </Button>
-            </div>
-          </form>
-        </div>
+          {/* Pinned Footer — ALWAYS VISIBLE at bottom with safe-area spacing */}
+          <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-3.5 border-t border-border bg-surface flex-shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleClose}
+              className="min-h-[44px] px-4"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              isLoading={isSubmitting || recordMutation.isPending}
+              disabled={!selectedMemberId || isSubmitting || recordMutation.isPending}
+              className="min-h-[44px] flex-1 sm:flex-initial px-5 font-semibold text-sm shadow-sm"
+            >
+              {selectedMember
+                ? `Record Payment (Week ${nextPayableWeek})`
+                : 'Record Payment'}
+            </Button>
+          </div>
+        </form>
       </div>
+    </div>,
+    document.body
   );
 }

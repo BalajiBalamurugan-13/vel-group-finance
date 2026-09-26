@@ -53,19 +53,32 @@ export function useBreakpoint(): BreakpointState {
     const mediaQuery = window.matchMedia(`(min-width: ${DESKTOP_BREAKPOINT}px)`);
 
     function handleResize(): void {
-      setState(getState(window.innerWidth));
+      const currentWidth = window.innerWidth;
+      const newBreakpoint = getBreakpoint(currentWidth);
+      const newIsDesktop = currentWidth >= DESKTOP_BREAKPOINT;
+
+      setState((prev) => {
+        if (prev.breakpoint === newBreakpoint && prev.isDesktop === newIsDesktop) {
+          return prev; // Same breakpoint — prevent re-renders on mobile scroll
+        }
+        return {
+          width: currentWidth,
+          isDesktop: newIsDesktop,
+          isMobile: !newIsDesktop,
+          breakpoint: newBreakpoint,
+        };
+      });
     }
 
-    // Use matchMedia event for the primary layout switch (more performant)
     const handleMediaChange = (): void => {
-      setState(getState(window.innerWidth));
+      handleResize();
     };
 
     window.addEventListener('resize', handleResize, { passive: true });
     mediaQuery.addEventListener('change', handleMediaChange);
 
     // Sync on mount
-    setState(getState(window.innerWidth));
+    handleResize();
 
     return () => {
       window.removeEventListener('resize', handleResize);

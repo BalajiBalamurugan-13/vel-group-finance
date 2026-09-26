@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -8,7 +9,7 @@ import { formatCurrency } from '@/utils/format';
 import type { MemberCreate } from '../types';
 import type { ApiError } from '@/types/common';
 import { cn } from '@/lib/cn';
-import { Info } from 'lucide-react';
+import { Info, X } from 'lucide-react';
 
 interface MemberFormModalProps {
   isOpen: boolean;
@@ -27,6 +28,17 @@ export function MemberFormModal({
   const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
   const { mutateAsync: createMember, isPending: isCreating } = useCreateMember();
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
 
   // Available groups for enrollment: Draft and Active groups only.
   // Draft groups accept members but do not disburse loans until activated (BR-025, BR-026).
@@ -54,13 +66,25 @@ export function MemberFormModal({
   const watchedGroupId = watch('group_id');
   const selectedGroup = groups.find((g) => g.id === watchedGroupId);
 
-  if (!isOpen) return null;
-
   const handleClose = () => {
     reset();
     setApiError(null);
     onClose();
   };
+
+  // ESC key listener
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const onSubmit = async (data: MemberCreate) => {
     setApiError(null);
@@ -85,26 +109,50 @@ export function MemberFormModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-secondary-900/50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="w-full max-w-lg my-8 rounded-xl bg-surface p-4 sm:p-6 shadow-xl">
-        <h2 className="mb-4 text-xl font-semibold text-secondary-900">
-          Add New Member
-        </h2>
-
-        {apiError && (
-          <div className="mb-4 rounded-lg bg-error-50 p-3 text-sm text-error-600">
-            {apiError}
+  return createPortal(
+    <div
+      className="fixed inset-0 z-modal flex items-end sm:items-center justify-center p-0 sm:p-4 bg-secondary-900/60 backdrop-blur-xs"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-member-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
+    >
+      <div className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl bg-surface shadow-2xl border border-border max-h-[92dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden">
+        {/* Pinned Header */}
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 flex-shrink-0 bg-surface">
+          <div>
+            <h2 id="add-member-title" className="text-base sm:text-lg font-bold text-secondary-900">
+              Add New Member
+            </h2>
+            <p className="text-xs text-secondary-500 mt-0.5">
+              Enroll member into an active finance group
+            </p>
           </div>
-        )}
+          <button
+            onClick={handleClose}
+            className="rounded-lg p-2 text-secondary-400 hover:bg-secondary-100 hover:text-secondary-600 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center -mr-1"
+            aria-label="Close dialog"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-        {eligibleGroups.length === 0 && !isLoadingGroups && (
-          <div className="mb-4 rounded-lg bg-warning-50 p-3 text-sm text-warning-800 border border-warning-200">
-            <strong>Note:</strong> No Active groups are currently available. Members can only be added to an Active group. Please activate a group first.
-          </div>
-        )}
+        {/* Form wrapping body and pinned footer */}
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden min-h-0">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {apiError && (
+              <div className="rounded-lg bg-error-50 p-3 text-sm text-error-600 border border-error-200">
+                {apiError}
+              </div>
+            )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {eligibleGroups.length === 0 && !isLoadingGroups && (
+              <div className="rounded-lg bg-warning-50 p-3 text-sm text-warning-800 border border-warning-200">
+                <strong>Note:</strong> No Active groups are currently available. Members can only be added to an Active group. Please activate a group first.
+              </div>
+            )}
           {/* Group Selection */}
           <div className="flex flex-col gap-1.5">
             <label
@@ -281,22 +329,31 @@ export function MemberFormModal({
             />
           </div>
 
-          {/* Buttons */}
-          <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
+          </div>
+
+          {/* Pinned Footer with safe-area spacing */}
+          <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-3.5 border-t border-border bg-surface flex-shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
               disabled={isCreating}
+              className="min-h-[44px] px-4"
             >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={isCreating}>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isCreating}
+              className="min-h-[44px] flex-1 sm:flex-initial px-6 font-semibold"
+            >
               Add Member
             </Button>
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

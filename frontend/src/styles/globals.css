@@ -112,7 +112,7 @@
   --duration-slow: var(--duration-slow);
 }
 
-/* ── Safe Area Utility (Part 7) ──────────────────────────────────────────── */
+/* ── Safe Area & Layer Utilities ─────────────────────────────────────────── */
 /*
  * Provides padding-bottom equal to the device's safe area inset.
  * Required for iPhone/iPad home indicator clearance on the bottom nav.
@@ -120,6 +120,26 @@
  */
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility z-sticky {
+  z-index: 200;
+}
+
+@utility z-navigation {
+  z-index: 300;
+}
+
+@utility z-overlay {
+  z-index: 900;
+}
+
+@utility z-modal {
+  z-index: 1000;
+}
+
+@utility z-toast {
+  z-index: 1100;
 }
 
 /* ── Mobile Layout System ────────────────────────────────────────────────── */
@@ -146,9 +166,9 @@
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch; /* smooth momentum scrolling on iOS */
-  /* Pad top for fixed header (h-14 = 56px) and bottom for fixed nav (h-16 = 64px + safe area) */
+  /* Pad top for fixed header (h-14 = 56px) and bottom for fixed nav (64px nav + 20px breathing room + safe area) */
   padding-top: 56px;
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ── Base Layer: Resets, Typography & Interactive Defaults ──────────────── */
@@ -165,6 +185,13 @@
     text-size-adjust: 100%;
     scroll-behavior: smooth;
     height: 100%;
+  }
+
+  /* Prevent iOS Safari from auto-zooming on focus when font-size < 16px */
+  @media (max-width: 640px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
   }
 
   body {

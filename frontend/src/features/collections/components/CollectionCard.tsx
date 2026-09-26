@@ -17,7 +17,10 @@ export function CollectionCard({
   const amount = Number(collection.amount_paid);
 
   return (
-    <Card className="flex flex-col p-0 overflow-hidden shadow-sm">
+    <Card
+      className="flex flex-col p-0 overflow-hidden shadow-sm cursor-pointer hover:border-primary-300 active:scale-[0.99] transition-all"
+      onClick={() => onViewDetails(collection)}
+    >
       {/* Header: Member, Receipt Code, Status & Group */}
       <div className="px-4 pt-3 pb-2">
         <div className="flex items-start justify-between gap-2">
@@ -68,13 +71,16 @@ export function CollectionCard({
       </div>
 
       {/* Footer / Action */}
-      <div className="px-4 py-1.5 bg-secondary-50/50 flex items-center justify-between text-xs text-secondary-500">
+      <div className="px-4 py-2 bg-secondary-50/50 flex items-center justify-between text-xs text-secondary-500">
         <span className="truncate mr-2 text-[11px]">Collector: {collection.collector_name || 'Admin'}</span>
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onViewDetails(collection)}
-          className="text-secondary-600 hover:text-primary-600 flex-shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            onViewDetails(collection);
+          }}
+          className="text-secondary-600 hover:text-primary-600 flex-shrink-0 min-h-[36px]"
           aria-label={`View details for ${collection.member_name || 'member'}`}
         >
           <Eye className="w-3.5 h-3.5 mr-1" />

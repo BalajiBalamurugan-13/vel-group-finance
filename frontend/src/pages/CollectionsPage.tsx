@@ -109,6 +109,17 @@ export function CollectionsPage() {
         onViewDetails={(collection) => setSelectedCollection(collection)}
       />
 
+      {/* ── Mobile Floating Action Button (FAB) for Record Payment ────── */}
+      <button
+        type="button"
+        onClick={() => setIsRecordModalOpen(true)}
+        className="fixed md:hidden z-30 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-4 inline-flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xl hover:bg-primary-700 active:scale-95 transition-all"
+        aria-label="Record Weekly Collection Payment"
+      >
+        <Plus className="h-4 w-4" />
+        <span>Record Payment</span>
+      </button>
+
       {/* ── Record Payment Modal ─────────────────────────────────────────────── */}
       <RecordPaymentModal
         isOpen={isRecordModalOpen}

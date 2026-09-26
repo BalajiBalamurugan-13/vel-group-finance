@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/Button';
 import type { Member, MemberStatus } from '../types';
 import type { ApiError } from '@/types/common';
@@ -22,6 +23,29 @@ export function MemberStatusConfirmModal({
   isLoading = false,
 }: MemberStatusConfirmModalProps) {
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isLoading) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isLoading, onClose]);
 
   if (!isOpen || !member || !targetStatus) return null;
 
@@ -52,25 +76,37 @@ export function MemberStatusConfirmModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-secondary-900/50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-xl bg-surface p-6 shadow-xl">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-xs"
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isLoading) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="w-full max-w-md rounded-xl bg-surface p-5 sm:p-6 shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning-50 text-warning-600">
             <AlertCircle className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-secondary-900">
+            <h3 className="text-base font-bold text-secondary-900">
               Confirm Status Change
             </h3>
-            <p className="mt-2 text-sm text-secondary-600">
+            <p className="mt-2 text-sm text-secondary-600 leading-relaxed">
               {getStatusMessage()}
             </p>
           </div>
         </div>
 
         {apiError && (
-          <div className="mt-4 rounded-lg bg-error-50 p-3 text-sm text-error-600">
+          <div className="mt-4 rounded-lg bg-error-50 p-3 text-sm text-error-600 border border-error-200">
             {apiError}
           </div>
         )}
@@ -79,6 +115,7 @@ export function MemberStatusConfirmModal({
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={onClose}
             disabled={isLoading}
           >
@@ -87,6 +124,7 @@ export function MemberStatusConfirmModal({
           <Button
             type="button"
             variant="primary"
+            size="sm"
             onClick={handleConfirm}
             isLoading={isLoading}
           >
@@ -94,6 +132,7 @@ export function MemberStatusConfirmModal({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

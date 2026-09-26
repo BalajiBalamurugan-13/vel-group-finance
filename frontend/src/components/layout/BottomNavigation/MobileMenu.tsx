@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
 import { BarChart3, FileBadge, Settings, TrendingUp, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,7 +20,9 @@ const MENU_ITEMS = [
 ];
 
 export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -29,7 +32,7 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: DURATION.fast }}
-            className="fixed inset-0 z-[100] bg-secondary-900/20"
+            className="fixed inset-0 z-overlay bg-secondary-900/40 backdrop-blur-xs"
             onClick={onClose}
             aria-hidden="true"
           />
@@ -40,7 +43,7 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.15, ease: EASING.out }}
-            className="fixed right-2 z-[101] mb-2 bottom-[calc(4rem+env(safe-area-inset-bottom))] w-44 rounded-xl border border-border bg-surface p-1 shadow-sm"
+            className="fixed right-3 z-[950] mb-2 bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] w-48 rounded-xl border border-border bg-surface p-1.5 shadow-xl"
             role="dialog"
             aria-label="Mobile Menu"
           >
@@ -56,15 +59,15 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                       cn(
                         'flex min-h-[44px] items-center gap-3 rounded-lg px-3 transition-colors',
                         isActive
-                          ? 'bg-primary-50 text-primary-700'
-                          : 'text-secondary-700 hover:bg-secondary-50'
+                          ? 'bg-primary-50 text-primary-700 font-semibold'
+                          : 'text-secondary-700 hover:bg-secondary-50 active:bg-secondary-100'
                       )
                     }
                   >
                     {({ isActive }) => (
                       <>
                         <Icon className={cn('h-5 w-5', isActive ? 'text-primary-600' : 'text-secondary-400')} />
-                        <span className="font-medium">{item.label}</span>
+                        <span className="text-sm">{item.label}</span>
                       </>
                     )}
                   </NavLink>
@@ -74,6 +77,7 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

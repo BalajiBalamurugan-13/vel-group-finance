@@ -43,11 +43,11 @@ export function BottomNavigation() {
   return (
     <>
       <nav
-        className="fixed bottom-0 left-0 right-0 z-sticky bg-surface border-t border-border"
+        className="fixed bottom-0 left-0 right-0 z-sticky bg-surface border-t border-border pb-[env(safe-area-inset-bottom,0px)] shadow-lg"
         aria-label="Bottom navigation"
       >
-        {/* Safe area padding for iOS home indicator */}
-        <div className="flex items-stretch h-16 pb-safe">
+        {/* Full-height button row with clear icon + text typography */}
+        <div className="flex items-center justify-around h-16 px-1">
           {BOTTOM_NAV_ITEMS.map((item) => (
             <BottomNavItem key={item.path} item={item} />
           ))}
@@ -55,21 +55,21 @@ export function BottomNavigation() {
             onClick={() => setIsMenuOpen(true)}
             aria-label="Menu"
             className={cn(
-              'flex-1 flex flex-col items-center justify-center gap-1 py-2',
-              'text-xs font-medium transition-colors duration-fast min-h-[44px]',
+              'flex-1 flex flex-col items-center justify-center gap-1 py-1.5 px-0.5',
+              'text-[11px] font-medium transition-colors duration-fast min-h-[44px]',
               isMenuOpen
-                ? 'text-primary-600'
-                : 'text-secondary-400 hover:text-secondary-600',
+                ? 'text-primary-600 font-semibold'
+                : 'text-secondary-400 hover:text-secondary-600 active:text-primary-600',
             )}
           >
             <MenuIcon
               className={cn(
-                'w-5 h-5',
+                'w-5 h-5 shrink-0',
                 isMenuOpen ? 'text-primary-600' : 'text-secondary-400',
               )}
               aria-hidden="true"
             />
-            <span>Menu</span>
+            <span className="truncate leading-none">Menu</span>
           </button>
         </div>
       </nav>
@@ -94,11 +94,11 @@ function BottomNavItem({ item }: BottomNavItemProps) {
       aria-label={item.label}
       className={({ isActive }) =>
         cn(
-          'flex-1 flex flex-col items-center justify-center gap-1 py-2',
-          'text-xs font-medium transition-colors duration-fast min-h-[44px]',
+          'flex-1 flex flex-col items-center justify-center gap-1 py-1.5 px-0.5',
+          'text-[11px] font-medium transition-colors duration-fast min-h-[44px]',
           isActive
-            ? 'text-primary-600'
-            : 'text-secondary-400 hover:text-secondary-600',
+            ? 'text-primary-600 font-semibold'
+            : 'text-secondary-400 hover:text-secondary-600 active:text-primary-600',
         )
       }
     >
@@ -106,12 +106,12 @@ function BottomNavItem({ item }: BottomNavItemProps) {
         <>
           <Icon
             className={cn(
-              'w-5 h-5',
+              'w-5 h-5 shrink-0',
               isActive ? 'text-primary-600' : 'text-secondary-400',
             )}
             aria-hidden="true"
           />
-          <span>{item.label}</span>
+          <span className="truncate leading-none">{item.label}</span>
         </>
       )}
     </NavLink>

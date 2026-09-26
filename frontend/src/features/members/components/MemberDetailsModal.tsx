@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { MemberStatusBadge } from './MemberStatusBadge';
@@ -18,6 +20,29 @@ export function MemberDetailsModal({
   onClose,
   onEdit,
 }: MemberDetailsModalProps) {
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  // ESC key listener
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Fetch payment history for this member
   const { data: memberCollections = [] } = useCollections(
     member?.id ? { member_id: member.id } : undefined,
@@ -44,14 +69,17 @@ export function MemberDetailsModal({
     0,
   );
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-secondary-900/50 backdrop-blur-xs"
+      className="fixed inset-0 z-modal flex items-end sm:items-center justify-center p-0 sm:p-4 bg-secondary-900/60 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
       aria-labelledby="member-details-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div className="relative w-full max-w-xl rounded-2xl bg-surface shadow-2xl border border-border max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-xl rounded-t-2xl sm:rounded-2xl bg-surface shadow-2xl border border-border max-h-[92dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden">
         {/* Header — Always pinned at top */}
         <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 flex-shrink-0 bg-surface">
           <div className="min-w-0 flex-1">
@@ -313,13 +341,18 @@ export function MemberDetailsModal({
           )}
         </div>
 
-        {/* Footer — Always pinned at bottom */}
-        <div className="flex items-center justify-end border-t border-border px-4 py-2.5 sm:px-6 sm:py-3 bg-secondary-50/50 flex-shrink-0">
-          <Button variant="outline" size="sm" onClick={onClose}>
+        {/* Footer — Always pinned at bottom with safe-area spacing */}
+        <div className="flex items-center justify-end border-t border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface flex-shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="min-h-[44px] px-6 w-full sm:w-auto"
+          >
             Close
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

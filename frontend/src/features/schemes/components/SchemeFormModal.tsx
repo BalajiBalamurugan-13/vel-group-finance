@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useCreateScheme, useUpdateSchemeStatus } from '../hooks/useSchemes';
@@ -37,9 +39,32 @@ export function SchemeFormModal({ isOpen, onClose }: Props) {
     defaultValues: { note_cost: 0 },
   });
 
-  if (!isOpen) return null;
-
   const isPending = isCreating || isReactivating;
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isPending) {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isPending]);
+
+  if (!isOpen) return null;
 
   const handleClose = () => {
     reset();
@@ -84,105 +109,143 @@ export function SchemeFormModal({ isOpen, onClose }: Props) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-secondary-900/50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-xl bg-surface p-6 shadow-xl">
-        <h2 className="mb-4 text-xl font-semibold text-secondary-900">Create Scheme</h2>
-
-        {/* Generic API error (scenarios 2, 3, network) */}
-        {apiError && (
-          <div className="mb-4 rounded-lg bg-error-50 p-3 text-sm text-error-600">
-            {apiError}
-          </div>
-        )}
-
-        {/* Reactivatable conflict (scenario 1) */}
-        {reactivatable && (
-          <div className="mb-4 rounded-lg border border-warning-500 bg-warning-50 p-4">
-            <p className="mb-3 text-sm text-secondary-700">
-              {reactivatable.message}
+  return createPortal(
+    <div
+      className="fixed inset-0 z-modal flex items-end sm:items-center justify-center p-0 sm:p-4 bg-secondary-900/60 backdrop-blur-xs"
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isPending) {
+          handleClose();
+        }
+      }}
+    >
+      <div
+        className="flex flex-col w-full sm:max-w-md max-h-[92vh] sm:max-h-[88vh] rounded-t-2xl sm:rounded-2xl bg-surface shadow-2xl border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Pinned Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-secondary-900">
+              Create Scheme
+            </h2>
+            <p className="text-xs text-secondary-500 mt-0.5">
+              Configure loan amount, duration, and installment rules
             </p>
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                type="button"
-                onClick={() => setReactivatable(null)}
-                disabled={isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                type="button"
-                isLoading={isReactivating}
-                onClick={handleReactivate}
-              >
-                Reactivate Scheme
-              </Button>
-            </div>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isPending}
+            className="rounded-lg p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-secondary-100 transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            id="scheme_name"
-            label="Scheme Name"
-            {...register('scheme_name', { required: 'Scheme name is required', maxLength: 255 })}
-            errorMessage={errors.scheme_name?.message}
-          />
-          <Input
-            id="description"
-            label="Description (Optional)"
-            {...register('description')}
-            errorMessage={errors.description?.message}
-          />
-          <Input
-            id="loan_amount"
-            type="number"
-            step="0.01"
-            label="Loan Amount"
-            {...register('loan_amount', { valueAsNumber: true, min: { value: 0.01, message: 'Must be greater than 0' } })}
-            errorMessage={errors.loan_amount?.message}
-          />
-          <Input
-            id="weekly_installment"
-            type="number"
-            step="0.01"
-            label="Weekly Installment"
-            {...register('weekly_installment', { valueAsNumber: true, min: { value: 0.01, message: 'Must be greater than 0' } })}
-            errorMessage={errors.weekly_installment?.message}
-          />
-          <Input
-            id="total_weeks"
-            type="number"
-            label="Total Weeks"
-            {...register('total_weeks', { valueAsNumber: true, min: { value: 1, message: 'Must be greater than 0' } })}
-            errorMessage={errors.total_weeks?.message}
-          />
-          <Input
-            id="note_cost"
-            type="number"
-            step="0.01"
-            label="Note Cost"
-            {...register('note_cost', { valueAsNumber: true, min: { value: 0, message: 'Cannot be negative' } })}
-            errorMessage={errors.note_cost?.message}
-          />
+        {/* Scrollable Form Body */}
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex flex-col flex-1 min-h-0 overflow-hidden"
+        >
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            {/* Generic API error */}
+            {apiError && (
+              <div className="rounded-lg bg-error-50 p-3 text-sm text-error-600 border border-error-200">
+                {apiError}
+              </div>
+            )}
 
-          <div className="mt-6 flex justify-end gap-3">
-            <Button variant="ghost" type="button" onClick={handleClose} disabled={isPending}>
+            {/* Reactivatable conflict */}
+            {reactivatable && (
+              <div className="rounded-lg border border-warning-500 bg-warning-50 p-4">
+                <p className="mb-3 text-sm text-secondary-700">
+                  {reactivatable.message}
+                </p>
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    onClick={() => setReactivatable(null)}
+                    disabled={isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    type="button"
+                    isLoading={isReactivating}
+                    onClick={handleReactivate}
+                  >
+                    Reactivate Scheme
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <Input
+              id="scheme_name"
+              label="Scheme Name *"
+              {...register('scheme_name', { required: 'Scheme name is required', maxLength: 255 })}
+              errorMessage={errors.scheme_name?.message}
+            />
+            <Input
+              id="description"
+              label="Description (Optional)"
+              {...register('description')}
+              errorMessage={errors.description?.message}
+            />
+            <Input
+              id="loan_amount"
+              type="number"
+              step="0.01"
+              label="Loan Amount (₹) *"
+              {...register('loan_amount', { valueAsNumber: true, min: { value: 0.01, message: 'Must be greater than 0' } })}
+              errorMessage={errors.loan_amount?.message}
+            />
+            <Input
+              id="weekly_installment"
+              type="number"
+              step="0.01"
+              label="Weekly Installment (₹) *"
+              {...register('weekly_installment', { valueAsNumber: true, min: { value: 0.01, message: 'Must be greater than 0' } })}
+              errorMessage={errors.weekly_installment?.message}
+            />
+            <Input
+              id="total_weeks"
+              type="number"
+              label="Total Weeks *"
+              {...register('total_weeks', { valueAsNumber: true, min: { value: 1, message: 'Must be greater than 0' } })}
+              errorMessage={errors.total_weeks?.message}
+            />
+            <Input
+              id="note_cost"
+              type="number"
+              step="0.01"
+              label="Note Cost (₹)"
+              {...register('note_cost', { valueAsNumber: true, min: { value: 0, message: 'Cannot be negative' } })}
+              errorMessage={errors.note_cost?.message}
+            />
+          </div>
+
+          {/* Pinned Sticky Footer */}
+          <div className="shrink-0 border-t border-border bg-surface px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] flex items-center justify-end gap-3">
+            <Button variant="ghost" size="sm" type="button" onClick={handleClose} disabled={isPending}>
               Cancel
             </Button>
-            {/* Hide the Create button while the reactivation prompt is shown */}
             {!reactivatable && (
-              <Button type="submit" isLoading={isCreating}>
+              <Button type="submit" size="sm" isLoading={isCreating}>
                 Create Scheme
               </Button>
             )}
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
