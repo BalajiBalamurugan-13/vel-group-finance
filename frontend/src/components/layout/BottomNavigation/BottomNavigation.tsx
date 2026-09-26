@@ -17,7 +17,7 @@ import {
   LayoutDashboard,
   Users,
   UserCheck,
-  Wallet,
+  TrendingUp,
   Menu as MenuIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -26,13 +26,13 @@ import type { NavItem } from '@/types';
 import { MobileMenu } from './MobileMenu';
 
 // ── Navigation Config ─────────────────────────────────────────────────────────
-// Maximum 5 items per design system (Dashboard | Groups | Members | Collections | Menu)
+// Maximum 5 items per design system (Dashboard | Groups | Members | Profit | Menu)
 
 const BOTTOM_NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', path: ROUTES.DASHBOARD, icon: LayoutDashboard },
   { label: 'Groups', path: ROUTES.GROUPS, icon: Users },
   { label: 'Members', path: ROUTES.MEMBERS, icon: UserCheck },
-  { label: 'Collections', path: ROUTES.COLLECTIONS, icon: Wallet },
+  { label: 'Profit', path: ROUTES.PROFIT, icon: TrendingUp },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────

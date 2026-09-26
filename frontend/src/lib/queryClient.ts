@@ -28,6 +28,7 @@ export const queryClient = new QueryClient({
       },
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
+      refetchOnMount: true,
     },
     mutations: {
       retry: false, // Never retry mutations automatically

@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
-import { BarChart3, FileBadge, Settings, TrendingUp, ShieldAlert } from 'lucide-react';
+import { BarChart3, FileBadge, Settings, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ROUTES } from '@/constants';
 import { cn } from '@/lib/cn';
@@ -12,7 +12,6 @@ interface MobileMenuProps {
 }
 
 const MENU_ITEMS = [
-  { label: 'Profit', path: ROUTES.PROFIT, icon: TrendingUp },
   { label: 'Loan Risk', path: ROUTES.LOAN_RISK, icon: ShieldAlert },
   { label: 'Reports', path: ROUTES.REPORTS, icon: BarChart3 },
   { label: 'Schemes', path: ROUTES.SCHEMES, icon: FileBadge },

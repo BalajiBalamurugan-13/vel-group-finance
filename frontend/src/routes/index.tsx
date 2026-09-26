@@ -29,9 +29,6 @@ const GroupsPage = lazy(() =>
 const MembersPage = lazy(() =>
   import('@/pages/MembersPage').then((m) => ({ default: m.MembersPage })),
 );
-const CollectionsPage = lazy(() =>
-  import('@/pages/CollectionsPage').then((m) => ({ default: m.CollectionsPage })),
-);
 const ProfitPage = lazy(() =>
   import('@/pages/ProfitPage').then((m) => ({ default: m.ProfitPage })),
 );
@@ -104,11 +101,7 @@ export const routes: RouteObject[] = [
       },
       {
         path: ROUTES.COLLECTIONS,
-        element: (
-          <LazyPage>
-            <CollectionsPage />
-          </LazyPage>
-        ),
+        element: <Navigate to={ROUTES.DASHBOARD} replace />,
       },
       {
         path: ROUTES.PROFIT,
