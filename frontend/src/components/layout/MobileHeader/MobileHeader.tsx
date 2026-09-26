@@ -9,7 +9,7 @@ import velLogo from '@/assets/Vel finance logo white.png';
 export function MobileHeader() {
   return (
     <header
-      className="sticky top-0 z-sticky flex-shrink-0 h-14 flex items-center px-4 bg-surface border-b border-border"
+      className="fixed top-0 left-0 right-0 z-sticky flex-shrink-0 h-14 flex items-center px-4 bg-surface border-b border-border"
       role="banner"
     >
       <div className="flex items-center gap-2.5">

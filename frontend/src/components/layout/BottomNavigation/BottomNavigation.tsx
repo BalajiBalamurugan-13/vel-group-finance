@@ -43,7 +43,7 @@ export function BottomNavigation() {
   return (
     <>
       <nav
-        className="sticky bottom-0 z-sticky bg-surface border-t border-border flex-shrink-0"
+        className="fixed bottom-0 left-0 right-0 z-sticky bg-surface border-t border-border"
         aria-label="Bottom navigation"
       >
         {/* Safe area padding for iOS home indicator */}

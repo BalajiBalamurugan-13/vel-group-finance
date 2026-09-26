@@ -122,6 +122,35 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* ── Mobile Layout System ────────────────────────────────────────────────── */
+/*
+ * Uses dvh (dynamic viewport height) to properly account for mobile browser
+ * toolbars (iOS Safari address bar, Chrome bottom toolbar, etc).
+ * Falls back to vh for browsers that don't support dvh.
+ *
+ * The bottom nav is position:fixed, so the content area needs padding-bottom
+ * to prevent the last content from being hidden behind it.
+ *
+ * Bottom nav height: 64px (h-16) + safe-area-inset-bottom (for iPhone home indicator)
+ */
+.mobile-layout-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* fallback for older browsers */
+  height: 100dvh; /* dynamic viewport height — adjusts when browser toolbar shows/hides */
+  overflow: hidden;
+  background-color: var(--color-background);
+}
+
+.mobile-layout-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* smooth momentum scrolling on iOS */
+  /* Pad top for fixed header (h-14 = 56px) and bottom for fixed nav (h-16 = 64px + safe area) */
+  padding-top: 56px;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
 /* ── Base Layer: Resets, Typography & Interactive Defaults ──────────────── */
 @layer base {
   *,
@@ -293,6 +322,24 @@
     width: 440px;
     height: 440px;
     left: calc(50% + 120px); /* Balance with desktop sidebar width */
+  }
+}
+
+/* Mobile performance: simplify heavy drop-shadow animation to reduce GPU load.
+ * This prevents "Can't open this page" crashes on lower-end mobile devices.
+ * The watermark is still visible but uses a simpler, static filter. */
+@media (max-width: 1023px) {
+  .vel-content-area::before {
+    filter: drop-shadow(0 0 20px rgba(234, 179, 8, 0.5));
+    animation: none; /* Disable the heavy glow animation on mobile */
+    opacity: 0.22;
+  }
+}
+
+/* Accessibility: respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .vel-content-area::before {
+    animation: none;
   }
 }
 
