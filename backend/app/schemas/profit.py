@@ -47,6 +47,8 @@ class GroupCreationSummary(BaseModel):
     group_code: Optional[str] = None
     location: str
     funding_source: str
+    recycled_sub_type: Optional[str] = "Fully Recycled"
+    owner_investment_amount: Optional[Decimal] = Decimal("0.00")
     member_count: int = 0
     loan_capital: Decimal = Decimal("0.00")
 

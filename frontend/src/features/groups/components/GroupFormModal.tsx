@@ -35,12 +35,16 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
       scheme_id: '',
       start_date: new Date().toISOString().split('T')[0],
       funding_source: 'Recycled Collections',
+      recycled_sub_type: 'Fully Recycled',
+      owner_investment_amount: 0,
       remarks: '',
     },
   });
 
   const watchedLocation = watch('location');
   const watchedSchemeId = watch('scheme_id');
+  const watchedFundingSource = watch('funding_source') || 'Recycled Collections';
+  const watchedRecycledSubType = watch('recycled_sub_type') || 'Fully Recycled';
 
   // Query suggested running group name from backend helper endpoint
   const { data: suggestion, isFetching: isSuggesting } = useSuggestGroupName(
@@ -66,12 +70,22 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
   const onSubmit = async (data: GroupCreate) => {
     setApiError(null);
     try {
+      const isMixedRecycled =
+        data.funding_source === 'Recycled Collections' &&
+        data.recycled_sub_type === 'Recycled + Owner Investment';
+
       const createdGroup = await createGroup({
         location: data.location.trim(),
         scheme_id: data.scheme_id,
         group_name: data.group_name?.trim() || undefined,
         start_date: data.start_date || undefined,
         funding_source: data.funding_source || 'Recycled Collections',
+        recycled_sub_type: data.funding_source === 'Recycled Collections'
+          ? (data.recycled_sub_type || 'Fully Recycled')
+          : undefined,
+        owner_investment_amount: isMixedRecycled && data.owner_investment_amount
+          ? Number(data.owner_investment_amount)
+          : undefined,
         remarks: data.remarks?.trim() || undefined,
       });
       onSuccess?.(createdGroup);
@@ -235,6 +249,75 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
               Source of capital used to disburse this group&apos;s loans (Section 8).
             </p>
           </div>
+
+          {/* Sub-options for Recycled Collections: Fully Recycled vs Recycled + Owner Investment */}
+          {watchedFundingSource === 'Recycled Collections' && (
+            <div className="rounded-xl border border-primary-200/80 bg-primary-50/40 p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-secondary-900 uppercase tracking-wider">
+                  Recycled Funding Breakdown
+                </span>
+                <span className="text-[11px] font-medium text-primary-700 bg-primary-100/70 px-2 py-0.5 rounded">
+                  Business Cash
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValue('recycled_sub_type', 'Fully Recycled');
+                    setValue('owner_investment_amount', 0);
+                  }}
+                  className={cn(
+                    'flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs transition-all text-center',
+                    watchedRecycledSubType === 'Fully Recycled'
+                      ? 'border-primary-600 bg-surface text-primary-900 shadow-sm ring-1 ring-primary-500/30 font-semibold'
+                      : 'border-border bg-surface/60 text-secondary-600 hover:bg-surface'
+                  )}
+                >
+                  <span className="font-semibold">Fully Recycled</span>
+                  <span className="text-[10px] text-secondary-500 mt-0.5">100% past collections</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setValue('recycled_sub_type', 'Recycled + Owner Investment')}
+                  className={cn(
+                    'flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs transition-all text-center',
+                    watchedRecycledSubType === 'Recycled + Owner Investment'
+                      ? 'border-primary-600 bg-surface text-primary-900 shadow-sm ring-1 ring-primary-500/30 font-semibold'
+                      : 'border-border bg-surface/60 text-secondary-600 hover:bg-surface'
+                  )}
+                >
+                  <span className="font-semibold">Recycled + Owner Cash</span>
+                  <span className="text-[10px] text-secondary-500 mt-0.5">Collections + cash from hand</span>
+                </button>
+              </div>
+
+              {/* Input for Owner Cash Added */}
+              {watchedRecycledSubType === 'Recycled + Owner Investment' && (
+                <div className="pt-2 border-t border-primary-200/60 space-y-1.5">
+                  <Input
+                    id="owner_investment_amount"
+                    type="number"
+                    label="Owner Cash Added (₹) *"
+                    placeholder="e.g. 90,000"
+                    helperText="Will automatically be credited to Owner Investments on the Profit page based on group start date."
+                    {...register('owner_investment_amount', {
+                      required:
+                        watchedRecycledSubType === 'Recycled + Owner Investment'
+                          ? 'Please enter the owner cash amount added'
+                          : false,
+                      min: { value: 1, message: 'Amount must be greater than 0' },
+                      valueAsNumber: true,
+                    })}
+                    errorMessage={errors.owner_investment_amount?.message}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Remarks */}
           <Input

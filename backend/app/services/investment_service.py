@@ -135,6 +135,55 @@ class InvestmentService:
                     "updated_at": "2026-08-09T00:00:00Z",
                 })
 
+        # Reconcile any mixed recycled groups that have extra owner investment but no row in investments table
+        try:
+            recycled_groups_res = (
+                self.db.table("groups")
+                .select("id, group_code, group_name, start_date, funding_source, recycled_sub_type, owner_investment_amount")
+                .eq("recycled_sub_type", "Recycled + Owner Investment")
+                .gt("owner_investment_amount", 0)
+                .execute()
+            )
+            recycled_groups = recycled_groups_res.data or []
+        except Exception:
+            recycled_groups = []
+
+        existing_group_ids = {str(r.get("group_id")) for r in rows if r.get("group_id")}
+        for g in recycled_groups:
+            gid = str(g["id"])
+            if gid not in existing_group_ids:
+                s_date_raw = g.get("start_date")
+                inv_date = date.fromisoformat(str(s_date_raw)[:10]) if s_date_raw else date.today()
+                w = get_business_week(inv_date)
+                inv_type = "Initial" if w == 1 else "Additional"
+                amt = Decimal(str(g.get("owner_investment_amount") or "0.00"))
+                payload = {
+                    "investment_type": inv_type,
+                    "amount": float(amt),
+                    "investment_date": inv_date.isoformat(),
+                    "description": f"Owner cash added for group {g.get('group_name', 'Recycled Group')} (Recycled + Owner Investment)",
+                    "group_id": gid,
+                }
+                try:
+                    ins_res = self.db.table("investments").insert(payload).execute()
+                    if ins_res.data:
+                        new_r = ins_res.data[0]
+                        new_r["business_week"] = w
+                        new_r["amount"] = amt
+                        rows.append(new_r)
+                        existing_group_ids.add(gid)
+                except Exception:
+                    rows.append({
+                        "id": f"syn-group-{gid[:8]}",
+                        "investment_code": f"INV-{g.get('group_code', 'GRP')}",
+                        "investment_type": inv_type,
+                        "amount": amt,
+                        "investment_date": inv_date.isoformat(),
+                        "business_week": w,
+                        "description": f"Owner cash added for group {g.get('group_name', 'Recycled Group')}",
+                        "group_id": gid,
+                    })
+
         return rows
 
     def create_investment(self, data: InvestmentCreate) -> dict:
@@ -147,11 +196,19 @@ class InvestmentService:
             "investment_date": data.investment_date.isoformat(),
             "description": data.description,
         }
+        if data.group_id:
+            payload["group_id"] = str(data.group_id)
 
         try:
             response = self.db.table("investments").insert(payload).execute()
         except Exception as e:
-            if "does not exist" in str(e).lower() or "pgrst205" in str(e).lower():
+            if "group_id" in str(e).lower() and "group_id" in payload:
+                payload.pop("group_id", None)
+                try:
+                    response = self.db.table("investments").insert(payload).execute()
+                except Exception as e2:
+                    raise HTTPException(status_code=500, detail=f"Failed to record investment: {e2}")
+            elif "does not exist" in str(e).lower() or "pgrst205" in str(e).lower():
                 raise HTTPException(
                     status_code=503,
                     detail=(
@@ -159,7 +216,8 @@ class InvestmentService:
                         "Please apply migration 003_accounting_profit_model.sql in your Supabase SQL editor."
                     ),
                 )
-            raise HTTPException(status_code=500, detail=f"Failed to record investment: {e}")
+            else:
+                raise HTTPException(status_code=500, detail=f"Failed to record investment: {e}")
 
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to create investment record")

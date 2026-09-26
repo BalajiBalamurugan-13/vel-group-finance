@@ -25,6 +25,7 @@ class InvestmentBase(BaseModel):
     amount: Decimal = Field(..., gt=0)
     investment_date: date
     description: Optional[str] = None
+    group_id: Optional[UUID] = None
 
     @field_validator("description")
     @classmethod
@@ -43,6 +44,7 @@ class InvestmentResponse(InvestmentBase):
     id: UUID
     investment_code: Optional[str] = None  # INV-0001
     business_week: int
+    group_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
 

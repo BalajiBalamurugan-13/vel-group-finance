@@ -47,6 +47,25 @@ export function GroupCard({
                   {group.start_date}
                 </span>
               )}
+              {group.funding_source && (
+                <span
+                  className={
+                    group.funding_source === 'Initial Investment'
+                      ? 'inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-primary-50 text-primary-700 border border-primary-200'
+                      : group.funding_source === 'Additional Investment'
+                        ? 'inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200'
+                        : group.recycled_sub_type === 'Recycled + Owner Investment'
+                          ? 'inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-cyan-50 text-cyan-800 border border-cyan-200'
+                          : 'inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-medium bg-secondary-100 text-secondary-600'
+                  }
+                >
+                  {group.funding_source === 'Recycled Collections'
+                    ? group.recycled_sub_type === 'Recycled + Owner Investment' && group.owner_investment_amount
+                      ? `Recycled + ${formatMoney(group.owner_investment_amount)} Cash`
+                      : 'Recycled'
+                    : group.funding_source}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex-shrink-0 pt-0.5">

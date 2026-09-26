@@ -193,8 +193,15 @@ export function WeeklyFinancialTable({
                           <span>{g.location}</span>
                           <span>{g.member_count} members</span>
                         </div>
-                        <div className="text-[11px] flex items-center justify-between pt-1 border-t border-secondary-100">
-                          <span className="text-primary-700 font-medium">{g.funding_source}</span>
+                        <div className="text-[11px] flex items-center justify-between pt-1 border-t border-secondary-100 flex-wrap gap-1">
+                          <span className="text-primary-700 font-medium flex items-center gap-1">
+                            {g.funding_source}
+                            {g.recycled_sub_type === 'Recycled + Owner Investment' && g.owner_investment_amount ? (
+                              <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded font-semibold border border-amber-200">
+                                +{formatINR(g.owner_investment_amount)} Cash
+                              </span>
+                            ) : null}
+                          </span>
                           <span className="font-bold text-secondary-800">{formatINR(g.loan_capital)}</span>
                         </div>
                       </div>
@@ -333,8 +340,15 @@ export function WeeklyFinancialTable({
                     <span>{g.location}</span>
                     <span>{g.member_count} members</span>
                   </div>
-                  <div className="text-[11px] flex items-center justify-between pt-1 border-t border-secondary-100">
-                    <span className="text-primary-700 font-medium">{g.funding_source}</span>
+                  <div className="text-[11px] flex items-center justify-between pt-1 border-t border-secondary-100 flex-wrap gap-1">
+                    <span className="text-primary-700 font-medium flex items-center gap-1">
+                      {g.funding_source}
+                      {g.recycled_sub_type === 'Recycled + Owner Investment' && g.owner_investment_amount ? (
+                        <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded font-semibold border border-amber-200">
+                          +{formatINR(g.owner_investment_amount)} Cash
+                        </span>
+                      ) : null}
+                    </span>
                     <span className="font-bold text-secondary-800">{formatINR(g.loan_capital)}</span>
                   </div>
                 </div>

@@ -64,20 +64,22 @@ class ProfitService:
         }
         for g in groups_data:
             fs = g.get("funding_source")
-            if not fs:
-                # Per Section 8: Groups starting in Week 1 (9 Aug 2026) were created with Initial Investment
-                s_date = g.get("start_date") or g.get("created_at")
-                if s_date:
-                    try:
-                        d = date.fromisoformat(str(s_date)[:10])
-                        if get_business_week(d) == 1 or d <= date(2026, 8, 15):
-                            fs = "Initial Investment"
-                        else:
-                            fs = "Recycled Collections"
-                    except Exception:
-                        fs = "Initial Investment"
-                else:
-                    fs = "Initial Investment"
+            s_date = g.get("start_date") or g.get("created_at")
+            is_week_1 = False
+            if s_date:
+                try:
+                    d = date.fromisoformat(str(s_date)[:10])
+                    if get_business_week(d) == 1 or d <= date(2026, 8, 15):
+                        is_week_1 = True
+                except Exception:
+                    pass
+
+            if is_week_1:
+                # Per Section 8: All groups starting in Week 1 (9 Aug 2026) were created with Initial Investment
+                fs = "Initial Investment"
+            elif not fs:
+                fs = "Recycled Collections"
+
             funding_sources[fs] = funding_sources.get(fs, 0) + 1
 
         # 3. Loan Cycles & Contractual Profit (Sections 10, 11, 13)
@@ -203,7 +205,8 @@ class ProfitService:
         limit_week = max_weeks if (max_weeks and max_weeks > 0) else max(current_week, 1)
 
         # 1. Fetch all investments
-        investments = self.investment_service.get_investments()
+        inv_summary = self.investment_service.get_summary()
+        investments = inv_summary.get("investments", [])
         inv_by_week: Dict[int, List[dict]] = {}
         for inv in investments:
             w = inv["business_week"]
@@ -349,19 +352,21 @@ class ProfitService:
 
             for g in week_groups:
                 fs = g.get("funding_source")
-                if not fs:
-                    s_date = g.get("start_date") or g.get("created_at")
-                    if s_date:
-                        try:
-                            d = date.fromisoformat(str(s_date)[:10])
-                            if get_business_week(d) == 1 or d <= date(2026, 8, 15):
-                                fs = "Initial Investment"
-                            else:
-                                fs = "Recycled Collections"
-                        except Exception:
-                            fs = "Initial Investment"
-                    else:
-                        fs = "Initial Investment"
+                s_date = g.get("start_date") or g.get("created_at")
+                is_week_1 = False
+                if s_date:
+                    try:
+                        d = date.fromisoformat(str(s_date)[:10])
+                        if get_business_week(d) == 1 or d <= date(2026, 8, 15):
+                            is_week_1 = True
+                    except Exception:
+                        pass
+
+                if is_week_1:
+                    fs = "Initial Investment"
+                elif not fs:
+                    fs = "Recycled Collections"
+
                 funding_breakdown[fs] = funding_breakdown.get(fs, 0) + 1
 
                 # Active member count
@@ -380,6 +385,8 @@ class ProfitService:
                         group_code=g.get("group_code"),
                         location=g.get("location") or "",
                         funding_source=fs,
+                        recycled_sub_type=g.get("recycled_sub_type") or "Fully Recycled",
+                        owner_investment_amount=Decimal(str(g.get("owner_investment_amount") or "0.00")),
                         member_count=active_m_count,
                         loan_capital=group_loan_capital,
                     )

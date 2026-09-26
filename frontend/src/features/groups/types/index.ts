@@ -12,6 +12,7 @@ export interface GroupSchemeSummary {
 }
 
 export type GroupFundingSource = 'Initial Investment' | 'Additional Investment' | 'Recycled Collections';
+export type RecycledSubType = 'Fully Recycled' | 'Recycled + Owner Investment';
 
 export interface Group {
   id: string;
@@ -21,6 +22,8 @@ export interface Group {
   group_name: string;
   start_date: string | null;
   funding_source?: GroupFundingSource;
+  recycled_sub_type?: RecycledSubType;
+  owner_investment_amount?: number;
   status: GroupStatus;
   remarks: string | null;
   member_count: number;
@@ -36,6 +39,8 @@ export interface GroupCreate {
   group_name?: string;
   start_date?: string;
   funding_source?: GroupFundingSource;
+  recycled_sub_type?: RecycledSubType;
+  owner_investment_amount?: number;
   remarks?: string;
 }
 
@@ -44,6 +49,8 @@ export interface GroupUpdate {
   location?: string;
   start_date?: string;
   funding_source?: GroupFundingSource;
+  recycled_sub_type?: RecycledSubType;
+  owner_investment_amount?: number;
   remarks?: string;
 }
 

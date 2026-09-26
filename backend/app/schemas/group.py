@@ -21,6 +21,8 @@ class GroupBase(BaseModel):
     group_name: str = Field(..., min_length=1, max_length=255)
     start_date: Optional[date] = None
     funding_source: Optional[str] = "Recycled Collections"
+    recycled_sub_type: Optional[str] = "Fully Recycled"
+    owner_investment_amount: Optional[Decimal] = Field(default=Decimal("0.00"), ge=0)
     remarks: Optional[str] = None
 
 
@@ -31,6 +33,8 @@ class GroupCreate(BaseModel):
     group_name: Optional[str] = Field(None, min_length=1, max_length=255)
     start_date: Optional[date] = None
     funding_source: Optional[str] = "Recycled Collections"
+    recycled_sub_type: Optional[str] = "Fully Recycled"
+    owner_investment_amount: Optional[Decimal] = Field(default=Decimal("0.00"), ge=0)
     remarks: Optional[str] = None
 
     @field_validator("location")
@@ -60,6 +64,15 @@ class GroupCreate(BaseModel):
                 raise ValueError(f"funding_source must be one of {valid_sources}")
         return v
 
+    @field_validator("recycled_sub_type")
+    @classmethod
+    def validate_recycled_sub_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            valid_sub_types = {"Fully Recycled", "Recycled + Owner Investment"}
+            if v not in valid_sub_types:
+                raise ValueError(f"recycled_sub_type must be one of {valid_sub_types}")
+        return v
+
 
 class GroupUpdate(BaseModel):
     """
@@ -70,6 +83,8 @@ class GroupUpdate(BaseModel):
     location: Optional[str] = Field(None, min_length=1, max_length=100)
     start_date: Optional[date] = None
     funding_source: Optional[str] = None
+    recycled_sub_type: Optional[str] = None
+    owner_investment_amount: Optional[Decimal] = Field(default=None, ge=0)
     remarks: Optional[str] = None
 
     model_config = {"extra": "forbid"}
@@ -101,6 +116,15 @@ class GroupUpdate(BaseModel):
             valid_sources = {"Initial Investment", "Additional Investment", "Recycled Collections"}
             if v not in valid_sources:
                 raise ValueError(f"funding_source must be one of {valid_sources}")
+        return v
+
+    @field_validator("recycled_sub_type")
+    @classmethod
+    def validate_recycled_sub_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            valid_sub_types = {"Fully Recycled", "Recycled + Owner Investment"}
+            if v not in valid_sub_types:
+                raise ValueError(f"recycled_sub_type must be one of {valid_sub_types}")
         return v
 
 
@@ -136,6 +160,8 @@ class GroupResponse(BaseModel):
     group_name: str
     start_date: Optional[date] = None
     funding_source: Optional[str] = "Recycled Collections"
+    recycled_sub_type: Optional[str] = "Fully Recycled"
+    owner_investment_amount: Optional[Decimal] = Decimal("0.00")
     status: GroupStatus
     remarks: Optional[str] = None
     member_count: int = 0

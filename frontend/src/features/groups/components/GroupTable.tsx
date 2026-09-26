@@ -95,8 +95,27 @@ export function GroupTable({
                 <td className="px-4 py-3 text-right font-semibold text-secondary-900 tabular-nums">
                   {formatMoney(group.total_group_amount)}
                 </td>
-                <td className="px-4 py-3 text-secondary-600 tabular-nums">
-                  {group.start_date || '—'}
+                <td className="px-4 py-3 text-secondary-600">
+                  <span className="tabular-nums">{group.start_date || '—'}</span>
+                  {group.funding_source && (
+                    <span
+                      className={
+                        group.funding_source === 'Initial Investment'
+                          ? 'block mt-0.5 text-[10px] text-primary-700 font-medium'
+                          : group.funding_source === 'Additional Investment'
+                            ? 'block mt-0.5 text-[10px] text-amber-700 font-medium'
+                            : group.recycled_sub_type === 'Recycled + Owner Investment'
+                              ? 'block mt-0.5 text-[10px] text-cyan-800 font-semibold'
+                              : 'block mt-0.5 text-[10px] text-secondary-500'
+                      }
+                    >
+                      {group.funding_source === 'Recycled Collections'
+                        ? group.recycled_sub_type === 'Recycled + Owner Investment' && group.owner_investment_amount
+                          ? `Recycled (+${formatMoney(group.owner_investment_amount)} Cash)`
+                          : 'Recycled'
+                        : group.funding_source}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <GroupStatusBadge status={group.status} />

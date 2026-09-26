@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from supabase import Client
 
+from app.core.business_week import get_business_week
 from app.schemas.group import (
     GroupCreate,
     GroupStatus,
@@ -167,12 +168,15 @@ class GroupService:
             )
 
         # 4. Insert New Group in Draft status
+        owner_amt = Decimal(str(data.owner_investment_amount or "0.00"))
         insert_data = {
             "location": data.location,
             "scheme_id": str(data.scheme_id),
             "group_name": group_name,
             "start_date": data.start_date.isoformat() if data.start_date else None,
             "funding_source": data.funding_source or "Recycled Collections",
+            "recycled_sub_type": data.recycled_sub_type or "Fully Recycled",
+            "owner_investment_amount": float(owner_amt),
             "remarks": data.remarks,
             "status": GroupStatus.DRAFT.value,
         }
@@ -180,7 +184,14 @@ class GroupService:
         try:
             response = self.db.table("groups").insert(insert_data).execute()
         except Exception as e:
-            if "funding_source" in str(e).lower():
+            err_msg = str(e).lower()
+            if "recycled_sub_type" in err_msg or "owner_investment_amount" in err_msg:
+                insert_data.pop("recycled_sub_type", None)
+                insert_data.pop("owner_investment_amount", None)
+                if "funding_source" in err_msg:
+                    insert_data.pop("funding_source", None)
+                response = self.db.table("groups").insert(insert_data).execute()
+            elif "funding_source" in err_msg:
                 insert_data.pop("funding_source", None)
                 response = self.db.table("groups").insert(insert_data).execute()
             else:
@@ -192,7 +203,130 @@ class GroupService:
         new_group = response.data[0]
         new_group["scheme"] = scheme
         self._enrich_dynamic_fields(new_group)
+
+        # 5. Automatically create investment entry if extra owner cash was introduced
+        self._sync_group_investment(
+            group_id=str(new_group["id"]),
+            group_name=group_name,
+            funding_source=data.funding_source,
+            recycled_sub_type=data.recycled_sub_type,
+            owner_investment_amount=owner_amt,
+            start_date_val=data.start_date,
+        )
+
         return new_group
+
+    def _sync_group_investment(
+        self,
+        group_id: str,
+        group_name: str,
+        funding_source: Optional[str],
+        recycled_sub_type: Optional[str],
+        owner_investment_amount: Optional[Decimal],
+        start_date_val: Optional[date],
+    ) -> None:
+        """
+        Synchronizes the linked investments record for a group.
+        If funding_source == 'Recycled Collections' and recycled_sub_type == 'Recycled + Owner Investment'
+        and owner_investment_amount > 0:
+            Inserts or updates the investments record linked to group_id.
+        Else:
+            Removes any existing investment linked to this group_id if owner cash is 0 or removed.
+        """
+        owner_amt = Decimal(str(owner_investment_amount or "0.00"))
+        fs = funding_source or "Recycled Collections"
+        sub_type = recycled_sub_type or "Fully Recycled"
+
+        try:
+            existing = self.db.table("investments").select("id").eq("group_id", str(group_id)).execute()
+            existing_data = existing.data if isinstance(getattr(existing, "data", None), list) else []
+        except Exception:
+            existing_data = []
+
+        if fs == "Recycled Collections" and sub_type == "Recycled + Owner Investment" and owner_amt > Decimal("0.00"):
+            inv_date = start_date_val or date.today()
+            if get_business_week(inv_date) == 1 or inv_date <= date(2026, 8, 15):
+                inv_type = "Initial"
+            else:
+                inv_type = "Additional"
+
+            inv_payload = {
+                "investment_type": inv_type,
+                "amount": float(owner_amt),
+                "investment_date": inv_date.isoformat(),
+                "description": f"Owner cash added for group {group_name} (Recycled + Owner Investment)",
+                "group_id": str(group_id),
+            }
+
+            try:
+                if existing_data:
+                    self.db.table("investments").update(inv_payload).eq("id", existing_data[0]["id"]).execute()
+                else:
+                    self.db.table("investments").insert(inv_payload).execute()
+            except Exception as e:
+                logger.warning("Could not sync investment record for group %s: %s", group_id, e)
+        else:
+            if existing_data:
+                try:
+                    self.db.table("investments").delete().eq("id", existing_data[0]["id"]).execute()
+                except Exception as e:
+                    logger.warning("Could not remove linked investment for group %s: %s", group_id, e)
+
+    def _ensure_active_members_have_cycles(self, group_id: str, group: dict) -> None:
+        """
+        Self-healing check: If this group is Active, ensures every Active member
+        has a loan cycle and loan transaction.
+        """
+        if group.get("status") != "Active":
+            return
+
+        scheme = group.get("scheme")
+        if not scheme:
+            return
+
+        try:
+            m_res = self.db.table("members").select("id, member_name").eq("group_id", str(group_id)).eq("status", "Active").execute()
+            active_members = m_res.data or []
+            if not active_members:
+                return
+
+            c_res = self.db.table("loan_cycles").select("member_id").eq("group_id", str(group_id)).execute()
+            cycled_mids = {str(r["member_id"]) for r in (c_res.data or [])}
+
+            loan_amount = Decimal(str(scheme["loan_amount"]))
+            note_cost = Decimal(str(scheme.get("note_cost", "0.00")))
+            cash_given = loan_amount - note_cost
+
+            raw_start = group.get("start_date")
+            start_d = date.fromisoformat(str(raw_start)[:10]) if raw_start else date.today()
+
+            for m in active_members:
+                mid = str(m["id"])
+                if mid not in cycled_mids:
+                    logger.info("Auto-healing missing loan cycle for member %s in group %s", mid, group_id)
+                    c_insert = {
+                        "member_id": mid,
+                        "group_id": str(group_id),
+                        "scheme_id": scheme["id"],
+                        "cycle_number": 1,
+                        "start_date": start_d.isoformat(),
+                        "status": "Active",
+                    }
+                    c_res_new = self.db.table("loan_cycles").insert(c_insert).execute()
+                    if c_res_new.data:
+                        new_cycle_id = c_res_new.data[0]["id"]
+                        tx_insert = {
+                            "loan_cycle_id": new_cycle_id,
+                            "member_id": mid,
+                            "loan_amount": float(loan_amount),
+                            "note_cost": float(note_cost),
+                            "cash_given": float(cash_given),
+                            "disbursement_date": start_d.isoformat(),
+                        }
+                        self.db.table("loan_transactions").insert(tx_insert).execute()
+                        cycled_mids.add(mid)
+        except Exception as e:
+            logger.warning("Error during active members loan cycle reconciliation: %s", e)
 
     def update_group(self, group_id: UUID, data: GroupUpdate) -> dict:
         """
@@ -225,6 +359,9 @@ class GroupService:
         if "start_date" in update_dict and update_dict["start_date"] is not None:
             update_dict["start_date"] = update_dict["start_date"].isoformat()
 
+        if "owner_investment_amount" in update_dict and update_dict["owner_investment_amount"] is not None:
+            update_dict["owner_investment_amount"] = float(update_dict["owner_investment_amount"])
+
         try:
             response = (
                 self.db.table("groups")
@@ -233,7 +370,10 @@ class GroupService:
                 .execute()
             )
         except Exception as e:
-            if "funding_source" in str(e).lower() and "funding_source" in update_dict:
+            err_msg = str(e).lower()
+            if "recycled_sub_type" in err_msg or "owner_investment_amount" in err_msg or "funding_source" in err_msg:
+                update_dict.pop("recycled_sub_type", None)
+                update_dict.pop("owner_investment_amount", None)
                 update_dict.pop("funding_source", None)
                 if not update_dict:
                     return current_group
@@ -252,6 +392,20 @@ class GroupService:
         updated_group = response.data[0]
         updated_group["scheme"] = current_group.get("scheme")
         self._enrich_dynamic_fields(updated_group)
+
+        # Sync linked investment record
+        s_date_str = updated_group.get("start_date")
+        s_date = date.fromisoformat(str(s_date_str)[:10]) if s_date_str else None
+        self._sync_group_investment(
+            group_id=str(group_id),
+            group_name=updated_group.get("group_name", current_group["group_name"]),
+            funding_source=updated_group.get("funding_source"),
+            recycled_sub_type=updated_group.get("recycled_sub_type"),
+            owner_investment_amount=Decimal(str(updated_group.get("owner_investment_amount") or "0.00")),
+            start_date_val=s_date,
+        )
+        self._ensure_active_members_have_cycles(str(group_id), updated_group)
+
         return updated_group
 
     def update_group_status(self, group_id: UUID, data: GroupStatusUpdate) -> dict:
@@ -446,6 +600,14 @@ class GroupService:
 
         if not group.get("funding_source"):
             group["funding_source"] = "Recycled Collections"
+
+        if not group.get("recycled_sub_type"):
+            group["recycled_sub_type"] = "Fully Recycled"
+
+        if group.get("owner_investment_amount") is None:
+            group["owner_investment_amount"] = Decimal("0.00")
+        else:
+            group["owner_investment_amount"] = Decimal(str(group["owner_investment_amount"]))
 
 
 def get_group_service(db: Client) -> GroupService:

@@ -694,3 +694,89 @@ def test_draft_to_active_skips_members_with_existing_cycles(mock_db):
     assert result["status"] == "Active"
     assert "loan_cycles" not in inserted_tables, "Should not create duplicate loan cycle"
     assert "loan_transactions" not in inserted_tables, "Should not create duplicate loan transaction"
+
+
+def test_create_group_recycled_with_owner_investment(mock_db):
+    """
+    When creating a group with Recycled Collections and Recycled + Owner Investment,
+    an investment record must automatically be created in the investments table.
+    """
+    service = GroupService(mock_db)
+
+    # 1. Scheme lookup
+    scheme_mock = MagicMock()
+    scheme_mock.select.return_value.eq.return_value.execute.return_value.data = [MOCK_ACTIVE_SCHEME]
+
+    # 2. Existing group lookup (empty)
+    name_check_mock = MagicMock()
+    name_check_mock.select.return_value.eq.return_value.execute.return_value.data = []
+
+    # 3. Group insert mock
+    new_group_data = {
+        "id": MOCK_GROUP_ID,
+        "scheme_id": MOCK_SCHEME_ID,
+        "location": "PTM",
+        "group_name": "PTM 2",
+        "start_date": "2026-08-23",
+        "funding_source": "Recycled Collections",
+        "recycled_sub_type": "Recycled + Owner Investment",
+        "owner_investment_amount": 90000.00,
+        "status": "Draft",
+        "remarks": None,
+    }
+    group_insert_mock = MagicMock()
+    group_insert_mock.insert.return_value.execute.return_value.data = [new_group_data]
+
+    # 4. Investment insert mock
+    captured_investments = []
+    inv_mock = MagicMock()
+    def track_inv(data):
+        captured_investments.append(data)
+        return MagicMock(execute=MagicMock(return_value=MagicMock(data=[{"id": str(uuid4()), **data}])))
+    inv_mock.insert.side_effect = track_inv
+
+    # 5. Members count mock (empty)
+    members_mock = MagicMock()
+    members_mock.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = []
+
+    def router(table_name):
+        if table_name == "schemes":
+            return scheme_mock
+        elif table_name == "groups":
+            # Can be select or insert
+            m = MagicMock()
+            m.select.return_value.eq.return_value.execute.return_value.data = []
+            m.insert.return_value.execute.return_value.data = [new_group_data]
+            return m
+        elif table_name == "investments":
+            return inv_mock
+        elif table_name == "members":
+            return members_mock
+        return MagicMock()
+
+    mock_db.table.side_effect = router
+
+    group_in = GroupCreate(
+        location="PTM",
+        scheme_id=MOCK_SCHEME_ID,
+        group_name="PTM 2",
+        start_date=date(2026, 8, 23),
+        funding_source="Recycled Collections",
+        recycled_sub_type="Recycled + Owner Investment",
+        owner_investment_amount=Decimal("90000.00"),
+    )
+
+    created = service.create_group(group_in)
+    assert created["group_name"] == "PTM 2"
+    assert created["funding_source"] == "Recycled Collections"
+    assert created["recycled_sub_type"] == "Recycled + Owner Investment"
+    assert created["owner_investment_amount"] == Decimal("90000.00")
+
+    # Verify investment record was auto-created
+    assert len(captured_investments) == 1
+    inv = captured_investments[0]
+    assert inv["amount"] == 90000.00
+    assert inv["investment_type"] == "Additional"  # Week 3 (23 Aug) -> Additional
+    assert "PTM 2" in inv["description"]
+    assert inv["group_id"] == MOCK_GROUP_ID
+

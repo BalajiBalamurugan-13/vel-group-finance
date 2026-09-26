@@ -7,6 +7,7 @@ export interface Investment {
   amount: number;
   investment_date: string;
   business_week: number;
+  group_id?: string | null;
   description?: string | null;
   created_at: string;
   updated_at: string;
@@ -17,6 +18,7 @@ export interface InvestmentCreate {
   amount: number;
   investment_date: string;
   description?: string;
+  group_id?: string;
 }
 
 export interface InvestmentSummary {
@@ -55,6 +57,8 @@ export interface GroupCreationSummary {
   group_code?: string | null;
   location: string;
   funding_source: string;
+  recycled_sub_type?: string;
+  owner_investment_amount?: number;
   member_count: number;
   loan_capital: number;
 }

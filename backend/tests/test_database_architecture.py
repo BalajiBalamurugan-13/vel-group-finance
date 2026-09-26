@@ -284,3 +284,22 @@ def test_migration_003_file_integrity():
     assert "v_investments_readable" in content
     assert "v_groups_readable" in content
 
+
+def test_migration_004_file_integrity():
+    """Migration 004 file must exist and contain recycled_sub_type, owner_investment_amount, and group_id."""
+    migration_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "supabase", "migrations", "004_mixed_recycled_funding_source.sql")
+    )
+    assert os.path.exists(migration_path), f"Migration 004 not found at {migration_path}"
+
+    with open(migration_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    assert "recycled_sub_type" in content
+    assert "'Fully Recycled', 'Recycled + Owner Investment'" in content
+    assert "owner_investment_amount" in content
+    assert "group_id UUID" in content
+    assert "v_investments_readable" in content
+    assert "v_groups_readable" in content
+
+
