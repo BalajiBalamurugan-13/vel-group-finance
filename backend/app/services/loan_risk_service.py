@@ -19,6 +19,7 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
+from fastapi import HTTPException
 from supabase import Client
 
 from app.core.business_week import get_business_week, get_current_business_week
@@ -59,7 +60,7 @@ class LoanRiskService:
             active_members = members_res.data or []
         except Exception as e:
             logger.error("Failed to query active members for risk analysis: %s", e)
-            active_members = []
+            raise HTTPException(status_code=500, detail=f"Database error loading members for risk analysis: {e}")
 
         if not active_members:
             return LoanRiskSummary()
@@ -78,7 +79,7 @@ class LoanRiskService:
             cycles = cycles_res.data or []
         except Exception as e:
             logger.error("Failed to query active loan cycles: %s", e)
-            cycles = []
+            raise HTTPException(status_code=500, detail=f"Database error loading loan cycles for risk analysis: {e}")
 
         # Map member_id -> cycle_id
         member_cycle_map: dict[str, str] = {

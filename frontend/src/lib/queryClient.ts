@@ -9,13 +9,14 @@
  * - retry: 1 retry on failure (avoids hammering a failing backend).
  * - refetchOnWindowFocus: true — ensures data is fresh when user returns.
  */
-import { QueryClient } from '@tanstack/react-query';
+import { keepPreviousData, QueryClient } from '@tanstack/react-query';
 import { QUERY_GC_TIME, QUERY_STALE_TIME } from '@/constants';
 import type { ApiError } from '@/types';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      placeholderData: keepPreviousData,
       staleTime: QUERY_STALE_TIME,
       gcTime: QUERY_GC_TIME,
       retry: (failureCount, error) => {
@@ -24,9 +25,9 @@ export const queryClient = new QueryClient({
         if (apiError.statusCode >= 400 && apiError.statusCode < 500) {
           return false;
         }
-        return failureCount < 1;
+        return failureCount < 2;
       },
-      refetchOnWindowFocus: true,
+      refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       refetchOnMount: true,
     },

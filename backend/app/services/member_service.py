@@ -116,8 +116,9 @@ class MemberService:
                 .execute()
             )
             paid_rows = coll_res.data or []
-        except Exception:
-            paid_rows = []
+        except Exception as e:
+            logger.error("Failed to query collections for member progress: %s", e)
+            raise HTTPException(status_code=500, detail=f"Database error loading member progress: {e}")
 
         # Aggregate: {member_id: {weeks_paid, total_paid_amount}}
         progress: dict[str, dict] = {}

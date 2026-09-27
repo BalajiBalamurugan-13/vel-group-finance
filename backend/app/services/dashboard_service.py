@@ -15,6 +15,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional
 
+from fastapi import HTTPException
 from supabase import Client
 
 from app.schemas.dashboard import DashboardResponse, GroupLocationSummary, RecentCollection
@@ -105,9 +106,9 @@ class DashboardService:
                 (Decimal(str(row["amount_paid"])) for row in (res.data or []) if "amount_paid" in row and row["amount_paid"] is not None),
                 Decimal("0.00"),
             )
-        except Exception:
-            logger.exception("Failed to compute total_cash_in")
-            return Decimal("0.00")
+        except Exception as e:
+            logger.exception("Failed to compute total_cash_in: %s", e)
+            raise HTTPException(status_code=500, detail=f"Database error loading cash in: {e}")
 
     def _get_todays_collection(self, today: date) -> Decimal:
         """
@@ -126,8 +127,8 @@ class DashboardService:
                 (Decimal(str(row["amount_paid"])) for row in (res.data or []) if "amount_paid" in row and row["amount_paid"] is not None),
                 Decimal("0.00"),
             )
-        except Exception:
-            logger.exception("Failed to compute todays_collection")
+        except Exception as e:
+            logger.exception("Failed to compute todays_collection: %s", e)
             return Decimal("0.00")
 
     def _get_loan_transaction_totals(self) -> tuple[Decimal, Decimal, Decimal]:
@@ -160,9 +161,9 @@ class DashboardService:
                 if "note_cost" in row and row["note_cost"] is not None:
                     total_note_cost += Decimal(str(row["note_cost"]))
             return total_cash_out, total_loan_amount, total_note_cost
-        except Exception:
-            logger.exception("Failed to compute loan transaction totals")
-            return Decimal("0.00"), Decimal("0.00"), Decimal("0.00")
+        except Exception as e:
+            logger.exception("Failed to compute loan transaction totals: %s", e)
+            raise HTTPException(status_code=500, detail=f"Database error loading loan totals: {e}")
 
     def _get_total_outstanding(self) -> Decimal:
         """
@@ -224,9 +225,9 @@ class DashboardService:
                 total_outstanding += Decimal(remaining) * weekly_inst
 
             return total_outstanding
-        except Exception:
-            logger.exception("Failed to compute total_outstanding")
-            return Decimal("0.00")
+        except Exception as e:
+            logger.exception("Failed to compute total_outstanding: %s", e)
+            raise HTTPException(status_code=500, detail=f"Database error loading outstanding: {e}")
 
     def _get_group_counts(self) -> tuple[int, int]:
         """Returns (active_groups, total_groups)."""
@@ -235,9 +236,9 @@ class DashboardService:
             all_groups = res.data or []
             active = sum(1 for g in all_groups if g.get("status") == "Active")
             return active, len(all_groups)
-        except Exception:
-            logger.exception("Failed to get group counts")
-            return 0, 0
+        except Exception as e:
+            logger.exception("Failed to get group counts: %s", e)
+            raise HTTPException(status_code=500, detail=f"Database error loading group counts: {e}")
 
     def _get_member_counts(self) -> tuple[int, int]:
         """Returns (active_members, total_members)."""
@@ -246,9 +247,9 @@ class DashboardService:
             all_members = res.data or []
             active = sum(1 for m in all_members if m.get("status") == "Active")
             return active, len(all_members)
-        except Exception:
-            logger.exception("Failed to get member counts")
-            return 0, 0
+        except Exception as e:
+            logger.exception("Failed to get member counts: %s", e)
+            raise HTTPException(status_code=500, detail=f"Database error loading member counts: {e}")
 
     def _get_groups_by_location(self) -> list[GroupLocationSummary]:
         """

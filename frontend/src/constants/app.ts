@@ -19,8 +19,8 @@ export const DEFAULT_PAGE_SIZE = 25;
 /** Available page size options for table pagination controls */
 export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
-/** Query stale time in milliseconds (15 seconds for responsive background revalidation) */
-export const QUERY_STALE_TIME = 15 * 1000;
+/** Query stale time in milliseconds (60 seconds for stable mobile network revalidation) */
+export const QUERY_STALE_TIME = 60 * 1000;
 
 /** Query cache time in milliseconds (10 minutes) */
 export const QUERY_GC_TIME = 10 * 60 * 1000;

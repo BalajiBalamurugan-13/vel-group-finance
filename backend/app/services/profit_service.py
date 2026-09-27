@@ -222,8 +222,9 @@ class ProfitService:
                 .execute()
             )
             groups = groups_res.data or []
-        except Exception:
-            groups = []
+        except Exception as e:
+            logger.error("Failed to query groups for weekly financials: %s", e)
+            raise HTTPException(status_code=500, detail=f"Database error loading groups for weekly financials: {e}")
 
         groups_by_week: Dict[int, List[dict]] = {}
         for g in groups:
@@ -243,8 +244,9 @@ class ProfitService:
         try:
             members_res = self.db.table("members").select("id, joined_week, created_at").execute()
             members = members_res.data or []
-        except Exception:
-            members = []
+        except Exception as e:
+            logger.error("Failed to query members for weekly financials: %s", e)
+            raise HTTPException(status_code=500, detail=f"Database error loading members for weekly financials: {e}")
 
         members_by_week: Dict[int, int] = {}
         for m in members:
@@ -264,8 +266,9 @@ class ProfitService:
                 .execute()
             )
             collections = colls_res.data or []
-        except Exception:
-            collections = []
+        except Exception as e:
+            logger.error("Failed to query collections for weekly financials: %s", e)
+            raise HTTPException(status_code=500, detail=f"Database error loading collections for weekly financials: {e}")
 
         actual_collections_by_week: Dict[int, Decimal] = {}
         for c in collections:
@@ -290,8 +293,9 @@ class ProfitService:
                 .execute()
             )
             cycles = cycles_res.data or []
-        except Exception:
-            cycles = []
+        except Exception as e:
+            logger.error("Failed to query loan cycles for weekly financials: %s", e)
+            raise HTTPException(status_code=500, detail=f"Database error loading loan cycles for weekly financials: {e}")
 
         capital_by_week: Dict[int, Decimal] = {}
         profit_by_week: Dict[int, Decimal] = {}
