@@ -5,20 +5,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ROUTES } from '@/constants';
 import { cn } from '@/lib/cn';
 import { DURATION, EASING } from '@/constants/tokens';
+import { useLanguage } from '@/i18n';
 
 interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const MENU_ITEMS = [
-  { label: 'Loan Risk', path: ROUTES.LOAN_RISK, icon: ShieldAlert },
-  { label: 'Reports', path: ROUTES.REPORTS, icon: BarChart3 },
-  { label: 'Schemes', path: ROUTES.SCHEMES, icon: FileBadge },
-  { label: 'Settings', path: ROUTES.SETTINGS, icon: Settings },
-];
-
 export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
+  const { t } = useLanguage();
+
+  const menuItems = [
+    { label: t('nav.loanRisk'), path: ROUTES.LOAN_RISK, icon: ShieldAlert },
+    { label: t('nav.reports'), path: ROUTES.REPORTS, icon: BarChart3 },
+    { label: t('nav.schemes'), path: ROUTES.SCHEMES, icon: FileBadge },
+    { label: t('nav.settings'), path: ROUTES.SETTINGS, icon: Settings },
+  ];
+
   if (typeof document === 'undefined') return null;
 
   return createPortal(
@@ -47,7 +50,7 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             aria-label="Mobile Menu"
           >
             <nav className="flex flex-col">
-              {MENU_ITEMS.map((item) => {
+              {menuItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <NavLink

@@ -13,9 +13,11 @@ import {
   WeeklyFinancialTable,
 } from '@/features/profit';
 import { TrendingUp, RefreshCw, AlertCircle } from 'lucide-react';
+import { useLanguage } from '@/i18n';
 
 export function ProfitPage() {
-  useDocumentTitle('Profit & Accounting');
+  const { t } = useLanguage();
+  useDocumentTitle(`${t('profit.title')} | VEL Finance`);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
 
   const {
@@ -65,7 +67,7 @@ export function ProfitPage() {
             <p className="mt-1 text-sm text-secondary-500">{message}</p>
           </div>
           <Button variant="secondary" onClick={handleRefreshAll}>
-            Try Again
+            {t('common.retry')}
           </Button>
         </div>
       </PageContainer>
@@ -80,7 +82,7 @@ export function ProfitPage() {
           <div className="flex items-center gap-2">
             <TrendingUp className="h-6 w-6 text-emerald-600" />
             <h1 className="text-xl font-bold text-secondary-900">
-              Accounting &amp; Profit Model
+              {t('profit.title')}
             </h1>
           </div>
         </div>
@@ -97,14 +99,14 @@ export function ProfitPage() {
               />
             }
           >
-            Refresh
+            {t('common.refresh')}
           </Button>
         </div>
       </div>
 
       {isLoading ? (
         <div className="py-16 text-center text-sm text-secondary-500">
-          Loading accounting model...
+          {t('common.loading')}
         </div>
       ) : (
         <div className="space-y-6">

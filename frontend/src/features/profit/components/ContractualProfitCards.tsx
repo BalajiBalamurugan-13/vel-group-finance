@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/Card';
 import { TrendingUp, Banknote, ShieldCheck, PieChart, Clock } from 'lucide-react';
+import { useLanguage } from '@/i18n';
 import type { ProfitSummary } from '../types';
 
 interface ContractualProfitCardsProps {
@@ -16,6 +17,8 @@ function formatINR(val?: number): string {
 }
 
 export function ContractualProfitCards({ summary }: ContractualProfitCardsProps) {
+  const { t } = useLanguage();
+
   const capitalDeployed = summary?.total_loan_capital_deployed || 0;
   const contractualRepayment = summary?.total_contractual_repayment || 0;
   const contractualProfit = summary?.total_contractual_profit || 0;
@@ -35,7 +38,7 @@ export function ContractualProfitCards({ summary }: ContractualProfitCardsProps)
         <div>
           <h3 className="text-sm font-bold text-secondary-900 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-emerald-600" />
-            Loan Economics &amp; Contractual Profit
+            {t('profit.loanEconomicsTitle')}
           </h3>
         </div>
       </div>
@@ -46,7 +49,7 @@ export function ContractualProfitCards({ summary }: ContractualProfitCardsProps)
         <Card className="p-4 border-l-4 border-l-blue-600">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-secondary-500 uppercase tracking-wider">
-              Loan Capital Deployed
+              {t('profit.loanCapitalDeployed')}
             </span>
             <Banknote className="h-4 w-4 text-blue-600" />
           </div>
@@ -54,7 +57,7 @@ export function ContractualProfitCards({ summary }: ContractualProfitCardsProps)
             {formatINR(capitalDeployed)}
           </div>
           <div className="mt-1 text-xs text-secondary-500">
-            Sum of full loan principal issued to members
+            {t('profit.loanCapitalDeployedSub')}
           </div>
         </Card>
 
@@ -62,7 +65,7 @@ export function ContractualProfitCards({ summary }: ContractualProfitCardsProps)
         <Card className="p-4 border-l-4 border-l-violet-600">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-secondary-500 uppercase tracking-wider">
-              Contractual Repayment
+              {t('profit.contractualRepayment')}
             </span>
             <Clock className="h-4 w-4 text-violet-600" />
           </div>
@@ -70,7 +73,7 @@ export function ContractualProfitCards({ summary }: ContractualProfitCardsProps)
             {formatINR(contractualRepayment)}
           </div>
           <div className="mt-1 text-xs text-secondary-500">
-            Total scheduled repayment: Weekly Installment × Weeks
+            {t('profit.contractualRepaymentSub')}
           </div>
         </Card>
 
@@ -78,17 +81,17 @@ export function ContractualProfitCards({ summary }: ContractualProfitCardsProps)
         <Card className="p-4 border-l-4 border-l-emerald-600 bg-emerald-50/25">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">
-              Contractual Profit
+              {t('profit.contractualProfit')}
             </span>
             <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-              Repayment − Principal
+              {t('profit.contractualProfitBadge')}
             </span>
           </div>
           <div className="mt-2 text-2xl font-bold text-emerald-900">
             {formatINR(contractualProfit)}
           </div>
           <div className="mt-1 text-xs text-emerald-700 font-medium">
-            Contractual margin if schedules completed
+            {t('profit.contractualProfitSub')}
           </div>
         </Card>
       </div>
@@ -100,20 +103,20 @@ export function ContractualProfitCards({ summary }: ContractualProfitCardsProps)
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-xs font-bold text-secondary-800 uppercase tracking-wider flex items-center gap-1.5">
               <PieChart className="h-3.5 w-3.5 text-secondary-500" />
-              Collections vs Outstanding
+              {t('profit.collectionsVsOutstanding')}
             </h4>
-            <span className="text-[11px] text-secondary-400">Cash movement</span>
+            <span className="text-[11px] text-secondary-400">{t('profit.cashMovement')}</span>
           </div>
           <div className="grid grid-cols-2 gap-3 mt-3">
             <div className="bg-secondary-50 p-3 rounded-lg border border-border">
-              <span className="text-[10px] text-secondary-400 font-medium uppercase block">Actual Collections</span>
+              <span className="text-[10px] text-secondary-400 font-medium uppercase block">{t('profit.actualCollections')}</span>
               <span className="text-lg font-bold text-emerald-700">{formatINR(actualCollections)}</span>
-              <span className="text-[11px] text-secondary-500 block mt-0.5">Physical cash collected</span>
+              <span className="text-[11px] text-secondary-500 block mt-0.5">{t('profit.physicalCashCollected')}</span>
             </div>
             <div className="bg-secondary-50 p-3 rounded-lg border border-border">
-              <span className="text-[10px] text-secondary-400 font-medium uppercase block">Total Outstanding</span>
+              <span className="text-[10px] text-secondary-400 font-medium uppercase block">{t('profit.totalOutstanding')}</span>
               <span className="text-lg font-bold text-amber-700">{formatINR(outstanding)}</span>
-              <span className="text-[11px] text-secondary-500 block mt-0.5">Remaining installments</span>
+              <span className="text-[11px] text-secondary-500 block mt-0.5">{t('profit.remainingInstallments')}</span>
             </div>
           </div>
         </Card>
@@ -123,7 +126,7 @@ export function ContractualProfitCards({ summary }: ContractualProfitCardsProps)
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-xs font-bold text-secondary-800 uppercase tracking-wider flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5 text-primary-600" />
-              Principal Recovery Analysis
+              {t('profit.principalRecovery')}
             </h4>
             <span className="text-xs font-bold text-primary-700">{recoveryPercent}%</span>
           </div>
@@ -137,11 +140,11 @@ export function ContractualProfitCards({ summary }: ContractualProfitCardsProps)
 
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <span className="text-secondary-400 block text-[10px] uppercase font-medium">Principal Recovered</span>
+              <span className="text-secondary-400 block text-[10px] uppercase font-medium">{t('profit.principalRecovered')}</span>
               <span className="font-bold text-secondary-900">{formatINR(principalRecovered)}</span>
             </div>
             <div className="text-right">
-              <span className="text-secondary-400 block text-[10px] uppercase font-medium">Principal Remaining</span>
+              <span className="text-secondary-400 block text-[10px] uppercase font-medium">{t('profit.principalRemaining')}</span>
               <span className="font-bold text-secondary-900">{formatINR(principalRemaining)}</span>
             </div>
           </div>

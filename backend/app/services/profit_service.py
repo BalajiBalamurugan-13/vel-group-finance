@@ -95,8 +95,9 @@ class ProfitService:
                 .execute()
             )
             cycles_data = cycles_res.data or []
-        except Exception:
-            cycles_data = []
+        except Exception as e:
+            logger.error("Failed to query loan_cycles in get_profit_summary: %s", e, exc_info=True)
+            raise
 
         total_loan_capital_deployed = Decimal("0.00")
         total_contractual_repayment = Decimal("0.00")
@@ -140,8 +141,9 @@ class ProfitService:
                 .execute()
             )
             collections_data = collections_res.data or []
-        except Exception:
-            collections_data = []
+        except Exception as e:
+            logger.error("Failed to query collections in get_profit_summary: %s", e, exc_info=True)
+            raise
 
         total_actual_collections = Decimal("0.00")
         cycle_paid_amounts: Dict[str, Decimal] = {}

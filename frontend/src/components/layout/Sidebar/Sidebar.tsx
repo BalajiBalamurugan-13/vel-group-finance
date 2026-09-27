@@ -27,28 +27,28 @@ import { ROUTES } from '@/constants';
 import { STORAGE_KEYS } from '@/utils';
 import { useLocalStorage } from '@/hooks';
 import { DURATION, EASING } from '@/constants/tokens';
+import { useLanguage } from '@/i18n';
 import type { NavItem } from '@/types';
-
-// ── Navigation Config ─────────────────────────────────────────────────────────
-
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', path: ROUTES.DASHBOARD, icon: LayoutDashboard },
-  { label: 'Groups', path: ROUTES.GROUPS, icon: Users },
-  { label: 'Members', path: ROUTES.MEMBERS, icon: UserCheck },
-  { label: 'Profit', path: ROUTES.PROFIT, icon: TrendingUp },
-  { label: 'Loan Risk', path: ROUTES.LOAN_RISK, icon: ShieldAlert },
-  { label: 'Reports', path: ROUTES.REPORTS, icon: BarChart3 },
-  { label: 'Schemes', path: ROUTES.SCHEMES, icon: FileBadge },
-  { label: 'Settings', path: ROUTES.SETTINGS, icon: Settings },
-];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
+  const { t } = useLanguage();
   const [isCollapsed, setIsCollapsed] = useLocalStorage<boolean>(
     STORAGE_KEYS.SIDEBAR_COLLAPSED,
     false,
   );
+
+  const navItems = [
+    { label: t('nav.dashboard'), path: ROUTES.DASHBOARD, icon: LayoutDashboard },
+    { label: t('nav.groups'), path: ROUTES.GROUPS, icon: Users },
+    { label: t('nav.members'), path: ROUTES.MEMBERS, icon: UserCheck },
+    { label: t('nav.profit'), path: ROUTES.PROFIT, icon: TrendingUp },
+    { label: t('nav.loanRisk'), path: ROUTES.LOAN_RISK, icon: ShieldAlert },
+    { label: t('nav.reports'), path: ROUTES.REPORTS, icon: BarChart3 },
+    { label: t('nav.schemes'), path: ROUTES.SCHEMES, icon: FileBadge },
+    { label: t('nav.settings'), path: ROUTES.SETTINGS, icon: Settings },
+  ];
 
   return (
     <motion.aside
@@ -86,7 +86,7 @@ export function Sidebar() {
 
       {/* ── Navigation ─────────────────────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1" aria-label="Main">
-        {NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <SidebarItem key={item.path} item={item} isCollapsed={isCollapsed} />
         ))}
       </nav>
@@ -101,15 +101,15 @@ export function Sidebar() {
             'transition-colors duration-fast min-h-[44px]',
             isCollapsed && 'justify-center',
           )}
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={isCollapsed ? t('nav.collapse') : t('nav.collapse')}
+          title={isCollapsed ? t('nav.collapse') : t('nav.collapse')}
         >
           {isCollapsed ? (
             <ChevronRight className="w-4 h-4 flex-shrink-0" />
           ) : (
             <>
               <ChevronLeft className="w-4 h-4 flex-shrink-0" />
-              <span>Collapse</span>
+              <span>{t('nav.collapse')}</span>
             </>
           )}
         </button>

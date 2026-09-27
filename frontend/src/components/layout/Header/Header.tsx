@@ -5,6 +5,7 @@
  * Contains: search placeholder (Ctrl+K hint), notification icon slot.
  */
 import { Search, Bell } from 'lucide-react';
+import { LanguageToggle } from '@/components/common/LanguageToggle';
 
 export function Header() {
   return (
@@ -32,7 +33,10 @@ export function Header() {
       </div>
 
       {/* ── Right Actions ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 ml-4">
+      <div className="flex items-center gap-3 ml-4">
+        {/* Language Toggle */}
+        <LanguageToggle />
+
         {/* Notifications — Placeholder for future implementation */}
         <button
           className="relative p-2 rounded-lg text-secondary-500 hover:bg-secondary-100 hover:text-secondary-700 transition-colors duration-fast min-h-[44px] min-w-[44px] flex items-center justify-center"

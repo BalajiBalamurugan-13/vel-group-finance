@@ -33,6 +33,7 @@ import {
   type CollectionFiltersState,
 } from '@/features/collections';
 import { useGroups } from '@/features/groups/hooks/useGroups';
+import { useLanguage } from '@/i18n';
 import {
   Wallet,
   TrendingUp,
@@ -50,6 +51,7 @@ interface ToastState {
 }
 
 export function DashboardPage() {
+  const { t } = useLanguage();
   useDocumentTitle('Dashboard | VEL Finance');
 
   // Toast State
@@ -149,7 +151,7 @@ export function DashboardPage() {
           </div>
           <Button variant="outline" onClick={handleRefreshAll}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
+            {t('common.retry')}
           </Button>
         </div>
       </PageContainer>
@@ -161,7 +163,7 @@ export function DashboardPage() {
     return (
       <PageContainer>
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h1 className="text-xl font-bold text-secondary-900">Dashboard</h1>
+          <h1 className="text-xl font-bold text-secondary-900">{t('dashboard.title')}</h1>
         </div>
         <DashboardSkeleton />
       </PageContainer>
@@ -184,9 +186,9 @@ export function DashboardPage() {
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
       <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-secondary-900">Dashboard</h1>
+          <h1 className="text-xl font-bold text-secondary-900">{t('dashboard.title')}</h1>
           <p className="text-xs text-secondary-500 mt-0.5">
-            Operational cash, active groups &amp; weekly collection tracking
+            {t('dashboard.subtitle')}
           </p>
         </div>
 
@@ -203,7 +205,7 @@ export function DashboardPage() {
               aria-hidden="true"
             />
             <span className="ml-1.5 text-secondary-600 text-xs sm:text-sm font-medium">
-              Refresh
+              {t('common.refresh')}
             </span>
           </Button>
 
@@ -213,7 +215,7 @@ export function DashboardPage() {
             leftIcon={<Plus className="h-4 w-4" />}
             aria-label="Record Weekly Collection Payment"
           >
-            Record Payment
+            {t('dashboard.recordPayment')}
           </Button>
         </div>
       </div>
@@ -225,9 +227,9 @@ export function DashboardPage() {
             {/* 1. Available Cash (from Dashboard) */}
             <StatCard
               id="stat-available-cash"
-              label="Available Cash"
+              label={t('dashboard.availableCash')}
               value={dashboardData?.available_cash ?? 0}
-              sublabel="Collections − Disbursements"
+              sublabel={t('dashboard.availableCashSub')}
               icon={<Wallet className="h-5 w-5" aria-hidden="true" />}
               variant="primary"
               isCurrency
@@ -237,9 +239,9 @@ export function DashboardPage() {
             {/* 2. Today's Collection */}
             <StatCard
               id="stat-todays-collection"
-              label="Today's Collection"
+              label={t('dashboard.todaysCollection')}
               value={todayTotal}
-              sublabel={`${todayCount} payment${todayCount === 1 ? '' : 's'} today`}
+              sublabel={`${todayCount} ${todayCount === 1 ? t('dashboard.paymentToday') : t('dashboard.paymentsToday')}`}
               icon={<TrendingUp className="h-5 w-5" aria-hidden="true" />}
               variant="success"
               isCurrency
@@ -249,7 +251,7 @@ export function DashboardPage() {
             <Card className="p-3.5 sm:p-4 flex flex-col justify-between border border-border border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-medium text-secondary-500 uppercase tracking-wide">
-                  Weekly Expected
+                  {t('dashboard.weeklyExpected')}
                 </span>
                 <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
                   <CheckCircle className="w-4 h-4" />
@@ -261,7 +263,7 @@ export function DashboardPage() {
                 </div>
                 <div className="mt-2 space-y-1">
                   <div className="flex items-center justify-between text-[11px] text-secondary-500">
-                    <span>Collected: {formatCurrency(weeklyCollected)}</span>
+                    <span>{t('dashboard.collected')}: {formatCurrency(weeklyCollected)}</span>
                     <span className="font-semibold text-emerald-700">{overallProgress}%</span>
                   </div>
                   <div className="w-full bg-secondary-100 rounded-full h-1.5 overflow-hidden">
@@ -277,9 +279,9 @@ export function DashboardPage() {
             {/* 4. Pending Collection */}
             <StatCard
               id="stat-pending-collection"
-              label="Pending This Week"
+              label={t('dashboard.pendingThisWeek')}
               value={weeklyPending}
-              sublabel="Remaining across active cycles"
+              sublabel={t('dashboard.pendingAcrossCycles')}
               icon={<AlertCircle className="h-5 w-5" aria-hidden="true" />}
               variant="warning"
               isCurrency
@@ -288,9 +290,9 @@ export function DashboardPage() {
             {/* 5. Active Groups & Members Overview */}
             <StatCard
               id="stat-active-overview"
-              label="Active Groups"
-              value={`${dashboardData?.active_groups ?? 0} Groups`}
-              sublabel={`${dashboardData?.active_members ?? 0} active members (${dashboardData?.total_members ?? 0} total)`}
+              label={t('dashboard.activeGroups')}
+              value={`${dashboardData?.active_groups ?? 0} ${t('dashboard.groups')}`}
+              sublabel={`${dashboardData?.active_members ?? 0} ${t('dashboard.activeMembers')} (${dashboardData?.total_members ?? 0} ${t('dashboard.totalMembers')})`}
               icon={<Layers className="h-5 w-5" aria-hidden="true" />}
               variant="info"
               className="col-span-2 sm:col-span-1"
@@ -306,11 +308,11 @@ export function DashboardPage() {
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-primary-500" aria-hidden="true" />
                   <h2 className="text-sm font-semibold text-secondary-900">
-                    Active Groups by Location
+                    {t('dashboard.locationsTitle')}
                   </h2>
                 </div>
                 <span className="text-xs text-secondary-500 font-medium">
-                  {dashboardData.groups_by_location.length} locations
+                  {dashboardData.groups_by_location.length} {t('dashboard.locations')}
                 </span>
               </div>
               <GroupLocationList locations={dashboardData.groups_by_location} />
@@ -323,10 +325,10 @@ export function DashboardPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
             <div>
               <h2 className="text-base font-bold text-secondary-900">
-                Weekly Collections
+                {t('dashboard.collectionsTitle')}
               </h2>
               <p className="text-xs text-secondary-500">
-                Track payments, search members, and record weekly installments
+                {t('dashboard.collectionsSubtitle')}
               </p>
             </div>
           </div>
@@ -353,10 +355,10 @@ export function DashboardPage() {
         type="button"
         onClick={() => setIsRecordModalOpen(true)}
         className="fixed md:hidden z-30 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-4 inline-flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xl hover:bg-primary-700 active:scale-95 transition-all"
-        aria-label="Record Weekly Collection Payment"
+        aria-label={t('dashboard.recordPayment')}
       >
         <Plus className="h-4 w-4" />
-        <span>Record Payment</span>
+        <span>{t('dashboard.recordPayment')}</span>
       </button>
 
       {/* ── Record Payment Modal ─────────────────────────────────────────────── */}

@@ -8,6 +8,7 @@ import { formatCurrency } from '@/utils/format';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import { useMembers, useMember } from '@/features/members/hooks/useMembers';
 import { useCollections, useRecordCollection } from '../hooks/useCollections';
+import { useLanguage } from '@/i18n';
 import type { Member } from '@/features/members/types';
 
 interface RecordPaymentModalProps {
@@ -35,6 +36,7 @@ export function RecordPaymentModal({
   initialMemberId,
   onSuccess,
 }: RecordPaymentModalProps) {
+  const { t } = useLanguage();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
 
@@ -201,16 +203,16 @@ export function RecordPaymentModal({
               id="record-payment-title"
               className="text-base sm:text-lg font-bold text-secondary-900"
             >
-              Record Weekly Payment
+              {t('modal.recordPaymentTitle')}
             </h2>
             <p className="text-xs text-secondary-500 mt-0.5">
-              Cash In • Weekly installment collection
+              {t('modal.recordPaymentSubtitle')}
             </p>
           </div>
           <button
             onClick={handleClose}
             className="rounded-lg p-2 text-secondary-400 hover:bg-secondary-100 hover:text-secondary-600 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center -mr-1"
-            aria-label="Close dialog"
+            aria-label={t('common.close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -422,7 +424,7 @@ export function RecordPaymentModal({
               onClick={handleClose}
               className="min-h-[44px] px-4"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
@@ -432,8 +434,8 @@ export function RecordPaymentModal({
               className="min-h-[44px] flex-1 sm:flex-initial px-5 font-semibold text-sm shadow-sm"
             >
               {selectedMember
-                ? `Record Payment (Week ${nextPayableWeek})`
-                : 'Record Payment'}
+                ? `${t('modal.submitPayment')} (Week ${nextPayableWeek})`
+                : t('modal.submitPayment')}
             </Button>
           </div>
         </form>

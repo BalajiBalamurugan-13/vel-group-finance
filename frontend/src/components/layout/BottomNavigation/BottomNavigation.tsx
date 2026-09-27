@@ -22,23 +22,19 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { ROUTES } from '@/constants';
-import type { NavItem } from '@/types';
+import { useLanguage } from '@/i18n';
 import { MobileMenu } from './MobileMenu';
-
-// ── Navigation Config ─────────────────────────────────────────────────────────
-// Maximum 5 items per design system (Dashboard | Groups | Members | Profit | Menu)
-
-const BOTTOM_NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', path: ROUTES.DASHBOARD, icon: LayoutDashboard },
-  { label: 'Groups', path: ROUTES.GROUPS, icon: Users },
-  { label: 'Members', path: ROUTES.MEMBERS, icon: UserCheck },
-  { label: 'Profit', path: ROUTES.PROFIT, icon: TrendingUp },
-];
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 export function BottomNavigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { t } = useLanguage();
+
+  const items = [
+    { label: t('nav.dashboard'), path: ROUTES.DASHBOARD, icon: LayoutDashboard },
+    { label: t('nav.groups'), path: ROUTES.GROUPS, icon: Users },
+    { label: t('nav.members'), path: ROUTES.MEMBERS, icon: UserCheck },
+    { label: t('nav.profit'), path: ROUTES.PROFIT, icon: TrendingUp },
+  ];
 
   return (
     <>
@@ -48,12 +44,12 @@ export function BottomNavigation() {
       >
         {/* Full-height button row with clear icon + text typography */}
         <div className="flex items-center justify-around h-16 px-1">
-          {BOTTOM_NAV_ITEMS.map((item) => (
+          {items.map((item) => (
             <BottomNavItem key={item.path} item={item} />
           ))}
           <button
             onClick={() => setIsMenuOpen(true)}
-            aria-label="Menu"
+            aria-label={t('nav.menu')}
             className={cn(
               'flex-1 flex flex-col items-center justify-center gap-1 py-1.5 px-0.5',
               'text-[11px] font-medium transition-colors duration-fast min-h-[44px]',
@@ -69,7 +65,7 @@ export function BottomNavigation() {
               )}
               aria-hidden="true"
             />
-            <span className="truncate leading-none">Menu</span>
+            <span className="truncate leading-none">{t('nav.menu')}</span>
           </button>
         </div>
       </nav>
@@ -82,7 +78,11 @@ export function BottomNavigation() {
 // ── BottomNavItem ─────────────────────────────────────────────────────────────
 
 interface BottomNavItemProps {
-  item: NavItem;
+  item: {
+    label: string;
+    path: string;
+    icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>;
+  };
 }
 
 function BottomNavItem({ item }: BottomNavItemProps) {

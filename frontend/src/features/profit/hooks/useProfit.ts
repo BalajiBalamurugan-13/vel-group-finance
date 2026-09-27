@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { profitApi } from '../api/profitApi';
 import type { InvestmentCreate } from '../types';
 
@@ -12,6 +12,7 @@ export function useProfitSummary() {
     queryKey: PROFIT_QUERY_KEY,
     queryFn: profitApi.getSummary,
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -20,6 +21,7 @@ export function useWeeklyFinancials(maxWeeks?: number) {
     queryKey: [...PROFIT_WEEKLY_QUERY_KEY, maxWeeks],
     queryFn: () => profitApi.getWeeklyBreakdown(maxWeeks),
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -28,6 +30,7 @@ export function useInvestments() {
     queryKey: INVESTMENTS_QUERY_KEY,
     queryFn: profitApi.getInvestments,
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -36,6 +39,7 @@ export function useInvestmentSummary() {
     queryKey: INVESTMENTS_SUMMARY_QUERY_KEY,
     queryFn: profitApi.getInvestmentSummary,
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -21,6 +21,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from '@/lib/queryClient';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { LanguageProvider } from '@/i18n';
 import { getEnvConfig } from '@/config/env';
 import { useBreakpoint } from '@/hooks';
 
@@ -57,9 +58,11 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        {children}
-        {/* Dev-only, desktop-only — see DevtoolsWrapper comment above */}
-        {isDevelopment && <DevtoolsWrapper />}
+        <LanguageProvider>
+          {children}
+          {/* Dev-only, desktop-only — see DevtoolsWrapper comment above */}
+          {isDevelopment && <DevtoolsWrapper />}
+        </LanguageProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

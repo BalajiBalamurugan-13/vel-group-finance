@@ -5,11 +5,12 @@
  * Uses the actual VEL Finance logo asset for professional presentation.
  */
 import velLogo from '@/assets/Vel finance logo white.png';
+import { LanguageToggle } from '@/components/common/LanguageToggle';
 
 export function MobileHeader() {
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-sticky flex-shrink-0 h-14 flex items-center px-4 bg-surface border-b border-border"
+      className="fixed top-0 left-0 right-0 z-sticky flex-shrink-0 h-14 flex items-center justify-between px-4 bg-surface border-b border-border"
       role="banner"
     >
       <div className="flex items-center gap-2.5">
@@ -27,6 +28,8 @@ export function MobileHeader() {
           </span>
         </div>
       </div>
+
+      <LanguageToggle />
     </header>
   );
 }
