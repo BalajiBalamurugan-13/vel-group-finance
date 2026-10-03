@@ -72,7 +72,12 @@ class Settings(BaseSettings):
 
     def get_cors_origins(self) -> List[str]:
         """Return CORS origins as a list."""
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        if self.is_development:
+            for dev_origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+                if dev_origin not in origins:
+                    origins.append(dev_origin)
+        return origins
 
     @property
     def is_development(self) -> bool:

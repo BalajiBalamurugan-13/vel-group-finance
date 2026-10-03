@@ -20,6 +20,8 @@ export const ROUTES = {
   COLLECTIONS: '/collections',
   PROFIT: '/profit',
   LOAN_RISK: '/loan-risk',
+  PLACES: '/places',
+  COLLECTION_SHEET: '/collection-sheet',
   REPORTS: '/reports',
   SCHEMES: '/schemes',
   SETTINGS: '/settings',

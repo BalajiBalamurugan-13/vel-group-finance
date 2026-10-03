@@ -1,38 +1,36 @@
 /**
- * VEL Finance - Unified Dashboard & Collections Hub
- * ==================================================
- * Combines business overview metrics (available cash, active groups, locations)
- * with real-time field collection tracking and payment recording in one single place.
+ * VEL Finance — Executive Business Dashboard
+ * ============================================
+ * Fast, reliable overview of core financial operations:
+ * - Available Cash (Formula 11: Collections - Disbursements)
+ * - Today's Collection & Payment Count
+ * - Weekly Expected, Collected & Progress (Sunday-to-Saturday business week)
+ * - Weekly Pending Across Active Groups
+ * - Active Groups & Member Counts
+ * - Route Breakdown by Location
+ * - Recent Collections with Quick Access to Full Collections Ledger
  *
- * Redundant metrics (total outstanding, loan principal, disbursements) have been
- * consolidated into the dedicated Profit & Accounting section to eliminate clutter.
+ * Dedicated collection management, member search, and date filters
+ * are hosted on the dedicated Weekly Collections page (/collections).
  */
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PageContainer } from '@/components/common/PageContainer';
 import { useDocumentTitle } from '@/hooks';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Toast } from '@/components/ui/Toast';
 import { TOAST_DURATION_MS } from '@/constants/app';
+import { ROUTES } from '@/constants';
 import { formatCurrency } from '@/utils/format';
 import {
   useDashboard,
   DashboardSkeleton,
   StatCard,
   GroupLocationList,
+  RecentCollectionsTable,
 } from '@/features/dashboard';
-import {
-  CollectionList,
-  CollectionFilters,
-  RecordPaymentModal,
-  CollectionDetailsModal,
-  useCollections,
-  useTodayCollections,
-  useWeeklyCollectionSummary,
-  type Collection,
-  type CollectionFiltersState,
-} from '@/features/collections';
-import { useGroups } from '@/features/groups/hooks/useGroups';
+import { RecordPaymentModal } from '@/features/collections';
 import { useLanguage } from '@/i18n';
 import {
   Wallet,
@@ -43,6 +41,8 @@ import {
   MapPin,
   Plus,
   RefreshCw,
+  ArrowRight,
+  ReceiptText,
 } from 'lucide-react';
 
 interface ToastState {
@@ -52,19 +52,15 @@ interface ToastState {
 
 export function DashboardPage() {
   const { t } = useLanguage();
-  useDocumentTitle('Dashboard | VEL Finance');
+  useDocumentTitle(`${t('dashboard.title')} | VEL Finance`);
 
   // Toast State
   const [successToast, setSuccessToast] = useState<ToastState | null>(null);
 
-  // Filter State
-  const [filters, setFilters] = useState<CollectionFiltersState>({});
-
-  // Modal States
+  // Modal State
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
-  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
 
-  // Queries
+  // Single consolidated query — loads fast and with zero redundant fetches
   const {
     data: dashboardData,
     isLoading: isLoadingDashboard,
@@ -74,68 +70,23 @@ export function DashboardPage() {
     isFetching: isFetchingDashboard,
   } = useDashboard();
 
-  const { data: groups = [] } = useGroups();
+  // Operational KPI calculations from server-provided Decimal fields
+  const todayTotal = Number(dashboardData?.todays_collection ?? 0);
+  const todayCount = dashboardData?.todays_collection_count ?? 0;
 
-  const {
-    data: collections = [],
-    isLoading: isLoadingCollections,
-    refetch: refetchCollections,
-    isFetching: isFetchingCollections,
-  } = useCollections(filters);
+  const weeklyExpected = Number(dashboardData?.weekly_expected ?? 0);
+  const weeklyCollected = Number(dashboardData?.weekly_collected ?? 0);
+  const weeklyPending = Number(dashboardData?.weekly_pending ?? 0);
 
-  const {
-    data: todaySummary,
-    refetch: refetchToday,
-    isFetching: isFetchingToday,
-  } = useTodayCollections();
-
-  const {
-    data: weeklySummary,
-    isLoading: isLoadingWeekly,
-    refetch: refetchWeekly,
-    isFetching: isFetchingWeekly,
-  } = useWeeklyCollectionSummary(filters.group_id);
-
-  const isRefreshing =
-    isFetchingDashboard ||
-    isFetchingCollections ||
-    isFetchingToday ||
-    isFetchingWeekly;
-
-  const handleRefreshAll = () => {
-    refetchDashboard();
-    refetchCollections();
-    refetchToday();
-    refetchWeekly();
-  };
-
-  // Filter collections by client-side search query (member name, group name, phone)
-  const filteredCollections = collections.filter((c) => {
-    if (!filters.search) return true;
-    const term = filters.search.toLowerCase();
-    const memberMatch = c.member_name?.toLowerCase().includes(term);
-    const groupMatch = c.group_name?.toLowerCase().includes(term);
-    const phoneMatch = c.phone_number?.includes(term);
-    return memberMatch || groupMatch || phoneMatch;
-  });
-
-  // KPI Calculations
-  const todayTotal = Number(
-    todaySummary?.total_collected ?? dashboardData?.todays_collection ?? 0,
-  );
-  const todayCount = todaySummary?.collection_count ?? 0;
-
-  const weeklyExpected = Number(weeklySummary?.total_expected ?? 0);
-  const weeklyCollected = Number(weeklySummary?.total_collected ?? 0);
-  const weeklyPending = Number(weeklySummary?.total_pending ?? 0);
-
+  const rawWeeklyProgress =
+    weeklyExpected > 0 ? (weeklyCollected / weeklyExpected) * 100 : 0;
   const overallProgress =
-    weeklyExpected > 0
-      ? Math.min(100, Math.round((weeklyCollected / weeklyExpected) * 100))
-      : 0;
+    rawWeeklyProgress > 0 && rawWeeklyProgress < 1
+      ? Number(rawWeeklyProgress.toFixed(1))
+      : Math.min(100, Math.round(rawWeeklyProgress));
 
-  // ── Error state ────────────────────────────────────────────────────────────
-  if (isDashboardError) {
+  // ── Error State ────────────────────────────────────────────────────────────
+  if (isDashboardError && !dashboardData) {
     const message =
       (dashboardError as { message?: string })?.message ??
       'Unable to load dashboard. Please try again.';
@@ -149,7 +100,7 @@ export function DashboardPage() {
             </p>
             <p className="mt-1 text-sm text-secondary-500">{message}</p>
           </div>
-          <Button variant="outline" onClick={handleRefreshAll}>
+          <Button variant="outline" onClick={() => refetchDashboard()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             {t('common.retry')}
           </Button>
@@ -158,7 +109,7 @@ export function DashboardPage() {
     );
   }
 
-  // ── Loading skeleton ────────────────────────────────────────────────────────
+  // ── Loading Skeleton ────────────────────────────────────────────────────────
   if (isLoadingDashboard && !dashboardData) {
     return (
       <PageContainer>
@@ -196,12 +147,12 @@ export function DashboardPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleRefreshAll}
-            disabled={isRefreshing}
+            onClick={() => refetchDashboard()}
+            disabled={isFetchingDashboard}
             aria-label="Refresh dashboard data"
           >
             <RefreshCw
-              className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-primary-500' : 'text-secondary-500'}`}
+              className={`h-4 w-4 ${isFetchingDashboard ? 'animate-spin text-primary-500' : 'text-secondary-500'}`}
               aria-hidden="true"
             />
             <span className="ml-1.5 text-secondary-600 text-xs sm:text-sm font-medium">
@@ -220,11 +171,11 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="space-y-5">
-        {/* ── Section 1: Key Operational Metrics ─────────────────────────────── */}
+      <div className="space-y-6">
+        {/* ── Section 1: Executive Financial KPIs ────────────────────────────── */}
         <section aria-label="Key operational metrics">
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-            {/* 1. Available Cash (from Dashboard) */}
+            {/* 1. Available Cash */}
             <StatCard
               id="stat-available-cash"
               label={t('dashboard.availableCash')}
@@ -249,17 +200,22 @@ export function DashboardPage() {
 
             {/* 3. Weekly Collection Progress */}
             <Card className="p-3.5 sm:p-4 flex flex-col justify-between border border-border border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-medium text-secondary-500 uppercase tracking-wide">
-                  {t('dashboard.weeklyExpected')}
-                </span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <div className="flex items-start justify-between gap-1">
+                <div className="min-w-0">
+                  <span className="text-[11px] font-medium text-secondary-500 uppercase tracking-wide block truncate">
+                    {t('dashboard.weeklyExpected')}
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-semibold block truncate">
+                    {`All ${dashboardData?.active_groups ?? 0} Groups`}
+                  </span>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                   <CheckCircle className="w-4 h-4" />
                 </div>
               </div>
               <div className="mt-2">
                 <div className="text-xl sm:text-2xl font-bold font-mono text-secondary-900">
-                  {isLoadingWeekly ? '—' : formatCurrency(weeklyExpected)}
+                  {formatCurrency(weeklyExpected)}
                 </div>
                 <div className="mt-2 space-y-1">
                   <div className="flex items-center justify-between text-[11px] text-secondary-500">
@@ -269,19 +225,19 @@ export function DashboardPage() {
                   <div className="w-full bg-secondary-100 rounded-full h-1.5 overflow-hidden">
                     <div
                       className="bg-emerald-600 h-1.5 rounded-full transition-all duration-500"
-                      style={{ width: `${overallProgress}%` }}
+                      style={{ width: `${Math.min(100, Math.max(overallProgress > 0 ? 2 : 0, overallProgress))}%` }}
                     />
                   </div>
                 </div>
               </div>
             </Card>
 
-            {/* 4. Pending Collection */}
+            {/* 4. Weekly Pending Collection */}
             <StatCard
               id="stat-pending-collection"
               label={t('dashboard.pendingThisWeek')}
               value={weeklyPending}
-              sublabel={t('dashboard.pendingAcrossCycles')}
+              sublabel={`Across ${dashboardData?.active_groups ?? 0} active groups`}
               icon={<AlertCircle className="h-5 w-5" aria-hidden="true" />}
               variant="warning"
               isCurrency
@@ -320,33 +276,32 @@ export function DashboardPage() {
           </section>
         )}
 
-        {/* ── Section 3: Collections (Search, Filters & Interactive Table) ───── */}
-        <section aria-label="Collections list" className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+        {/* ── Section 3: Recent Collections with Link to Full Ledger ─────────── */}
+        <section aria-label="Recent collections" className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h2 className="text-base font-bold text-secondary-900">
-                {t('dashboard.collectionsTitle')}
+              <h2 className="text-base font-bold text-secondary-900 flex items-center gap-2">
+                <ReceiptText className="h-4 w-4 text-primary-500" aria-hidden="true" />
+                {t('dashboard.recentCollections')}
               </h2>
               <p className="text-xs text-secondary-500">
-                {t('dashboard.collectionsSubtitle')}
+                {t('dashboard.recentCollectionsSub')}
               </p>
             </div>
+            <Link
+              to={ROUTES.COLLECTIONS}
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-primary-600 hover:text-primary-700 hover:underline transition-colors"
+            >
+              <span>{t('dashboard.viewAllCollections')}</span>
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
           </div>
 
-          {/* Search & Filter Controls */}
-          <CollectionFilters
-            filters={filters}
-            groups={groups}
-            onFilterChange={setFilters}
-          />
-
-          {/* Collections List (Table / Mobile Cards) */}
-          <CollectionList
-            collections={filteredCollections}
-            isLoading={isLoadingCollections}
-            onRecordPayment={() => setIsRecordModalOpen(true)}
-            onViewDetails={(collection) => setSelectedCollection(collection)}
-          />
+          <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
+            <RecentCollectionsTable
+              collections={dashboardData?.recent_collections ?? []}
+            />
+          </div>
         </section>
       </div>
 
@@ -367,22 +322,14 @@ export function DashboardPage() {
         onClose={() => setIsRecordModalOpen(false)}
         onSuccess={({ week, memberName, amount }) => {
           setSuccessToast({
-            message: 'Payment Recorded',
+            message: t('dashboard.paymentRecordedToast') || 'Payment Recorded',
             description: `Week ${week} • ${memberName} • ${formatCurrency(amount)}`,
           });
-          handleRefreshAll();
+          refetchDashboard();
         }}
-      />
-
-      {/* ── Collection Details Modal ─────────────────────────────────────────── */}
-      <CollectionDetailsModal
-        collection={selectedCollection}
-        isOpen={Boolean(selectedCollection)}
-        onClose={() => setSelectedCollection(null)}
       />
     </PageContainer>
   );
 }
 
 export default DashboardPage;
-

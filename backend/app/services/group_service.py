@@ -167,8 +167,13 @@ class GroupService:
                 detail=f"A group with the name '{group_name}' already exists.",
             )
 
-        # 4. Insert New Group in Draft status
+        # 4. Insert New Group with requested status (Active by default, or Draft)
         owner_amt = Decimal(str(data.owner_investment_amount or "0.00"))
+        desired_status = (
+            data.status.value
+            if isinstance(data.status, GroupStatus)
+            else (data.status or GroupStatus.ACTIVE.value)
+        )
         insert_data = {
             "location": data.location,
             "scheme_id": str(data.scheme_id),
@@ -178,7 +183,7 @@ class GroupService:
             "recycled_sub_type": data.recycled_sub_type or "Fully Recycled",
             "owner_investment_amount": float(owner_amt),
             "remarks": data.remarks,
-            "status": GroupStatus.DRAFT.value,
+            "status": desired_status,
         }
 
         try:
@@ -265,6 +270,41 @@ class GroupService:
                     self.db.table("investments").insert(inv_payload).execute()
             except Exception as e:
                 logger.warning("Could not sync investment record for group %s: %s", group_id, e)
+        elif fs == "Additional Investment":
+            # Additional Investment group: calculate net capital from active members and group scheme
+            try:
+                g_res = (
+                    self.db.table("groups")
+                    .select("scheme:schemes(loan_amount, note_cost), members(id, status)")
+                    .eq("id", str(group_id))
+                    .execute()
+                )
+                g_data = g_res.data[0] if (g_res and g_res.data) else {}
+                scheme = g_data.get("scheme") or {}
+                la = Decimal(str(scheme.get("loan_amount") or "10000.00"))
+                nc = Decimal(str(scheme.get("note_cost") or "100.00"))
+                net_given = la - nc
+                mems = [m for m in (g_data.get("members") or []) if m.get("status") != "Closed"]
+                amt = net_given * Decimal(len(mems))
+            except Exception:
+                amt = Decimal("0.00")
+
+            if amt > Decimal("0.00"):
+                inv_date = start_date_val or date.today()
+                inv_payload = {
+                    "investment_type": "Additional",
+                    "amount": float(amt),
+                    "investment_date": inv_date.isoformat(),
+                    "description": f"Capital deployed for group {group_name} (Additional Investment)",
+                    "group_id": str(group_id),
+                }
+                try:
+                    if existing_data:
+                        self.db.table("investments").update(inv_payload).eq("id", existing_data[0]["id"]).execute()
+                    else:
+                        self.db.table("investments").insert(inv_payload).execute()
+                except Exception as e:
+                    logger.warning("Could not sync investment record for additional group %s: %s", group_id, e)
         else:
             if existing_data:
                 try:

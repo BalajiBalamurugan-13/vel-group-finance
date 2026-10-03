@@ -428,3 +428,70 @@
   width: calc(100% - 32px);
   pointer-events: auto;
 }
+
+/* ── Print Styles for Collection Sheet (A4 Landscape PDF) ───────────────── */
+.print-document {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 7mm 10mm;
+  }
+
+  /* Completely hide the application shell so no watermarks or navigation appear */
+  #root,
+  aside,
+  header,
+  nav,
+  .mobile-layout-root,
+  .no-print,
+  .vel-toast {
+    display: none !important;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    width: auto !important;
+    font-family: inherit;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-document {
+    display: block !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    width: 100% !important;
+  }
+
+  .print-page {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    background: #ffffff !important;
+    page-break-after: always;
+    break-after: page;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .print-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .print-avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
+
+

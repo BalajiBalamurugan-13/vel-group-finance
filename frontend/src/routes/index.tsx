@@ -35,11 +35,14 @@ const ProfitPage = lazy(() =>
 const LoanRiskPage = lazy(() =>
   import('@/pages/LoanRiskPage').then((m) => ({ default: m.LoanRiskPage })),
 );
-const ReportsPage = lazy(() =>
-  import('@/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
+const PlacesPage = lazy(() =>
+  import('@/pages/PlacesPage').then((m) => ({ default: m.PlacesPage })),
 );
-const SettingsPage = lazy(() =>
-  import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+const CollectionSheetPage = lazy(() =>
+  import('@/pages/CollectionSheetPage').then((m) => ({ default: m.CollectionSheetPage })),
+);
+const CollectionsPage = lazy(() =>
+  import('@/pages/CollectionsPage').then((m) => ({ default: m.CollectionsPage })),
 );
 const SchemesPage = lazy(() =>
   import('@/pages/SchemesPage').then((m) => ({ default: m.SchemesPage })),
@@ -101,7 +104,11 @@ export const routes: RouteObject[] = [
       },
       {
         path: ROUTES.COLLECTIONS,
-        element: <Navigate to={ROUTES.DASHBOARD} replace />,
+        element: (
+          <LazyPage>
+            <CollectionsPage />
+          </LazyPage>
+        ),
       },
       {
         path: ROUTES.PROFIT,
@@ -120,20 +127,28 @@ export const routes: RouteObject[] = [
         ),
       },
       {
-        path: ROUTES.REPORTS,
+        path: ROUTES.PLACES,
         element: (
           <LazyPage>
-            <ReportsPage />
+            <PlacesPage />
           </LazyPage>
         ),
       },
       {
-        path: ROUTES.SETTINGS,
+        path: ROUTES.COLLECTION_SHEET,
         element: (
           <LazyPage>
-            <SettingsPage />
+            <CollectionSheetPage />
           </LazyPage>
         ),
+      },
+      {
+        path: ROUTES.REPORTS,
+        element: <Navigate to={ROUTES.DASHBOARD} replace />,
+      },
+      {
+        path: ROUTES.SETTINGS,
+        element: <Navigate to={ROUTES.DASHBOARD} replace />,
       },
       {
         path: ROUTES.SCHEMES,

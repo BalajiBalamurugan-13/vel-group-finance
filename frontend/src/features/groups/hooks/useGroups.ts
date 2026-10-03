@@ -19,6 +19,7 @@ export function useGroups(filters?: GroupFiltersState) {
         search: filters?.search,
       }),
     placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 }
 

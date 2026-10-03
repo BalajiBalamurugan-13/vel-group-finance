@@ -43,10 +43,11 @@ export function useTodayCollections(targetDate?: string) {
   });
 }
 
-export function useWeeklyCollectionSummary(groupId?: string) {
+export function useWeeklyCollectionSummary(groupId?: string, enabled: boolean = true) {
   return useQuery({
     queryKey: [...COLLECTIONS_QUERY_KEY, 'weekly', groupId || 'All'],
     queryFn: () => collectionApi.getWeeklySummary(groupId),
+    enabled,
   });
 }
 
@@ -55,12 +56,86 @@ export function useRecordCollection() {
 
   return useMutation({
     mutationFn: collectionApi.recordCollection,
-    onSuccess: () => {
-      // Invalidate collections, members, groups, and dashboard for updated metrics
-      queryClient.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-      queryClient.invalidateQueries({ queryKey: ['groups'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    onSuccess: async (_, variables) => {
+      // Optimistically update repayment progress in all members queries
+      if (variables?.member_id) {
+        queryClient.setQueriesData({ queryKey: ['members'] }, (oldData: any) => {
+          if (!oldData) return oldData;
+          if (Array.isArray(oldData)) {
+            return oldData.map((m: any) => {
+              if (m.id === variables.member_id) {
+                return {
+                  ...m,
+                  weeks_paid: Math.max(m.weeks_paid || 0, variables.week_number),
+                };
+              }
+              return m;
+            });
+          }
+          if (typeof oldData === 'object' && oldData.id === variables.member_id) {
+            return {
+              ...oldData,
+              weeks_paid: Math.max(oldData.weeks_paid || 0, variables.week_number),
+            };
+          }
+          return oldData;
+        });
+      }
+
+      // Invalidate active collections, members, groups, and dashboard for immediate visual feedback
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['members'], refetchType: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['groups'], refetchType: 'active' }),
+      ]);
+      queryClient.invalidateQueries({ queryKey: ['profit'], refetchType: 'none' });
+    },
+  });
+}
+
+export function useRecordBulkCollections() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: collectionApi.recordBulkCollections,
+    onSuccess: async (_, variables) => {
+      // Optimistically update repayment progress in all members queries immediately
+      if (variables && Array.isArray(variables)) {
+        const itemMap = new Map(variables.map((it) => [it.member_id, it.week_number]));
+        queryClient.setQueriesData({ queryKey: ['members'] }, (oldData: any) => {
+          if (!oldData) return oldData;
+          if (Array.isArray(oldData)) {
+            return oldData.map((m: any) => {
+              if (itemMap.has(m.id)) {
+                const recordedWeek = itemMap.get(m.id)!;
+                return {
+                  ...m,
+                  weeks_paid: Math.max(m.weeks_paid || 0, recordedWeek),
+                };
+              }
+              return m;
+            });
+          }
+          if (typeof oldData === 'object' && itemMap.has(oldData.id)) {
+            const recordedWeek = itemMap.get(oldData.id)!;
+            return {
+              ...oldData,
+              weeks_paid: Math.max(oldData.weeks_paid || 0, recordedWeek),
+            };
+          }
+          return oldData;
+        });
+      }
+
+      // Invalidate active collections, members, groups, and dashboard for complete server synchronization
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['members'], refetchType: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['groups'], refetchType: 'active' }),
+      ]);
+      queryClient.invalidateQueries({ queryKey: ['profit'], refetchType: 'none' });
     },
   });
 }

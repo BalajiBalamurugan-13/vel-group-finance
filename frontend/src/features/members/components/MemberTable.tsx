@@ -1,7 +1,13 @@
+import { useMemo } from 'react';
 import { Edit, Eye, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/utils/format';
 import { MemberStatusBadge } from './MemberStatusBadge';
+import {
+  usePlacesRoute,
+  buildPlaceLookupMap,
+  resolvePlaceRouteInfo,
+} from '@/features/places';
 import type { Member, MemberStatus } from '../types';
 
 interface MemberTableProps {
@@ -17,6 +23,8 @@ export function MemberTable({
   onEdit,
   onRequestStatusChange,
 }: MemberTableProps) {
+  const { places } = usePlacesRoute();
+  const placeLookup = useMemo(() => buildPlaceLookupMap(places), [places]);
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       <div className="overflow-x-auto">
@@ -77,14 +85,41 @@ export function MemberTable({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-secondary-900">
-                      {member.group_name || '—'}
-                    </div>
-                    {member.location && (
-                      <div className="text-xs text-secondary-500">
-                        {member.location}
-                      </div>
-                    )}
+                    {(() => {
+                      const routeInfo = resolvePlaceRouteInfo(
+                        member.location,
+                        member.group_name,
+                        placeLookup,
+                        places,
+                      );
+                      const isMorning = routeInfo.session === 'morning';
+                      return (
+                        <>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-medium text-secondary-900">
+                              {member.group_name || '—'}
+                            </span>
+                            {routeInfo.order < 9000 && (
+                              <span
+                                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                  isMorning
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                    : 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
+                                }`}
+                                title={`${isMorning ? 'Morning' : 'Evening'} Route Stop #${routeInfo.order}`}
+                              >
+                                {isMorning ? '☀️' : '🌙'} #{routeInfo.order}
+                              </span>
+                            )}
+                          </div>
+                          {member.location && (
+                            <div className="text-xs text-secondary-500">
+                              {member.location}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-right font-medium text-secondary-900">
                     {loanAmount > 0 ? formatCurrency(loanAmount) : '—'}

@@ -35,6 +35,7 @@ class GroupCreate(BaseModel):
     funding_source: Optional[str] = "Recycled Collections"
     recycled_sub_type: Optional[str] = "Fully Recycled"
     owner_investment_amount: Optional[Decimal] = Field(default=Decimal("0.00"), ge=0)
+    status: Optional[GroupStatus] = GroupStatus.ACTIVE
     remarks: Optional[str] = None
 
     @field_validator("location")

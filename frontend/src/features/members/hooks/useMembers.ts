@@ -23,6 +23,7 @@ export function useMembers(
       }),
     enabled: options?.enabled ?? true,
     placeholderData: keepPreviousData,
+    staleTime: 10_000,
   });
 }
 

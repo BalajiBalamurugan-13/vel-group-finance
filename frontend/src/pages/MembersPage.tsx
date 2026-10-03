@@ -8,6 +8,14 @@ import { useDocumentTitle } from '@/hooks';
 import { Plus } from 'lucide-react';
 import { useGroups } from '@/features/groups/hooks/useGroups';
 import {
+  usePlacesRoute,
+  sortGroupsByRoute,
+  sortMembersByRoute,
+  buildRouteGroupOptgroups,
+  buildPlaceLookupMap,
+  resolvePlaceRouteInfo,
+} from '@/features/places';
+import {
   useMembers,
   useUpdateMemberStatus,
   MemberList,
@@ -35,6 +43,7 @@ export function MembersPage() {
     search: '',
   });
 
+  const [sessionFilter, setSessionFilter] = useState<'all' | 'morning' | 'evening'>('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [detailsMember, setDetailsMember] = useState<Member | null>(null);
@@ -47,19 +56,63 @@ export function MembersPage() {
   });
   const [successToast, setSuccessToast] = useState<ToastState | null>(null);
 
-  const { data: members = [], isLoading, error } = useMembers(filters);
+  const { data: members = [], isLoading: isMembersLoading, error } = useMembers(filters);
   const { data: groups = [] } = useGroups();
+  const { places } = usePlacesRoute();
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } =
     useUpdateMemberStatus();
 
-  // Extract unique group options for filter dropdown
-  const groupOptions = useMemo(() => {
-    return groups.map((g) => ({
-      id: g.id,
-      group_name: g.group_name,
-      location: g.location,
-    }));
-  }, [groups]);
+  // Sort groups strictly by configured Places & Routes order
+  const sortedGroups = useMemo(() => {
+    return sortGroupsByRoute(groups, places);
+  }, [groups, places]);
+
+  // Build structured optgroups for dropdown
+  const groupOptgroups = useMemo(() => {
+    return buildRouteGroupOptgroups(sortedGroups, places);
+  }, [sortedGroups, places]);
+
+  // Compute session counts for all loaded members
+  const sessionCounts = useMemo(() => {
+    const lookup = buildPlaceLookupMap(places);
+    const groupMap = new Map(groups.map((g) => [g.id, g]));
+    let morning = 0;
+    let evening = 0;
+
+    for (const m of members) {
+      const g = m.group_id ? groupMap.get(m.group_id) : null;
+      const loc = g?.location || m.location;
+      const gName = g?.group_name || m.group_name;
+      const info = resolvePlaceRouteInfo(loc, gName, lookup, places);
+      if (info.session === 'evening') {
+        evening++;
+      } else {
+        morning++;
+      }
+    }
+
+    return {
+      all: members.length,
+      morning,
+      evening,
+    };
+  }, [members, groups, places]);
+
+  // Sort members strictly by route sequence (Morning -> Evening, Route Stop 1..N, Group, Member)
+  const sortedMembers = useMemo(() => {
+    const sorted = sortMembersByRoute(members, groups, places);
+    if (sessionFilter === 'all') return sorted;
+    const lookup = buildPlaceLookupMap(places);
+    const groupMap = new Map(groups.map((g) => [g.id, g]));
+
+    return sorted.filter((m) => {
+      const g = m.group_id ? groupMap.get(m.group_id) : null;
+      const loc = g?.location || m.location;
+      const gName = g?.group_name || m.group_name;
+      const info = resolvePlaceRouteInfo(loc, gName, lookup, places);
+      return info.session === sessionFilter;
+    });
+  }, [members, groups, places, sessionFilter]);
 
   if (error) {
     throw error;
@@ -115,16 +168,20 @@ export function MembersPage() {
         <MemberFilters
           filters={filters}
           onFilterChange={setFilters}
-          groups={groupOptions}
+          groups={sortedGroups}
+          groupOptgroups={groupOptgroups}
+          sessionFilter={sessionFilter}
+          onSessionFilterChange={setSessionFilter}
+          sessionCounts={sessionCounts}
         />
       </div>
 
       {/* Member List (Desktop Table / Mobile Cards) */}
-      {isLoading ? (
+      {isMembersLoading ? (
         <LoadingState />
       ) : (
         <MemberList
-          members={members}
+          members={sortedMembers}
           onViewDetails={setDetailsMember}
           onEdit={setEditingMember}
           onRequestStatusChange={handleRequestStatusChange}

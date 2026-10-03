@@ -69,13 +69,28 @@ def get_supabase_client() -> Client:
     logger.info("Initializing Supabase client for URL: %s", settings.SUPABASE_URL[:30] + "...")
 
     # Service role bypasses RLS — appropriate for backend-only usage
-    # Do NOT expose this client to any frontend code
+    # Use HTTP/1.1 (http2=False) with persistent connection limits to prevent
+    # Supabase free-tier connection pooler resets (ConnectionTerminated stream errors)
+    import httpx
+    from supabase import ClientOptions
+
+    custom_http_client = httpx.Client(
+        http2=False,
+        timeout=httpx.Timeout(30.0, connect=10.0),
+        limits=httpx.Limits(max_keepalive_connections=15, max_connections=30, keepalive_expiry=30.0),
+    )
+    client_options = ClientOptions(
+        httpx_client=custom_http_client,
+        postgrest_client_timeout=30.0,
+    )
+
     client = create_client(
         supabase_url=settings.SUPABASE_URL,
         supabase_key=settings.SUPABASE_SERVICE_ROLE_KEY,
+        options=client_options,
     )
 
-    logger.info("Supabase client initialized successfully.")
+    logger.info("Supabase client initialized successfully with HTTP/1.1 pooler.")
     return client
 
 

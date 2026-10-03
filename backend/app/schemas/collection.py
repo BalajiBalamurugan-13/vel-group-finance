@@ -36,6 +36,20 @@ class CollectionCreate(CollectionBase):
     collector_id: Optional[UUID] = None
 
 
+class BulkCollectionCreate(BaseModel):
+    """Schema for recording a batch of collection payments (e.g. for an entire group)."""
+    items: list[CollectionCreate] = Field(..., min_length=1)
+
+
+class BulkCollectionResponse(BaseModel):
+    """Response returned after recording a batch of collections."""
+    total_recorded: int
+    total_amount: Decimal
+    collections: list[dict] = []
+    errors: list[str] = []
+
+
+
 class CollectionResponse(BaseModel):
     """Schema for returning Collection data with joined financial context."""
     id: UUID

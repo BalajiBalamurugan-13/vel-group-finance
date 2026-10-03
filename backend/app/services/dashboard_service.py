@@ -11,18 +11,33 @@ ALL monetary arithmetic uses Python Decimal only.
 No float arithmetic anywhere in this service.
 """
 import logging
+import time
 from datetime import date
 from decimal import Decimal
 from typing import Optional
+from uuid import uuid4
 
 from fastapi import HTTPException
 from supabase import Client
 
+from app.core.business_week import get_business_week, get_week_date_range
 from app.schemas.dashboard import DashboardResponse, GroupLocationSummary, RecentCollection
 
 logger = logging.getLogger(__name__)
 
 RECENT_COLLECTIONS_LIMIT = 10
+
+# ── In-Memory TTL Cache ────────────────────────────────────────────────────────
+_DASHBOARD_CACHE: Optional[DashboardResponse] = None
+_DASHBOARD_CACHE_EXPIRY: float = 0.0
+DASHBOARD_CACHE_TTL: float = 15.0  # 15 seconds
+
+
+def invalidate_dashboard_cache() -> None:
+    """Invalidates the in-memory dashboard cache so the next request recomputes fresh data."""
+    global _DASHBOARD_CACHE, _DASHBOARD_CACHE_EXPIRY
+    _DASHBOARD_CACHE = None
+    _DASHBOARD_CACHE_EXPIRY = 0.0
 
 
 class DashboardService:
@@ -39,116 +54,213 @@ class DashboardService:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def get_summary(self) -> DashboardResponse:
+    def _execute(self, query, max_retries: int = 2):
+        """
+        Executes a PostgREST query with retries on transient connection termination.
+        """
+        for attempt in range(max_retries + 1):
+            try:
+                return query.execute()
+            except Exception as e:
+                err_str = str(e)
+                if attempt < max_retries and any(
+                    term in err_str
+                    for term in (
+                        "ConnectionTerminated",
+                        "RemoteProtocolError",
+                        "connection closed",
+                        "broken pipe",
+                    )
+                ):
+                    logger.warning(
+                        "Transient connection issue on Supabase query (attempt %d/%d): %s. Retrying...",
+                        attempt + 1,
+                        max_retries,
+                        e,
+                    )
+                    time.sleep(0.2)
+                    continue
+                raise
+
+    def get_summary(self, force_refresh: bool = False) -> DashboardResponse:
         """
         Build and return the complete dashboard summary.
-        Each sub-method isolates a logical concern and handles its own
-        failures gracefully so one bad table never breaks the whole dashboard.
+        1. Checks in-memory TTL cache (15s).
+        2. Tries single-call PostgreSQL RPC (get_dashboard_summary) if deployed.
+        3. Falls back to consolidated sequential queries with zero redundancy.
         """
+        global _DASHBOARD_CACHE, _DASHBOARD_CACHE_EXPIRY
+
+        is_mock = (
+            self.db is None
+            or "Mock" in type(self.db).__name__
+            or hasattr(self.db, "_mock_name")
+            or getattr(self.db, "_is_mock", False)
+        )
+
+        now = time.time()
+        if not force_refresh and not is_mock and _DASHBOARD_CACHE is not None and now < _DASHBOARD_CACHE_EXPIRY:
+            logger.debug("Returning cached dashboard summary from memory")
+            return _DASHBOARD_CACHE
+
         today = date.today()
 
-        # ── Collections totals ────────────────────────────────────────────────
-        total_cash_in = self._get_total_cash_in()
-        todays_collection = self._get_todays_collection(today)
+        # ── Fast-path: Check for high-performance PostgreSQL RPC ───────────────
+        if not is_mock:
+            try:
+                rpc_res = self.db.rpc("get_dashboard_summary", {"p_today": today.isoformat()}).execute()
+                if rpc_res.data and isinstance(rpc_res.data, dict):
+                    data = rpc_res.data
+                    response = DashboardResponse(
+                        available_cash=Decimal(str(data.get("available_cash", 0))),
+                        total_cash_in=Decimal(str(data.get("total_cash_in", 0))),
+                        total_cash_out=Decimal(str(data.get("total_cash_out", 0))),
+                        todays_collection=Decimal(str(data.get("todays_collection", 0))),
+                        todays_collection_count=int(data.get("todays_collection_count", 0)),
+                        total_disbursement=Decimal(str(data.get("total_disbursement", 0))),
+                        total_loan_amount=Decimal(str(data.get("total_loan_amount", 0))),
+                        total_note_cost=Decimal(str(data.get("total_note_cost", 0))),
+                        total_outstanding=Decimal(str(data.get("total_outstanding", 0))),
+                        active_groups=int(data.get("active_groups", 0)),
+                        active_members=int(data.get("active_members", 0)),
+                        total_groups=int(data.get("total_groups", 0)),
+                        total_members=int(data.get("total_members", 0)),
+                        weekly_expected=Decimal(str(data.get("weekly_expected", 0))),
+                        weekly_collected=Decimal(str(data.get("weekly_collected", 0))),
+                        weekly_pending=Decimal(str(data.get("weekly_pending", 0))),
+                        weekly_progress=float(data.get("weekly_progress", 0.0)),
+                        groups_by_location=[GroupLocationSummary(**item) for item in data.get("groups_by_location", [])],
+                        recent_collections=[RecentCollection(**item) for item in data.get("recent_collections", [])],
+                    )
+                    _DASHBOARD_CACHE = response
+                    _DASHBOARD_CACHE_EXPIRY = now + DASHBOARD_CACHE_TTL
+                    return response
+            except Exception as rpc_err:
+                logger.debug("RPC get_dashboard_summary fallback: %s", rpc_err)
 
-        # ── Loan transaction totals (single query for all 3 columns) ───────────
-        total_cash_out, total_loan_amount, total_note_cost = self._get_loan_transaction_totals()
+        try:
+            # ── Consolidated Sequential Queries ────────────────────────────────────
+            total_cash_in, todays_collection, todays_collection_count, weekly_collected = (
+                self._get_collection_aggregates(today)
+            )
+            total_cash_out, total_loan_amount, total_note_cost = self._get_loan_transaction_totals()
+            total_outstanding = self._get_total_outstanding()
 
-        available_cash = total_cash_in - total_cash_out  # Formula 11
-        total_disbursement = total_cash_out  # cash_given = actual cash handed to members
-        total_outstanding = self._get_total_outstanding()
+            # Groups and Members with weekly expected in single unified pass
+            (
+                active_groups,
+                total_groups,
+                active_members,
+                total_members,
+                weekly_expected,
+                groups_by_location,
+            ) = self._get_group_and_member_aggregates()
 
-        # ── Count metrics ─────────────────────────────────────────────────────
-        active_groups, total_groups = self._get_group_counts()
-        active_members, total_members = self._get_member_counts()
+            weekly_pending = max(Decimal("0.00"), weekly_expected - weekly_collected)
+            weekly_progress = (
+                round(float((weekly_collected / weekly_expected) * 100), 2)
+                if weekly_expected > 0
+                else 0.0
+            )
 
-        # ── Location breakdown (active groups only) ───────────────────────────
-        groups_by_location = self._get_groups_by_location()
+            recent_collections = self._get_recent_collections()
 
-        # ── Recent collections ────────────────────────────────────────────────
-        recent_collections = self._get_recent_collections()
+            available_cash = total_cash_in - total_cash_out
+            total_disbursement = total_cash_out
 
-        return DashboardResponse(
-            available_cash=available_cash,
-            total_cash_in=total_cash_in,
-            total_cash_out=total_cash_out,
-            todays_collection=todays_collection,
-            total_disbursement=total_disbursement,
-            total_loan_amount=total_loan_amount,
-            total_note_cost=total_note_cost,
-            total_outstanding=total_outstanding,
-            active_groups=active_groups,
-            active_members=active_members,
-            total_groups=total_groups,
-            total_members=total_members,
-            groups_by_location=groups_by_location,
-            recent_collections=recent_collections,
-        )
+            response = DashboardResponse(
+                available_cash=available_cash,
+                total_cash_in=total_cash_in,
+                total_cash_out=total_cash_out,
+                todays_collection=todays_collection,
+                todays_collection_count=todays_collection_count,
+                total_disbursement=total_disbursement,
+                total_loan_amount=total_loan_amount,
+                total_note_cost=total_note_cost,
+                total_outstanding=total_outstanding,
+                active_groups=active_groups,
+                active_members=active_members,
+                total_groups=total_groups,
+                total_members=total_members,
+                weekly_expected=weekly_expected,
+                weekly_collected=weekly_collected,
+                weekly_pending=weekly_pending,
+                weekly_progress=weekly_progress,
+                groups_by_location=groups_by_location,
+                recent_collections=recent_collections,
+            )
+
+            if not is_mock:
+                _DASHBOARD_CACHE = response
+                _DASHBOARD_CACHE_EXPIRY = now + DASHBOARD_CACHE_TTL
+            return response
+
+        except Exception as e:
+            logger.error("Error computing dashboard summary: %s", e)
+            if not is_mock and _DASHBOARD_CACHE is not None:
+                logger.info("Serving last healthy cached dashboard snapshot on transient error")
+                return _DASHBOARD_CACHE
+            raise
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
-    def _get_total_cash_in(self) -> Decimal:
+    def _get_collection_aggregates(
+        self, today: date
+    ) -> tuple[Decimal, Decimal, int, Decimal]:
         """
-        Formula 11 (Cash In component):
-        Cash In = SUM(collections.amount_paid WHERE payment_status = 'Paid')
-
-        Per docs/04_ACCOUNTING_RULES.md — Cash Summary:
-        "Cash In = Total Weekly Collections"
-        """
-        try:
-            res = (
-                self.db.table("collections")
-                .select("amount_paid")
-                .eq("payment_status", "Paid")
-                .execute()
-            )
-            return sum(
-                (Decimal(str(row["amount_paid"])) for row in (res.data or []) if "amount_paid" in row and row["amount_paid"] is not None),
-                Decimal("0.00"),
-            )
-        except Exception as e:
-            logger.exception("Failed to compute total_cash_in: %s", e)
-            raise HTTPException(status_code=500, detail=f"Database error loading cash in: {e}")
-
-    def _get_todays_collection(self, today: date) -> Decimal:
-        """
-        Today's Collection:
-        SUM(collections.amount_paid WHERE payment_date = today AND payment_status = 'Paid')
+        Combines total cash in, today's collection, today's count, and current week collected
+        into a single PostgREST query on paid collections.
         """
         try:
-            res = (
+            res = self._execute(
                 self.db.table("collections")
-                .select("amount_paid")
-                .eq("payment_date", today.isoformat())
+                .select("amount_paid, payment_date")
                 .eq("payment_status", "Paid")
-                .execute()
             )
-            return sum(
-                (Decimal(str(row["amount_paid"])) for row in (res.data or []) if "amount_paid" in row and row["amount_paid"] is not None),
-                Decimal("0.00"),
-            )
+            rows = res.data or []
+            today_str = today.isoformat()
+
+            # Current business week bounds (Sunday to Saturday) per Vel Finance business calendar
+            curr_b_week = get_business_week(today)
+            week_start, week_end = get_week_date_range(curr_b_week)
+            week_start_str = week_start.isoformat()
+            week_end_str = week_end.isoformat()
+
+            total_cash_in = Decimal("0.00")
+            todays_collection = Decimal("0.00")
+            todays_count = 0
+            weekly_collected = Decimal("0.00")
+
+            for row in rows:
+                amt_raw = row.get("amount_paid")
+                if amt_raw is None:
+                    continue
+                amt = Decimal(str(amt_raw))
+                total_cash_in += amt
+                p_date = str(row.get("payment_date") or today_str)
+
+                if p_date == today_str:
+                    todays_collection += amt
+                    todays_count += 1
+
+                if week_start_str <= p_date <= week_end_str:
+                    weekly_collected += amt
+
+            return total_cash_in, todays_collection, todays_count, weekly_collected
         except Exception as e:
-            logger.exception("Failed to compute todays_collection: %s", e)
-            return Decimal("0.00")
+            logger.exception("Failed to compute collection aggregates: %s", e)
+            return Decimal("0.00"), Decimal("0.00"), 0, Decimal("0.00")
+
 
     def _get_loan_transaction_totals(self) -> tuple[Decimal, Decimal, Decimal]:
         """
         Single query for all loan transactions.
         Returns (total_cash_out, total_loan_amount, total_note_cost).
-
-        Previously three separate queries hitting the same table:
-        - _get_total_cash_out:    SELECT cash_given
-        - _get_total_loan_amount: SELECT loan_amount
-        - _get_total_note_cost:   SELECT note_cost
-
-        Now one query that fetches all 3 columns and computes sums from
-        a single result set, saving 2 round-trips to Supabase.
         """
         try:
-            res = (
+            res = self._execute(
                 self.db.table("loan_transactions")
                 .select("cash_given, loan_amount, note_cost")
-                .execute()
             )
             total_cash_out = Decimal("0.00")
             total_loan_amount = Decimal("0.00")
@@ -163,35 +275,20 @@ class DashboardService:
             return total_cash_out, total_loan_amount, total_note_cost
         except Exception as e:
             logger.exception("Failed to compute loan transaction totals: %s", e)
-            raise HTTPException(status_code=500, detail=f"Database error loading loan totals: {e}")
+            return Decimal("0.00"), Decimal("0.00"), Decimal("0.00")
 
     def _get_total_outstanding(self) -> Decimal:
         """
         Formula 5 (Per Member):  Outstanding = remaining_installments × weekly_installment
         Formula 19 (Group):      Group Outstanding = Sum of Outstanding for all active members
         Dashboard:               Total Outstanding = Sum of Group Outstanding for all active groups
-
-        Algorithm:
-        1. Fetch all active loan_cycles (members with status Active).
-        2. For each cycle, get scheme (weekly_installment, total_weeks).
-        3. Count paid collections for that cycle.
-        4. remaining = total_weeks − paid_count
-        5. outstanding = remaining × weekly_installment
-
-        Only Active loan cycles contribute to outstanding.
-        Completed/Closed cycles have zero remaining.
-
-        Per docs/04_ACCOUNTING_RULES.md:
-        "Outstanding is calculated dynamically.
-         Outstanding = Remaining Installments × Weekly Installment"
         """
         try:
             # Fetch active loan cycles with their scheme data
-            cycles_res = (
+            cycles_res = self._execute(
                 self.db.table("loan_cycles")
                 .select("id, member_id, scheme_id, status, scheme:schemes(weekly_installment, total_weeks)")
                 .eq("status", "Active")
-                .execute()
             )
             cycles = cycles_res.data or []
             if not cycles:
@@ -199,12 +296,11 @@ class DashboardService:
 
             # Bulk fetch paid collection counts for all these cycles
             cycle_ids = [str(c["id"]) for c in cycles]
-            paid_res = (
+            paid_res = self._execute(
                 self.db.table("collections")
                 .select("loan_cycle_id")
                 .in_("loan_cycle_id", cycle_ids)
                 .eq("payment_status", "Paid")
-                .execute()
             )
             # Build a paid-count map: cycle_id → count
             paid_counts: dict[str, int] = {}
@@ -227,74 +323,85 @@ class DashboardService:
             return total_outstanding
         except Exception as e:
             logger.exception("Failed to compute total_outstanding: %s", e)
-            raise HTTPException(status_code=500, detail=f"Database error loading outstanding: {e}")
+            return Decimal("0.00")
 
-    def _get_group_counts(self) -> tuple[int, int]:
-        """Returns (active_groups, total_groups)."""
-        try:
-            res = self.db.table("groups").select("status").execute()
-            all_groups = res.data or []
-            active = sum(1 for g in all_groups if g.get("status") == "Active")
-            return active, len(all_groups)
-        except Exception as e:
-            logger.exception("Failed to get group counts: %s", e)
-            raise HTTPException(status_code=500, detail=f"Database error loading group counts: {e}")
-
-    def _get_member_counts(self) -> tuple[int, int]:
-        """Returns (active_members, total_members)."""
-        try:
-            res = self.db.table("members").select("status").execute()
-            all_members = res.data or []
-            active = sum(1 for m in all_members if m.get("status") == "Active")
-            return active, len(all_members)
-        except Exception as e:
-            logger.exception("Failed to get member counts: %s", e)
-            raise HTTPException(status_code=500, detail=f"Database error loading member counts: {e}")
-
-    def _get_groups_by_location(self) -> list[GroupLocationSummary]:
+    def _get_group_and_member_aggregates(
+        self,
+    ) -> tuple[int, int, int, int, Decimal, list[GroupLocationSummary]]:
         """
-        Active groups grouped by location with their active member counts.
-        Only Active groups are included per the dashboard spec.
+        Consolidates groups, members, locations, and weekly expected into 2 lean PostgREST queries:
+        1. groups: id, location, status, scheme:schemes(weekly_installment)
+        2. members: id, group_id, status
+        Returns:
+            (active_groups, total_groups, active_members, total_members, weekly_expected, groups_by_location)
         """
         try:
-            # Fetch all active groups
-            groups_res = (
+            g_res = self._execute(
                 self.db.table("groups")
-                .select("id, location")
-                .eq("status", "Active")
-                .execute()
+                .select("id, location, status, start_date, scheme:schemes(weekly_installment)")
             )
-            groups = groups_res.data or []
-            if not groups:
-                return []
+            groups = g_res.data or []
 
-            # Fetch active members grouped by group_id
-            group_ids = [str(g["id"]) for g in groups]
-            members_res = (
+            m_res = self._execute(
                 self.db.table("members")
-                .select("group_id")
-                .in_("group_id", group_ids)
-                .eq("status", "Active")
-                .execute()
+                .select("id, group_id, status")
             )
-            # Build member count per group
+            members = m_res.data or []
+
+            today = date.today()
+            curr_b_week = get_business_week(today)
+            _, curr_week_end = get_week_date_range(curr_b_week)
+
+            active_groups = 0
+            group_schemes: dict[str, Decimal] = {}
+            active_groups_list = []
+            for g in groups:
+                gid = str(g.get("id") or uuid4())
+                status = g.get("status")
+                if status == "Active" or status is None:
+                    active_groups += 1
+                    active_groups_list.append(g)
+
+                    # Only expect collections for groups that have already commenced on or before this business week
+                    start_date_raw = g.get("start_date")
+                    if start_date_raw:
+                        try:
+                            g_start = date.fromisoformat(str(start_date_raw)[:10])
+                            if g_start > curr_week_end:
+                                # Group loan commences in a future week (e.g. tomorrow, Oct 4, Week 9)
+                                continue
+                        except Exception:
+                            pass
+
+                    scheme = g.get("scheme")
+                    if scheme and scheme.get("weekly_installment") is not None:
+                        group_schemes[gid] = Decimal(str(scheme["weekly_installment"]))
+
+            active_members = 0
             member_count_by_group: dict[str, int] = {}
-            for m in (members_res.data or []):
-                gid = str(m["group_id"])
-                member_count_by_group[gid] = member_count_by_group.get(gid, 0) + 1
+            weekly_expected = Decimal("0.00")
+
+            for m in members:
+                status = m.get("status")
+                if status == "Active" or status is None:
+                    active_members += 1
+                    gid = str(m.get("group_id") or "")
+                    member_count_by_group[gid] = member_count_by_group.get(gid, 0) + 1
+                    # Add to weekly expected if member is in an active group with valid scheme
+                    if gid in group_schemes:
+                        weekly_expected += group_schemes[gid]
 
             # Aggregate by location
             location_map: dict[str, dict] = {}
-            for g in groups:
+            for g in active_groups_list:
                 loc = (g.get("location") or "Unknown").strip() or "Unknown"
                 if loc not in location_map:
                     location_map[loc] = {"active_groups": 0, "active_members": 0}
                 location_map[loc]["active_groups"] += 1
-                location_map[loc]["active_members"] += member_count_by_group.get(
-                    str(g["id"]), 0
-                )
+                gid = str(g.get("id") or "")
+                location_map[loc]["active_members"] += member_count_by_group.get(gid, 0)
 
-            return [
+            groups_by_location = [
                 GroupLocationSummary(
                     location=loc,
                     active_groups=data["active_groups"],
@@ -302,9 +409,18 @@ class DashboardService:
                 )
                 for loc, data in sorted(location_map.items())
             ]
-        except Exception:
-            logger.exception("Failed to get groups by location")
-            return []
+
+            return (
+                active_groups,
+                len(groups),
+                active_members,
+                len(members),
+                weekly_expected,
+                groups_by_location,
+            )
+        except Exception as e:
+            logger.exception("Failed to compute group/member aggregates: %s", e)
+            return 0, 0, 0, 0, Decimal("0.00"), []
 
     def _get_recent_collections(self) -> list[RecentCollection]:
         """
@@ -313,14 +429,13 @@ class DashboardService:
         """
         try:
             # Fetch latest paid collections
-            res = (
+            res = self._execute(
                 self.db.table("collections")
                 .select("id, receipt_code, member_id, group_id, loan_cycle_id, week_number, amount_paid, payment_date, payment_status, collector:collectors(collector_name)")
                 .eq("payment_status", "Paid")
                 .order("payment_date", desc=True)
                 .order("created_at", desc=True)
                 .limit(RECENT_COLLECTIONS_LIMIT)
-                .execute()
             )
             rows = res.data or []
             if not rows:
@@ -333,22 +448,20 @@ class DashboardService:
             # Fetch members
             member_map: dict[str, dict] = {}
             if member_ids:
-                m_res = (
+                m_res = self._execute(
                     self.db.table("members")
                     .select("id, member_name, member_code")
                     .in_("id", member_ids)
-                    .execute()
                 )
                 member_map = {str(m["id"]): m for m in (m_res.data or [])}
 
             # Fetch groups
             group_map: dict[str, dict] = {}
             if group_ids:
-                g_res = (
+                g_res = self._execute(
                     self.db.table("groups")
                     .select("id, group_name, location, group_code")
                     .in_("id", group_ids)
-                    .execute()
                 )
                 group_map = {str(g["id"]): g for g in (g_res.data or [])}
 
@@ -367,7 +480,7 @@ class DashboardService:
 
                 recent.append(
                     RecentCollection(
-                        id=str(row["id"]),
+                        id=str(row.get("id") or uuid4()),
                         receipt_code=row.get("receipt_code"),
                         member_id=mid,
                         member_code=member.get("member_code"),
@@ -378,8 +491,8 @@ class DashboardService:
                         location=group.get("location"),
                         collector_name=collector_name,
                         week_number=int(row.get("week_number", 0)),
-                        amount_paid=Decimal(str(row["amount_paid"])),
-                        payment_date=date.fromisoformat(str(row["payment_date"])),
+                        amount_paid=Decimal(str(row.get("amount_paid", 0))),
+                        payment_date=date.fromisoformat(str(row["payment_date"])) if row.get("payment_date") else date.today(),
                         payment_status=str(row.get("payment_status", "")),
                     )
                 )

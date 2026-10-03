@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, RefreshCw } from 'lucide-react';
 import { PageContainer } from '@/components/common/PageContainer';
 import { Button } from '@/components/ui/Button';
 import { Toast } from '@/components/ui/Toast';
@@ -7,6 +7,7 @@ import { TOAST_DURATION_MS } from '@/constants/app';
 import { useDocumentTitle } from '@/hooks';
 import { formatCurrency } from '@/utils/format';
 import { useGroups } from '@/features/groups/hooks/useGroups';
+import { useLanguage } from '@/i18n';
 import {
   CollectionList,
   CollectionSummaryCards,
@@ -26,7 +27,8 @@ interface ToastState {
 }
 
 export function CollectionsPage() {
-  useDocumentTitle('Collections | VEL Finance');
+  const { t } = useLanguage();
+  useDocumentTitle(`${t('collections.title')} | VEL Finance`);
 
   // Toast State
   const [successToast, setSuccessToast] = useState<ToastState | null>(null);
@@ -40,12 +42,21 @@ export function CollectionsPage() {
 
   // Queries
   const { data: groups = [] } = useGroups();
-  const { data: collections = [], isLoading: isLoadingCollections } =
-    useCollections(filters);
+  const {
+    data: collections = [],
+    isLoading: isLoadingCollections,
+    refetch: refetchCollections,
+    isFetching: isFetchingCollections,
+  } = useCollections(filters);
   const { data: todaySummary, isLoading: isLoadingToday } =
     useTodayCollections();
   const { data: weeklySummary, isLoading: isLoadingWeekly } =
     useWeeklyCollectionSummary(filters.group_id);
+
+  const selectedGroup = useMemo(() => {
+    if (!filters.group_id) return null;
+    return groups.find((g) => g.id === filters.group_id);
+  }, [filters.group_id, groups]);
 
   // Filter collections by client-side search query (member name, group name, phone)
   const filteredCollections = collections.filter((c) => {
@@ -71,18 +82,41 @@ export function CollectionsPage() {
       )}
 
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-secondary-900">
-          Weekly Collections
-        </h1>
-        <Button
-          size="sm"
-          onClick={() => setIsRecordModalOpen(true)}
-          leftIcon={<Plus className="h-4 w-4" />}
-          aria-label="Record Weekly Collection Payment"
-        >
-          Record Payment
-        </Button>
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-secondary-900">
+            {t('collections.title')}
+          </h1>
+          <p className="text-xs text-secondary-500 mt-0.5">
+            {t('collections.subtitle')}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => refetchCollections()}
+            disabled={isFetchingCollections}
+            aria-label={t('common.refresh')}
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isFetchingCollections ? 'animate-spin text-primary-500' : 'text-secondary-500'}`}
+              aria-hidden="true"
+            />
+            <span className="ml-1.5 text-xs text-secondary-600 font-medium">
+              {t('common.refresh')}
+            </span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setIsRecordModalOpen(true)}
+            leftIcon={<Plus className="h-4 w-4" />}
+            aria-label={t('dashboard.recordPayment')}
+          >
+            {t('dashboard.recordPayment')}
+          </Button>
+        </div>
       </div>
 
       {/* ── Summary Cards ────────────────────────────────────────────────────── */}
@@ -90,6 +124,7 @@ export function CollectionsPage() {
         todaySummary={todaySummary}
         weeklySummary={weeklySummary}
         isLoading={isLoadingToday || isLoadingWeekly}
+        selectedGroupName={selectedGroup?.group_name}
       />
 
       {/* ── Search & Filter Controls ────────────────────────────────────────── */}

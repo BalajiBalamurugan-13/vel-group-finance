@@ -37,6 +37,12 @@ export interface DashboardSummary {
   total_cash_out: string;
   /** SUM of today's paid collection amounts */
   todays_collection: string;
+  todays_collection_count?: number;
+  /** Consolidated weekly activity metrics */
+  weekly_expected?: string;
+  weekly_collected?: string;
+  weekly_pending?: string;
+  weekly_progress?: number;
   /** SUM(loan_transactions.cash_given) — actual cash handed to members (net of note cost) */
   total_disbursement: string;
   /** SUM(loan_transactions.loan_amount) — gross loan principal issued per Formula 16 */

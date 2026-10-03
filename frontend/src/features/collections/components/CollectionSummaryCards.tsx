@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/Card';
 import { formatCurrency } from '@/utils/format';
+import { useLanguage } from '@/i18n';
 import { Wallet, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import type { TodayCollectionSummary, WeeklyCollectionSummary } from '../types';
 
@@ -7,13 +8,17 @@ interface CollectionSummaryCardsProps {
   todaySummary?: TodayCollectionSummary;
   weeklySummary?: WeeklyCollectionSummary;
   isLoading?: boolean;
+  selectedGroupName?: string;
 }
 
 export function CollectionSummaryCards({
   todaySummary,
   weeklySummary,
   isLoading,
+  selectedGroupName,
 }: CollectionSummaryCardsProps) {
+  const { t } = useLanguage();
+
   const todayTotal = Number(todaySummary?.total_collected || 0);
   const todayCount = todaySummary?.collection_count || 0;
 
@@ -21,10 +26,12 @@ export function CollectionSummaryCards({
   const weeklyCollected = Number(weeklySummary?.total_collected || 0);
   const weeklyPending = Number(weeklySummary?.total_pending || 0);
 
+  const rawWeeklyProgress =
+    weeklyExpected > 0 ? (weeklyCollected / weeklyExpected) * 100 : 0;
   const overallProgress =
-    weeklyExpected > 0
-      ? Math.min(100, Math.round((weeklyCollected / weeklyExpected) * 100))
-      : 0;
+    rawWeeklyProgress > 0 && rawWeeklyProgress < 1
+      ? Number(rawWeeklyProgress.toFixed(1))
+      : Math.min(100, Math.round(rawWeeklyProgress));
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
@@ -32,7 +39,7 @@ export function CollectionSummaryCards({
       <Card className="p-3.5 flex flex-col justify-between border border-border shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-medium text-secondary-500 uppercase tracking-wider">
-            Today's Collection
+            {t('dashboard.todaysCollection')}
           </span>
           <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
             <Wallet className="w-4 h-4" />
@@ -43,18 +50,23 @@ export function CollectionSummaryCards({
             {isLoading ? '—' : formatCurrency(todayTotal)}
           </div>
           <p className="text-xs text-secondary-500 mt-0.5">
-            {todayCount} {todayCount === 1 ? 'payment' : 'payments'} today
+            {todayCount} {todayCount === 1 ? t('dashboard.paymentToday') : t('dashboard.paymentsToday')}
           </p>
         </div>
       </Card>
 
       {/* 2. Total Expected This Week */}
       <Card className="p-3.5 flex flex-col justify-between border border-border shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-medium text-secondary-500 uppercase tracking-wider">
-            Weekly Expected
-          </span>
-          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+        <div className="flex items-start justify-between gap-1">
+          <div className="min-w-0">
+            <span className="text-[11px] font-medium text-secondary-500 uppercase tracking-wider block truncate">
+              {t('dashboard.weeklyExpected')}
+            </span>
+            <span className="text-[10px] text-blue-700 font-semibold block truncate">
+              {selectedGroupName || `All ${weeklySummary?.groups_summary?.length || 33} Groups`}
+            </span>
+          </div>
+          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <TrendingUp className="w-4 h-4" />
           </div>
         </div>
@@ -63,7 +75,7 @@ export function CollectionSummaryCards({
             {isLoading ? '—' : formatCurrency(weeklyExpected)}
           </div>
           <p className="text-xs text-secondary-500 mt-0.5">
-            Collected: {formatCurrency(weeklyCollected)}
+            {t('dashboard.collected')}: {formatCurrency(weeklyCollected)}
           </p>
         </div>
       </Card>
@@ -72,7 +84,7 @@ export function CollectionSummaryCards({
       <Card className="p-3.5 flex flex-col justify-between border border-border shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-medium text-secondary-500 uppercase tracking-wider">
-            Pending Collection
+            {t('dashboard.pendingThisWeek')}
           </span>
           <div className="w-8 h-8 rounded-lg bg-warning-50 text-warning-600 flex items-center justify-center">
             <AlertCircle className="w-4 h-4" />
@@ -82,7 +94,9 @@ export function CollectionSummaryCards({
           <div className="text-lg lg:text-xl font-bold text-warning-700">
             {isLoading ? '—' : formatCurrency(weeklyPending)}
           </div>
-          <p className="text-xs text-secondary-500 mt-0.5">Across active groups</p>
+          <p className="text-xs text-secondary-500 mt-0.5 truncate">
+            {selectedGroupName ? `For ${selectedGroupName}` : `Across ${weeklySummary?.groups_summary?.length || 33} active groups`}
+          </p>
         </div>
       </Card>
 
@@ -90,7 +104,7 @@ export function CollectionSummaryCards({
       <Card className="p-3.5 flex flex-col justify-between border border-border shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-medium text-secondary-500 uppercase tracking-wider">
-            Weekly Progress
+            {t('dashboard.weeklyProgress')}
           </span>
           <div className="w-8 h-8 rounded-lg bg-success-50 text-success-600 flex items-center justify-center">
             <CheckCircle className="w-4 h-4" />

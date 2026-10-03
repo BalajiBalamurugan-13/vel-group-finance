@@ -12,11 +12,12 @@ import {
   LayoutDashboard,
   Users,
   UserCheck,
+  ReceiptText,
   TrendingUp,
   ShieldAlert,
-  BarChart3,
-  Settings,
   FileBadge,
+  MapPin,
+  Printer,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -41,13 +42,14 @@ export function Sidebar() {
 
   const navItems = [
     { label: t('nav.dashboard'), path: ROUTES.DASHBOARD, icon: LayoutDashboard },
+    { label: t('nav.collections'), path: ROUTES.COLLECTIONS, icon: ReceiptText },
     { label: t('nav.groups'), path: ROUTES.GROUPS, icon: Users },
     { label: t('nav.members'), path: ROUTES.MEMBERS, icon: UserCheck },
+    { label: t('sheet.title'), path: ROUTES.COLLECTION_SHEET, icon: Printer },
+    { label: t('nav.places'), path: ROUTES.PLACES, icon: MapPin },
     { label: t('nav.profit'), path: ROUTES.PROFIT, icon: TrendingUp },
     { label: t('nav.loanRisk'), path: ROUTES.LOAN_RISK, icon: ShieldAlert },
-    { label: t('nav.reports'), path: ROUTES.REPORTS, icon: BarChart3 },
     { label: t('nav.schemes'), path: ROUTES.SCHEMES, icon: FileBadge },
-    { label: t('nav.settings'), path: ROUTES.SETTINGS, icon: Settings },
   ];
 
   return (

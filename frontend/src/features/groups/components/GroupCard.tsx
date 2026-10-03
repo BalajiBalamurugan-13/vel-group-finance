@@ -1,7 +1,13 @@
+import { useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Edit2, Play, CheckCircle2, Users, Calendar, MapPin } from 'lucide-react';
 import { GroupStatusBadge } from './GroupStatusBadge';
+import {
+  usePlacesRoute,
+  buildPlaceLookupMap,
+  resolvePlaceRouteInfo,
+} from '@/features/places';
 import type { Group, GroupStatus } from '../types';
 
 interface GroupCardProps {
@@ -17,6 +23,8 @@ export function GroupCard({
   onRequestStatusChange,
   formatMoney,
 }: GroupCardProps) {
+  const { places } = usePlacesRoute();
+  const placeLookup = useMemo(() => buildPlaceLookupMap(places), [places]);
   const schemeName = group.scheme?.scheme_name || 'N/A';
 
   return (
@@ -36,11 +44,34 @@ export function GroupCard({
               )}
             </div>
             {/* Meta: Location & Date */}
-            <div className="mt-1 flex items-center gap-3 text-xs text-secondary-500 flex-wrap">
-              <span className="inline-flex items-center gap-1 min-w-0">
-                <MapPin className="h-3 w-3 text-secondary-400 flex-shrink-0" />
-                <span className="truncate">{group.location}</span>
-              </span>
+            <div className="mt-1 flex items-center gap-2.5 text-xs text-secondary-500 flex-wrap">
+              {(() => {
+                const info = resolvePlaceRouteInfo(
+                  group.location,
+                  group.group_name,
+                  placeLookup,
+                  places,
+                );
+                const isMorning = info.session === 'morning';
+                return (
+                  <span className="inline-flex items-center gap-1 min-w-0">
+                    <MapPin className="h-3 w-3 text-secondary-400 flex-shrink-0" />
+                    <span className="truncate">{group.location}</span>
+                    {info.order < 9000 && (
+                      <span
+                        className={`inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[10px] font-semibold ${
+                          isMorning
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                            : 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
+                        }`}
+                        title={`${isMorning ? 'Morning' : 'Evening'} Route Stop #${info.order}`}
+                      >
+                        {isMorning ? '☀️' : '🌙'} #{info.order}
+                      </span>
+                    )}
+                  </span>
+                );
+              })()}
               {group.start_date && (
                 <span className="inline-flex items-center gap-1 flex-shrink-0">
                   <Calendar className="h-3 w-3 text-secondary-400" />

@@ -8,7 +8,8 @@ import { useCreateGroup, useSuggestGroupName } from '../hooks/useGroups';
 import type { GroupCreate } from '../types';
 import type { ApiError } from '@/types/common';
 import { cn } from '@/lib/cn';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, X, CheckCircle2 } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
 
 interface GroupFormModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
   const { data: schemes = [], isLoading: isLoadingSchemes } = useSchemes();
   const { mutateAsync: createGroup, isPending: isCreating } = useCreateGroup();
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isActive, setIsActive] = useState<boolean>(true);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -73,6 +75,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
 
   const handleClose = () => {
     reset();
+    setIsActive(true);
     setApiError(null);
     onClose();
   };
@@ -110,6 +113,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
         owner_investment_amount: isMixedRecycled && data.owner_investment_amount
           ? Number(data.owner_investment_amount)
           : undefined,
+        status: isActive ? 'Active' : 'Draft',
         remarks: data.remarks?.trim() || undefined,
       });
       onSuccess?.(createdGroup);
@@ -169,6 +173,56 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
                 {apiError}
               </div>
             )}
+
+          {/* Group Status Toggle (Default ON: Active) — Prominent at Top */}
+          <div className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-primary-200/90 bg-primary-50/50 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  'p-2 rounded-lg transition-colors',
+                  isActive
+                    ? 'bg-success-100 text-success-700'
+                    : 'bg-secondary-200 text-secondary-600'
+                )}
+              >
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-secondary-900">Group Status:</span>
+                  <Badge variant={isActive ? 'success' : 'neutral'}>
+                    {isActive ? 'Active (Direct)' : 'Draft (Inactive)'}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-secondary-500 mt-0.5">
+                  {isActive
+                    ? 'Immediately ready for member enrollment and collections.'
+                    : 'Saved as draft. Requires manual activation before recording collections.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Accessible Toggle Button */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isActive}
+              aria-label="Toggle group active status"
+              onClick={() => setIsActive(!isActive)}
+              className={cn(
+                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+                isActive ? 'bg-primary-600' : 'bg-secondary-300'
+              )}
+            >
+              <span
+                className={cn(
+                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
+                  isActive ? 'translate-x-5' : 'translate-x-0'
+                )}
+              />
+            </button>
+          </div>
+
           {/* Location Input */}
           <Input
             id="group_location"
@@ -395,7 +449,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
               isLoading={isCreating}
               className="min-h-[44px] flex-1 sm:flex-initial px-6 font-semibold"
             >
-              Create Group
+              {isActive ? 'Create Active Group' : 'Save as Draft'}
             </Button>
           </div>
         </form>

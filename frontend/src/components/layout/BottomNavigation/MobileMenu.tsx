@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
-import { BarChart3, FileBadge, Settings, ShieldAlert } from 'lucide-react';
+import { FileBadge, MapPin, Printer, ReceiptText, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ROUTES } from '@/constants';
 import { cn } from '@/lib/cn';
@@ -16,10 +16,11 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
   const { t } = useLanguage();
 
   const menuItems = [
+    { label: t('nav.collections'), path: ROUTES.COLLECTIONS, icon: ReceiptText },
+    { label: t('sheet.title'), path: ROUTES.COLLECTION_SHEET, icon: Printer },
+    { label: t('nav.places'), path: ROUTES.PLACES, icon: MapPin },
     { label: t('nav.loanRisk'), path: ROUTES.LOAN_RISK, icon: ShieldAlert },
-    { label: t('nav.reports'), path: ROUTES.REPORTS, icon: BarChart3 },
     { label: t('nav.schemes'), path: ROUTES.SCHEMES, icon: FileBadge },
-    { label: t('nav.settings'), path: ROUTES.SETTINGS, icon: Settings },
   ];
 
   if (typeof document === 'undefined') return null;

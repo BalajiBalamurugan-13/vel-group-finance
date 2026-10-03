@@ -1,7 +1,13 @@
+import { useMemo } from 'react';
 import { Edit, Eye, CheckCircle2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/utils/format';
 import { MemberStatusBadge } from './MemberStatusBadge';
+import {
+  usePlacesRoute,
+  buildPlaceLookupMap,
+  resolvePlaceRouteInfo,
+} from '@/features/places';
 import type { Member, MemberStatus } from '../types';
 
 interface MemberCardProps {
@@ -17,6 +23,8 @@ export function MemberCard({
   onEdit,
   onRequestStatusChange,
 }: MemberCardProps) {
+  const { places } = usePlacesRoute();
+  const placeLookup = useMemo(() => buildPlaceLookupMap(places), [places]);
   const loanAmount = Number(member.loan_amount || 0);
   const weeklyInstallment = Number(member.weekly_installment || 0);
   const immediateCollection = Number(member.immediate_collection || 0);
@@ -55,12 +63,32 @@ export function MemberCard({
                 )}
               </div>
               <div className="mt-1 flex items-center gap-2 text-xs text-secondary-500 flex-wrap">
-                {member.group_name && (
-                  <span className="inline-flex items-center gap-1 font-medium text-secondary-600 truncate max-w-[200px]">
-                    <Users className="h-3 w-3 text-secondary-400 flex-shrink-0" aria-hidden="true" />
-                    <span className="truncate">{member.group_name}</span>
-                  </span>
-                )}
+                {member.group_name && (() => {
+                  const routeInfo = resolvePlaceRouteInfo(
+                    member.location,
+                    member.group_name,
+                    placeLookup,
+                    places,
+                  );
+                  const isMorning = routeInfo.session === 'morning';
+                  return (
+                    <span className="inline-flex items-center gap-1 font-medium text-secondary-600 flex-wrap">
+                      <Users className="h-3 w-3 text-secondary-400 flex-shrink-0" aria-hidden="true" />
+                      <span className="truncate max-w-[150px]">{member.group_name}</span>
+                      {routeInfo.order < 9000 && (
+                        <span
+                          className={`inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[10px] font-semibold ${
+                            isMorning
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                              : 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
+                          }`}
+                        >
+                          {isMorning ? '☀️' : '🌙'} #{routeInfo.order}
+                        </span>
+                      )}
+                    </span>
+                  );
+                })()}
                 {member.group_name && member.phone_number && (
                   <span className="text-secondary-300">•</span>
                 )}

@@ -10,14 +10,14 @@
  * - refetchOnWindowFocus: true — ensures data is fresh when user returns.
  */
 import { keepPreviousData, QueryClient } from '@tanstack/react-query';
-import { QUERY_GC_TIME, QUERY_STALE_TIME } from '@/constants';
+import { QUERY_GC_TIME } from '@/constants';
 import type { ApiError } from '@/types';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       placeholderData: keepPreviousData,
-      staleTime: QUERY_STALE_TIME,
+      staleTime: 30_000, // 30 seconds: prevents redundant refetches during quick navigation
       gcTime: QUERY_GC_TIME,
       retry: (failureCount, error) => {
         const apiError = error as unknown as ApiError;
@@ -27,9 +27,9 @@ export const queryClient = new QueryClient({
         }
         return failureCount < 2;
       },
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: false, // Prevents sudden API bursts when alt-tabbing
       refetchOnReconnect: true,
-      refetchOnMount: true,
+      refetchOnMount: true, // Only revalidates on mount if older than staleTime
     },
     mutations: {
       retry: false, // Never retry mutations automatically

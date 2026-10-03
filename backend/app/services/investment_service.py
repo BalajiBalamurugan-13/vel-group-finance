@@ -29,11 +29,12 @@ class InvestmentService:
         and their active members/loans in a single consolidated query.
         Per Section 8 & 9 of the specification, initial groups started on 9 August 2026
         were funded directly from the Initial Investment.
+        Uses net cash given (loan_amount - note_cost, e.g. 10000 - 100 = 9900).
         """
         try:
             groups_res = (
                 self.db.table("groups")
-                .select("id, start_date, scheme:schemes(loan_amount), members(id, status)")
+                .select("id, start_date, scheme:schemes(loan_amount, note_cost), members(id, status)")
                 .execute()
             )
             groups = groups_res.data or []
@@ -42,12 +43,12 @@ class InvestmentService:
             try:
                 groups_res = (
                     self.db.table("groups")
-                    .select("id, start_date, scheme:schemes(loan_amount)")
+                    .select("id, start_date, scheme:schemes(loan_amount, note_cost)")
                     .execute()
                 )
                 groups = groups_res.data or []
             except Exception:
-                return Decimal("630000.00")
+                return Decimal("623700.00")
 
         # If members were not embedded in the response, fetch all members once (not in a loop)
         members_by_group: dict = {}
@@ -77,21 +78,25 @@ class InvestmentService:
             if is_initial:
                 scheme = g.get("scheme") or {}
                 loan_amt = Decimal(str(scheme.get("loan_amount") or "10000.00"))
+                note_cost = Decimal(str(scheme.get("note_cost") or "0.00"))
+                net_given = loan_amt - note_cost
                 if has_embedded_members:
                     members = g.get("members") or []
                     m_count = sum(1 for m in members if m.get("status") != "Closed")
                 else:
                     m_count = members_by_group.get(str(g["id"]), 0)
 
-                initial_capital += loan_amt * Decimal(m_count)
+                initial_capital += net_given * Decimal(m_count)
 
-        return initial_capital if initial_capital > Decimal("0.00") else Decimal("630000.00")
+        return initial_capital if initial_capital > Decimal("0.00") else Decimal("623700.00")
 
     def get_investments(self) -> List[dict]:
         """
         List all investments sorted by date ascending, enriched with business week.
         If no explicit Initial investment record is recorded in the table, derives
         the initial investment baseline from the Week 1 starting groups and persists it.
+        Reconciles both mixed recycled groups (Recycled + Owner Investment) and
+        groups funded directly by Additional Investment.
         """
         rows = []
         try:
@@ -119,11 +124,22 @@ class InvestmentService:
             r["business_week"] = get_business_week(inv_date)
             r["amount"] = Decimal(str(r.get("amount") or "0.00"))
 
+        # Ensure Initial Investment reflects net cash given (e.g. 6,23,700 rather than loan principal 6,30,000)
+        for r in rows:
+            if r.get("investment_type") == "Initial" and r.get("amount") == Decimal("630000.00"):
+                correct_initial = self._calculate_initial_groups_capital()
+                try:
+                    self.db.table("investments").update({"amount": float(correct_initial)}).eq("id", r["id"]).execute()
+                    r["amount"] = correct_initial
+                except Exception as e:
+                    logger.warning("Could not update initial investment amount in DB: %s", e)
+                    r["amount"] = correct_initial
+
         has_initial = any(r.get("investment_type") == "Initial" for r in rows)
         if not has_initial:
             initial_cap = self._calculate_initial_groups_capital()
             if initial_cap <= Decimal("0.00"):
-                initial_cap = Decimal("630000.00")
+                initial_cap = Decimal("623700.00")
 
             # Persist directly into Supabase so it is permanently stored
             persisted = False
@@ -160,7 +176,15 @@ class InvestmentService:
                     "updated_at": "2026-08-09T00:00:00Z",
                 })
 
-        # Reconcile any mixed recycled groups that have extra owner investment but no row in investments table
+        # Build a robust set of group_ids that ALREADY have investment records in the DB.
+        # This prevents duplicate inserts when the function is called multiple times.
+        existing_group_ids: set = set()
+        for r in rows:
+            gid = r.get("group_id")
+            if gid:
+                existing_group_ids.add(str(gid))
+
+        # Reconcile any mixed recycled groups that have extra owner investment
         try:
             recycled_groups_res = (
                 self.db.table("groups")
@@ -173,7 +197,6 @@ class InvestmentService:
         except Exception:
             recycled_groups = []
 
-        existing_group_ids = {str(r.get("group_id")) for r in rows if r.get("group_id")}
         for g in recycled_groups:
             gid = str(g["id"])
             if gid not in existing_group_ids:
@@ -208,6 +231,115 @@ class InvestmentService:
                         "description": f"Owner cash added for group {g.get('group_name', 'Recycled Group')}",
                         "group_id": gid,
                     })
+                    existing_group_ids.add(gid)
+
+        # Reconcile groups created with 'Additional Investment'
+        try:
+            addl_groups_res = (
+                self.db.table("groups")
+                .select("id, group_code, group_name, start_date, funding_source, scheme:schemes(loan_amount, note_cost), members(id, status)")
+                .eq("funding_source", "Additional Investment")
+                .execute()
+            )
+            addl_groups = addl_groups_res.data or []
+        except Exception:
+            try:
+                addl_groups_res = (
+                    self.db.table("groups")
+                    .select("id, group_code, group_name, start_date, funding_source, scheme:schemes(loan_amount, note_cost)")
+                    .eq("funding_source", "Additional Investment")
+                    .execute()
+                )
+                addl_groups = addl_groups_res.data or []
+            except Exception:
+                addl_groups = []
+
+        # De-duplicate the groups list by group ID (Supabase JOINs can return duplicate rows)
+        seen_addl_gids: set = set()
+        unique_addl_groups: list = []
+        for g in addl_groups:
+            gid = str(g["id"])
+            if gid not in seen_addl_gids:
+                seen_addl_gids.add(gid)
+                unique_addl_groups.append(g)
+        addl_groups = unique_addl_groups
+
+        # If members were not embedded in the response, fetch members by group
+        if addl_groups and not any("members" in g and isinstance(g["members"], list) for g in addl_groups):
+            try:
+                addl_gids = [str(g["id"]) for g in addl_groups]
+                m_res = self.db.table("members").select("id, group_id, status").in_("group_id", addl_gids).execute()
+                addl_members_by_group: dict = {}
+                for m in (m_res.data or []):
+                    if m.get("status") != "Closed" and m.get("group_id"):
+                        gid = str(m["group_id"])
+                        addl_members_by_group[gid] = addl_members_by_group.get(gid, 0) + 1
+            except Exception:
+                addl_members_by_group = {}
+        else:
+            addl_members_by_group = {}
+
+        for g in addl_groups:
+            gid = str(g["id"])
+            scheme = g.get("scheme") or {}
+            la = Decimal(str(scheme.get("loan_amount") or "10000.00"))
+            nc = Decimal(str(scheme.get("note_cost") or "100.00"))
+            net_given = la - nc
+
+            if "members" in g and isinstance(g["members"], list):
+                m_count = sum(1 for m in g["members"] if m.get("status") != "Closed")
+            else:
+                m_count = addl_members_by_group.get(gid, 0)
+
+            # Capital deployed is net cash given to active members
+            amt = net_given * Decimal(m_count)
+            if amt <= Decimal("0.00"):
+                continue
+
+            s_date_raw = g.get("start_date")
+            inv_date = date.fromisoformat(str(s_date_raw)[:10]) if s_date_raw else date.today()
+            w = get_business_week(inv_date)
+
+            if gid not in existing_group_ids:
+                payload = {
+                    "investment_type": "Additional",
+                    "amount": float(amt),
+                    "investment_date": inv_date.isoformat(),
+                    "description": f"Capital deployed for group {g.get('group_name', 'Group')} (Additional Investment)",
+                    "group_id": gid,
+                }
+                try:
+                    ins_res = self.db.table("investments").insert(payload).execute()
+                    if ins_res.data:
+                        new_r = ins_res.data[0]
+                        new_r["business_week"] = w
+                        new_r["amount"] = amt
+                        rows.append(new_r)
+                except Exception:
+                    rows.append({
+                        "id": f"syn-addl-{gid[:8]}",
+                        "investment_code": f"INV-{g.get('group_code', 'GRP')}",
+                        "investment_type": "Additional",
+                        "amount": amt,
+                        "investment_date": inv_date.isoformat(),
+                        "business_week": w,
+                        "description": f"Capital deployed for group {g.get('group_name', 'Group')} (Additional Investment)",
+                        "group_id": gid,
+                    })
+                # Mark as processed so we never insert again for this group in this call
+                existing_group_ids.add(gid)
+            else:
+                # If row already exists in investments table, check if amount needs to be kept in sync
+                # Only update the FIRST matching record to avoid cascading updates
+                for r in rows:
+                    if str(r.get("group_id")) == gid and r.get("investment_type") == "Additional":
+                        if r.get("amount") != amt:
+                            r["amount"] = amt
+                            try:
+                                self.db.table("investments").update({"amount": float(amt)}).eq("id", r["id"]).execute()
+                            except Exception:
+                                pass
+                        break  # Only update the first matching record
 
         return rows
 

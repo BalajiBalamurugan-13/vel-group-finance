@@ -1,9 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useGroups } from '@/features/groups/hooks/useGroups';
+import {
+  usePlacesRoute,
+  sortGroupsByRoute,
+  buildRouteGroupOptgroups,
+} from '@/features/places';
 import { useCreateMember } from '../hooks/useMembers';
 import { formatCurrency } from '@/utils/format';
 import type { MemberCreate } from '../types';
@@ -26,6 +31,7 @@ export function MemberFormModal({
   onSuccess,
 }: MemberFormModalProps) {
   const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
+  const { places } = usePlacesRoute();
   const { mutateAsync: createMember, isPending: isCreating } = useCreateMember();
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -40,9 +46,16 @@ export function MemberFormModal({
     }
   }, [isOpen]);
 
-  // Available groups for enrollment: Draft and Active groups only.
-  // Draft groups accept members but do not disburse loans until activated (BR-025, BR-026).
-  const eligibleGroups = groups.filter((g) => g.status === 'Draft' || g.status === 'Active');
+  // Available groups for enrollment: Draft and Active groups only, sorted strictly by configured route
+  const eligibleGroups = useMemo(() => {
+    const raw = groups.filter((g) => g.status === 'Draft' || g.status === 'Active');
+    return sortGroupsByRoute(raw, places);
+  }, [groups, places]);
+
+  // Structured optgroups by place and session
+  const routeOptgroups = useMemo(() => {
+    return buildRouteGroupOptgroups(eligibleGroups, places);
+  }, [eligibleGroups, places]);
 
   const {
     register,
@@ -173,10 +186,14 @@ export function MemberFormModal({
               disabled={isLoadingGroups}
             >
               <option value="">-- Select Active Group --</option>
-              {eligibleGroups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.group_name} ({g.location})
-                </option>
+              {routeOptgroups.map((og) => (
+                <optgroup key={og.label} label={og.label}>
+                  {og.options.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.group_name} ({g.location})
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             {errors.group_id && (

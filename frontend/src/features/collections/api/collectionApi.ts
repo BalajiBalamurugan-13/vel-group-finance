@@ -3,6 +3,7 @@ import type { ApiResponse } from '@/types/common';
 import type {
   Collection,
   CollectionCreate,
+  BulkCollectionResponse,
   TodayCollectionSummary,
   WeeklyCollectionSummary,
 } from '../types';
@@ -65,6 +66,11 @@ export const collectionApi = {
 
   recordCollection: async (payload: CollectionCreate): Promise<Collection> => {
     const { data } = await httpClient.post<ApiResponse<Collection>>('/collections', payload);
+    return data.data;
+  },
+
+  recordBulkCollections: async (items: CollectionCreate[]): Promise<BulkCollectionResponse> => {
+    const { data } = await httpClient.post<ApiResponse<BulkCollectionResponse>>('/collections/bulk', { items });
     return data.data;
   },
 };

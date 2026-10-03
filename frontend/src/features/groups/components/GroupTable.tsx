@@ -1,7 +1,13 @@
+import { useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Edit2, Play, CheckCircle2 } from 'lucide-react';
 import { GroupStatusBadge } from './GroupStatusBadge';
+import {
+  usePlacesRoute,
+  buildPlaceLookupMap,
+  resolvePlaceRouteInfo,
+} from '@/features/places';
 import type { Group, GroupStatus } from '../types';
 
 interface GroupTableProps {
@@ -17,6 +23,8 @@ export function GroupTable({
   onRequestStatusChange,
   formatMoney,
 }: GroupTableProps) {
+  const { places } = usePlacesRoute();
+  const placeLookup = useMemo(() => buildPlaceLookupMap(places), [places]);
   return (
     <Card noPadding className="overflow-hidden">
       <div className="overflow-x-auto">
@@ -73,7 +81,32 @@ export function GroupTable({
                   )}
                 </td>
                 <td className="px-4 py-3 text-secondary-700 font-medium">
-                  {group.location}
+                  {(() => {
+                    const info = resolvePlaceRouteInfo(
+                      group.location,
+                      group.group_name,
+                      placeLookup,
+                      places,
+                    );
+                    const isMorning = info.session === 'morning';
+                    return (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>{group.location}</span>
+                        {info.order < 9000 && (
+                          <span
+                            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                              isMorning
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                : 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
+                            }`}
+                            title={`${isMorning ? 'Morning' : 'Evening'} Route Stop #${info.order}`}
+                          >
+                            {isMorning ? '☀️' : '🌙'} #{info.order}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3 text-secondary-600">
                   {group.scheme ? (

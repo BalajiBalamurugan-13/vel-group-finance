@@ -38,6 +38,17 @@ export interface CollectionCreate {
   remarks?: string;
 }
 
+export interface BulkCollectionCreate {
+  items: CollectionCreate[];
+}
+
+export interface BulkCollectionResponse {
+  total_recorded: number;
+  total_amount: number;
+  collections: Collection[];
+  errors?: string[];
+}
+
 export interface TodayCollectionSummary {
   date: string;
   total_collected: string | number;

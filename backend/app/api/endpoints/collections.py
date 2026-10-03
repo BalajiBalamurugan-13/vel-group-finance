@@ -9,6 +9,7 @@ from app.db.supabase import get_supabase_client
 from app.schemas import SuccessResponse
 from app.schemas.collection import (
     CollectionCreate,
+    BulkCollectionCreate,
 )
 from app.services.collection_service import CollectionService, get_collection_service
 
@@ -81,6 +82,19 @@ def record_collection(
         data=collection,
         message="Weekly payment recorded successfully.",
     )
+
+
+@router.post("/bulk", response_model=SuccessResponse, status_code=status.HTTP_201_CREATED)
+def record_bulk_collections(
+    data: BulkCollectionCreate,
+    service: CollectionService = Depends(get_service),
+):
+    result = service.record_bulk_collections(data.items)
+    return SuccessResponse(
+        data=result,
+        message=f"{result['total_recorded']} weekly payments recorded successfully.",
+    )
+
 
 
 @router.get("/{id}", response_model=SuccessResponse)

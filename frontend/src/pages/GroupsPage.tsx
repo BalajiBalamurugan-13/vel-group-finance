@@ -8,6 +8,12 @@ import { TOAST_DURATION_MS } from '@/constants/app';
 import { useDocumentTitle } from '@/hooks';
 import { Plus } from 'lucide-react';
 import {
+  usePlacesRoute,
+  sortGroupsByRoute,
+  buildPlaceLookupMap,
+  resolvePlaceRouteInfo,
+} from '@/features/places';
+import {
   useGroups,
   useUpdateGroupStatus,
   GroupList,
@@ -37,6 +43,8 @@ export function GroupsPage() {
     search: '',
   });
 
+  const [sessionFilter, setSessionFilter] = useState<'all' | 'morning' | 'evening'>('all');
+
   useEffect(() => {
     if (locationParam) {
       setFilters((prev) => ({ ...prev, location: locationParam }));
@@ -54,23 +62,70 @@ export function GroupsPage() {
   });
   const [successToast, setSuccessToast] = useState<ToastState | null>(null);
 
-  const { data: groups = [], isLoading, error } = useGroups(filters);
+  const { data: groups = [], isLoading: isGroupsLoading, error } = useGroups(filters);
+  const { places } = usePlacesRoute();
   const { mutateAsync: updateStatus, isPending: isUpdatingStatus } =
     useUpdateGroupStatus();
 
-  // Extract unique locations from loaded groups for quick filter dropdown
-  const locations = useMemo(() => {
-    const set = new Set<string>();
+  // Extract unique locations from loaded groups, ordered strictly by configured route sequence
+  const locationOptions = useMemo(() => {
+    const lookup = buildPlaceLookupMap(places);
+    const locationSet = new Set<string>();
     if (filters.location?.trim()) {
-      set.add(filters.location.trim());
+      locationSet.add(filters.location.trim());
     }
     groups.forEach((g) => {
       if (g.location?.trim()) {
-        set.add(g.location.trim());
+        locationSet.add(g.location.trim());
       }
     });
-    return Array.from(set).sort();
-  }, [groups, filters.location]);
+
+    const mapped = Array.from(locationSet).map((loc) => {
+      const info = resolvePlaceRouteInfo(loc, null, lookup, places);
+      const sessionIcon = info.session === 'morning' ? '☀️' : '🌙';
+      const stopNum = info.order < 9000 ? `#${info.order} ` : '';
+      return {
+        value: loc,
+        label: `${sessionIcon} ${stopNum}${loc}`,
+        session: info.session,
+        order: info.order,
+      };
+    });
+
+    mapped.sort((a, b) => {
+      const sA = a.session === 'morning' ? 0 : 1;
+      const sB = b.session === 'morning' ? 0 : 1;
+      if (sA !== sB) return sA - sB;
+      if (a.order !== b.order) return a.order - b.order;
+      return a.value.localeCompare(b.value);
+    });
+
+    return mapped;
+  }, [groups, filters.location, places]);
+
+  // Compute session counts for loaded groups
+  const sessionCounts = useMemo(() => {
+    const lookup = buildPlaceLookupMap(places);
+    let morning = 0;
+    let evening = 0;
+    for (const g of groups) {
+      const info = resolvePlaceRouteInfo(g.location, g.group_name, lookup, places);
+      if (info.session === 'evening') evening++;
+      else morning++;
+    }
+    return { all: groups.length, morning, evening };
+  }, [groups, places]);
+
+  // Sort groups strictly by configured route sequence & filter by active session
+  const sortedGroups = useMemo(() => {
+    const sorted = sortGroupsByRoute(groups, places);
+    if (sessionFilter === 'all') return sorted;
+    const lookup = buildPlaceLookupMap(places);
+    return sorted.filter((g) => {
+      const info = resolvePlaceRouteInfo(g.location, g.group_name, lookup, places);
+      return info.session === sessionFilter;
+    });
+  }, [groups, places, sessionFilter]);
 
   if (error) {
     throw error; // Caught by ErrorBoundary
@@ -137,16 +192,19 @@ export function GroupsPage() {
         <GroupFilters
           filters={filters}
           onFilterChange={setFilters}
-          locations={locations}
+          locationOptions={locationOptions}
+          sessionFilter={sessionFilter}
+          onSessionFilterChange={setSessionFilter}
+          sessionCounts={sessionCounts}
         />
       </div>
 
       {/* Group List (Desktop Table / Mobile Cards) */}
-      {isLoading ? (
+      {isGroupsLoading ? (
         <LoadingState />
       ) : (
         <GroupList
-          groups={groups}
+          groups={sortedGroups}
           onEdit={setEditingGroup}
           onRequestStatusChange={handleRequestStatusChange}
           onCreateNew={() => setIsCreateOpen(true)}

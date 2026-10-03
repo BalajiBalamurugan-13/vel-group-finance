@@ -41,6 +41,7 @@ export interface GroupCreate {
   funding_source?: GroupFundingSource;
   recycled_sub_type?: RecycledSubType;
   owner_investment_amount?: number;
+  status?: GroupStatus;
   remarks?: string;
 }
 

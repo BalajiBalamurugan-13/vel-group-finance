@@ -81,6 +81,31 @@ class DashboardResponse(BaseModel):
         decimal_places=2,
         description="SUM(amount_paid WHERE payment_date=today AND status=Paid)",
     )
+    todays_collection_count: int = Field(
+        default=0,
+        description="COUNT(collections WHERE payment_date=today AND status=Paid)",
+    )
+
+    # ── Weekly Activity (Consolidated) ────────────────────────────────────────
+    weekly_expected: Decimal = Field(
+        default=Decimal("0.00"),
+        decimal_places=2,
+        description="Expected weekly collection across all active groups",
+    )
+    weekly_collected: Decimal = Field(
+        default=Decimal("0.00"),
+        decimal_places=2,
+        description="Actual weekly collections paid this business week",
+    )
+    weekly_pending: Decimal = Field(
+        default=Decimal("0.00"),
+        decimal_places=2,
+        description="Pending weekly collection across all active groups",
+    )
+    weekly_progress: float = Field(
+        default=0.0,
+        description="Weekly collection progress percentage (0 - 100)",
+    )
 
     # ── Loan Totals ───────────────────────────────────────────────────────────
     total_disbursement: Decimal = Field(
