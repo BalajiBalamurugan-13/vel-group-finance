@@ -4,15 +4,15 @@ import {
   MapPin,
   Sun,
   Moon,
-  ArrowUp,
-  ArrowDown,
   Plus,
   Trash2,
   RotateCcw,
   Printer,
   Users,
   CheckCircle2,
+  GripVertical,
 } from 'lucide-react';
+import { Reorder, useDragControls } from 'framer-motion';
 import { PageContainer } from '@/components/common/PageContainer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -32,9 +32,8 @@ export function PlacesPage() {
     places,
     morningPlaces,
     eveningPlaces,
-    moveUp,
-    moveDown,
     toggleSession,
+    reorderSessionPlaces,
     addPlace,
     removePlace,
     resetDefault,
@@ -216,76 +215,96 @@ export function PlacesPage() {
       <div className="space-y-6">
         {/* Morning Section */}
         <div>
-          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-amber-200">
-            <div className="p-1.5 rounded-md bg-amber-100 text-amber-700">
-              <Sun className="w-4 h-4" />
+          <div className="flex items-center justify-between mb-3 pb-2 border-b border-amber-200">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-amber-100 text-amber-700">
+                <Sun className="w-4 h-4" />
+              </div>
+              <h2 className="text-base font-semibold text-secondary-900 flex items-center gap-2">
+                <span>{t('sheet.morningSession')}</span>
+                <Badge variant="warning" className="text-xs">
+                  {morningPlaces.length} {language === 'ta' ? 'இடங்கள்' : 'places'}
+                </Badge>
+              </h2>
             </div>
-            <h2 className="text-base font-semibold text-secondary-900 flex items-center gap-2">
-              <span>{t('sheet.morningSession')}</span>
-              <Badge variant="warning" className="text-xs">
-                {morningPlaces.length} {language === 'ta' ? 'இடங்கள்' : 'places'}
-              </Badge>
-            </h2>
+            <span className="text-xs text-secondary-400 hidden sm:inline-flex items-center gap-1">
+              <GripVertical className="w-3.5 h-3.5" />
+              {language === 'ta' ? 'வரிசையை மாற்ற இழுக்கவும்' : 'Drag handle to reorder'}
+            </span>
           </div>
 
-          <div className="space-y-2">
+          <div>
             {morningPlaces.length === 0 ? (
               <p className="text-sm text-secondary-400 py-3 italic">
                 {language === 'ta' ? 'காலை வழித்தடத்தில் இடங்கள் இல்லை' : 'No places in morning session'}
               </p>
             ) : (
-              morningPlaces.map((place, idx) => (
-                <PlaceRowCard
-                  key={place.id}
-                  place={place}
-                  index={idx}
-                  isFirst={idx === 0}
-                  isLast={idx === morningPlaces.length - 1}
-                  onMoveUp={() => moveUp(place.id)}
-                  onMoveDown={() => moveDown(place.id)}
-                  onToggleSession={() => toggleSession(place.id)}
-                  onRemove={() => removePlace(place.id)}
-                  language={language}
-                />
-              ))
+              <Reorder.Group
+                as="div"
+                axis="y"
+                values={morningPlaces}
+                onReorder={(newOrder) => reorderSessionPlaces('morning', newOrder)}
+                className="space-y-2"
+              >
+                {morningPlaces.map((place, idx) => (
+                  <PlaceRowCard
+                    key={place.id}
+                    place={place}
+                    index={idx}
+                    onToggleSession={() => toggleSession(place.id)}
+                    onRemove={() => removePlace(place.id)}
+                    language={language}
+                  />
+                ))}
+              </Reorder.Group>
             )}
           </div>
         </div>
 
         {/* Evening Section */}
         <div>
-          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-indigo-200">
-            <div className="p-1.5 rounded-md bg-indigo-100 text-indigo-700">
-              <Moon className="w-4 h-4" />
+          <div className="flex items-center justify-between mb-3 pb-2 border-b border-indigo-200">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-indigo-100 text-indigo-700">
+                <Moon className="w-4 h-4" />
+              </div>
+              <h2 className="text-base font-semibold text-secondary-900 flex items-center gap-2">
+                <span>{t('sheet.eveningSession')}</span>
+                <Badge variant="info" className="text-xs">
+                  {eveningPlaces.length} {language === 'ta' ? 'இடங்கள்' : 'places'}
+                </Badge>
+              </h2>
             </div>
-            <h2 className="text-base font-semibold text-secondary-900 flex items-center gap-2">
-              <span>{t('sheet.eveningSession')}</span>
-              <Badge variant="info" className="text-xs">
-                {eveningPlaces.length} {language === 'ta' ? 'இடங்கள்' : 'places'}
-              </Badge>
-            </h2>
+            <span className="text-xs text-secondary-400 hidden sm:inline-flex items-center gap-1">
+              <GripVertical className="w-3.5 h-3.5" />
+              {language === 'ta' ? 'வரிசையை மாற்ற இழுக்கவும்' : 'Drag handle to reorder'}
+            </span>
           </div>
 
-          <div className="space-y-2">
+          <div>
             {eveningPlaces.length === 0 ? (
               <p className="text-sm text-secondary-400 py-3 italic">
                 {language === 'ta' ? 'மாலை வழித்தடத்தில் இடங்கள் இல்லை' : 'No places in evening session'}
               </p>
             ) : (
-              eveningPlaces.map((place, idx) => (
-                <PlaceRowCard
-                  key={place.id}
-                  place={place}
-                  index={idx}
-                  isFirst={idx === 0}
-                  isLast={idx === eveningPlaces.length - 1}
-                  onMoveUp={() => moveUp(place.id)}
-                  onMoveDown={() => moveDown(place.id)}
-                  onToggleSession={() => toggleSession(place.id)}
-                  onRemove={() => removePlace(place.id)}
-                  language={language}
-                />
-              ))
+              <Reorder.Group
+                as="div"
+                axis="y"
+                values={eveningPlaces}
+                onReorder={(newOrder) => reorderSessionPlaces('evening', newOrder)}
+                className="space-y-2"
+              >
+                {eveningPlaces.map((place, idx) => (
+                  <PlaceRowCard
+                    key={place.id}
+                    place={place}
+                    index={idx}
+                    onToggleSession={() => toggleSession(place.id)}
+                    onRemove={() => removePlace(place.id)}
+                    language={language}
+                  />
+                ))}
+              </Reorder.Group>
             )}
           </div>
         </div>
@@ -299,10 +318,6 @@ export function PlacesPage() {
 interface PlaceRowCardProps {
   place: PlaceWithGroupStats;
   index: number;
-  isFirst: boolean;
-  isLast: boolean;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
   onToggleSession: () => void;
   onRemove: () => void;
   language: string;
@@ -311,102 +326,102 @@ interface PlaceRowCardProps {
 function PlaceRowCard({
   place,
   index,
-  isFirst,
-  isLast,
-  onMoveUp,
-  onMoveDown,
   onToggleSession,
   onRemove,
   language,
 }: PlaceRowCardProps) {
+  const controls = useDragControls();
   const isMorning = place.session === 'morning';
 
   return (
-    <Card className="p-3 bg-surface border border-border hover:border-secondary-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        {/* Sequence Badge */}
-        <span className="flex items-center justify-center w-7 h-7 rounded-md bg-secondary-100 text-secondary-700 font-bold text-xs shrink-0">
-          #{index + 1}
-        </span>
-
-        {/* Place info */}
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-secondary-900">{place.name}</span>
-            {place.isCustom && (
-              <Badge variant="neutral" className="text-[10px] py-0 px-1.5 text-secondary-500">
-                {language === 'ta' ? 'தனிப்பயன்' : 'Custom'}
-              </Badge>
-            )}
+    <Reorder.Item
+      as="div"
+      value={place}
+      dragListener={false}
+      dragControls={controls}
+      className="relative select-none"
+      whileDrag={{
+        scale: 1.015,
+        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+        zIndex: 50,
+      }}
+      transition={{ duration: 0.15 }}
+    >
+      <Card className="p-3 bg-surface border border-border hover:border-secondary-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+          {/* Tactile Drag Handle */}
+          <div
+            onPointerDown={(e) => controls.start(e)}
+            className="cursor-grab active:cursor-grabbing p-1.5 -ml-1 text-secondary-400 hover:text-secondary-700 hover:bg-secondary-100 rounded-md touch-none select-none transition-colors shrink-0"
+            title={language === 'ta' ? 'இழுத்து மாற்றவும்' : 'Drag to reorder'}
+            aria-label="Drag to reorder"
+          >
+            <GripVertical className="w-5 h-5" />
           </div>
-          <div className="flex items-center gap-3 text-xs text-secondary-500 mt-0.5">
-            <span className="flex items-center gap-1">
-              <Users className="w-3 h-3 text-secondary-400" />
-              {place.groupCount} {language === 'ta' ? 'குழுக்கள்' : 'groups'}
-            </span>
-            <span>•</span>
-            <span>{place.memberCount} {language === 'ta' ? 'உறுப்பினர்கள்' : 'members'}</span>
-            {place.totalWeeklyTarget > 0 && (
-              <>
-                <span>•</span>
-                <span className="font-medium text-emerald-600">{formatCurrency(place.totalWeeklyTarget)}</span>
-              </>
-            )}
+
+          {/* Sequence Badge */}
+          <span className="flex items-center justify-center w-7 h-7 rounded-md bg-secondary-100 text-secondary-700 font-bold text-xs shrink-0">
+            #{index + 1}
+          </span>
+
+          {/* Place info */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-secondary-900 truncate">{place.name}</span>
+              {place.isCustom && (
+                <Badge variant="neutral" className="text-[10px] py-0 px-1.5 text-secondary-500">
+                  {language === 'ta' ? 'தனிப்பயன்' : 'Custom'}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3 text-xs text-secondary-500 mt-0.5 flex-wrap">
+              <span className="flex items-center gap-1">
+                <Users className="w-3 h-3 text-secondary-400" />
+                {place.groupCount} {language === 'ta' ? 'குழுக்கள்' : 'groups'}
+              </span>
+              <span>•</span>
+              <span>{place.memberCount} {language === 'ta' ? 'உறுப்பினர்கள்' : 'members'}</span>
+              {place.totalWeeklyTarget > 0 && (
+                <>
+                  <span>•</span>
+                  <span className="font-medium text-emerald-600">{formatCurrency(place.totalWeeklyTarget)}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Action buttons */}
-      <div className="flex items-center gap-1.5 self-end sm:self-center">
-        {/* Toggle Session Button */}
-        <button
-          type="button"
-          onClick={onToggleSession}
-          title={isMorning ? (language === 'ta' ? 'மாலைக்கு மாற்று' : 'Switch to Evening') : (language === 'ta' ? 'காலைக்கு மாற்று' : 'Switch to Morning')}
-          className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-colors border ${
-            isMorning
-              ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-              : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
-          }`}
-        >
-          {isMorning ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-          <span>{isMorning ? (language === 'ta' ? 'காலை' : 'Morning') : (language === 'ta' ? 'மாலை' : 'Evening')}</span>
-        </button>
-
-        {/* Up button */}
-        <button
-          type="button"
-          onClick={onMoveUp}
-          disabled={isFirst}
-          title="Move Up"
-          className="p-1.5 rounded-md text-secondary-500 hover:bg-secondary-100 hover:text-secondary-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-        >
-          <ArrowUp className="w-4 h-4" />
-        </button>
-
-        {/* Down button */}
-        <button
-          type="button"
-          onClick={onMoveDown}
-          disabled={isLast}
-          title="Move Down"
-          className="p-1.5 rounded-md text-secondary-500 hover:bg-secondary-100 hover:text-secondary-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-        >
-          <ArrowDown className="w-4 h-4" />
-        </button>
-
-        {/* Delete if custom or 0 groups */}
-        {(place.isCustom || place.groupCount === 0) && (
+        {/* Action buttons */}
+        <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+          {/* Toggle Session Button */}
           <button
             type="button"
-            onClick={onRemove}
-            title="Delete Place"
-            className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors ml-1"
+            onClick={onToggleSession}
+            title={isMorning ? (language === 'ta' ? 'மாலைக்கு மாற்று' : 'Switch to Evening') : (language === 'ta' ? 'காலைக்கு மாற்று' : 'Switch to Morning')}
+            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-colors border ${
+              isMorning
+                ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+            }`}
           >
-            <Trash2 className="w-4 h-4" />
+            {isMorning ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            <span>{isMorning ? (language === 'ta' ? 'காலை' : 'Morning') : (language === 'ta' ? 'மாலை' : 'Evening')}</span>
           </button>
-        )}
-      </div>
-    </Card>
+
+          {/* Delete if custom or 0 groups */}
+          {(place.isCustom || place.groupCount === 0) && (
+            <button
+              type="button"
+              onClick={onRemove}
+              title="Delete Place"
+              className="p-1.5 rounded-md text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors ml-1"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </Card>
+    </Reorder.Item>
   );
 }
+

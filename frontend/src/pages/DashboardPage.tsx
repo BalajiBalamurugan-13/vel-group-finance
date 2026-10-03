@@ -4,31 +4,24 @@
  * Fast, reliable overview of core financial operations:
  * - Available Cash (Formula 11: Collections - Disbursements)
  * - Today's Collection & Payment Count
- * - Weekly Expected, Collected & Progress (Sunday-to-Saturday business week)
- * - Weekly Pending Across Active Groups
  * - Active Groups & Member Counts
  * - Route Breakdown by Location
- * - Recent Collections with Quick Access to Full Collections Ledger
  *
- * Dedicated collection management, member search, and date filters
- * are hosted on the dedicated Weekly Collections page (/collections).
+ * Weekly collection tracking, expected targets, pending installments,
+ * member search, and date filters are hosted on the dedicated Weekly Collections page (/collections).
  */
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { PageContainer } from '@/components/common/PageContainer';
 import { useDocumentTitle } from '@/hooks';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { Toast } from '@/components/ui/Toast';
 import { TOAST_DURATION_MS } from '@/constants/app';
-import { ROUTES } from '@/constants';
 import { formatCurrency } from '@/utils/format';
 import {
   useDashboard,
   DashboardSkeleton,
   StatCard,
   GroupLocationList,
-  RecentCollectionsTable,
 } from '@/features/dashboard';
 import { RecordPaymentModal } from '@/features/collections';
 import { useLanguage } from '@/i18n';
@@ -36,13 +29,10 @@ import {
   Wallet,
   TrendingUp,
   AlertCircle,
-  CheckCircle,
   Layers,
   MapPin,
   Plus,
   RefreshCw,
-  ArrowRight,
-  ReceiptText,
 } from 'lucide-react';
 
 interface ToastState {
@@ -60,7 +50,7 @@ export function DashboardPage() {
   // Modal State
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
 
-  // Single consolidated query — loads fast and with zero redundant fetches
+  // Single consolidated query — loads in milliseconds with zero redundant fetches
   const {
     data: dashboardData,
     isLoading: isLoadingDashboard,
@@ -73,17 +63,6 @@ export function DashboardPage() {
   // Operational KPI calculations from server-provided Decimal fields
   const todayTotal = Number(dashboardData?.todays_collection ?? 0);
   const todayCount = dashboardData?.todays_collection_count ?? 0;
-
-  const weeklyExpected = Number(dashboardData?.weekly_expected ?? 0);
-  const weeklyCollected = Number(dashboardData?.weekly_collected ?? 0);
-  const weeklyPending = Number(dashboardData?.weekly_pending ?? 0);
-
-  const rawWeeklyProgress =
-    weeklyExpected > 0 ? (weeklyCollected / weeklyExpected) * 100 : 0;
-  const overallProgress =
-    rawWeeklyProgress > 0 && rawWeeklyProgress < 1
-      ? Number(rawWeeklyProgress.toFixed(1))
-      : Math.min(100, Math.round(rawWeeklyProgress));
 
   // ── Error State ────────────────────────────────────────────────────────────
   if (isDashboardError && !dashboardData) {
@@ -172,9 +151,9 @@ export function DashboardPage() {
       </div>
 
       <div className="space-y-6">
-        {/* ── Section 1: Executive Financial KPIs ────────────────────────────── */}
+        {/* ── Section 1: Core Operational Pulse ──────────────────────────────── */}
         <section aria-label="Key operational metrics">
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* 1. Available Cash */}
             <StatCard
               id="stat-available-cash"
@@ -184,7 +163,6 @@ export function DashboardPage() {
               icon={<Wallet className="h-5 w-5" aria-hidden="true" />}
               variant="primary"
               isCurrency
-              className="col-span-2 sm:col-span-1"
             />
 
             {/* 2. Today's Collection */}
@@ -198,52 +176,7 @@ export function DashboardPage() {
               isCurrency
             />
 
-            {/* 3. Weekly Collection Progress */}
-            <Card className="p-3.5 sm:p-4 flex flex-col justify-between border border-border border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between gap-1">
-                <div className="min-w-0">
-                  <span className="text-[11px] font-medium text-secondary-500 uppercase tracking-wide block truncate">
-                    {t('dashboard.weeklyExpected')}
-                  </span>
-                  <span className="text-[10px] text-emerald-700 font-semibold block truncate">
-                    {`All ${dashboardData?.active_groups ?? 0} Groups`}
-                  </span>
-                </div>
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                  <CheckCircle className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="mt-2">
-                <div className="text-xl sm:text-2xl font-bold font-mono text-secondary-900">
-                  {formatCurrency(weeklyExpected)}
-                </div>
-                <div className="mt-2 space-y-1">
-                  <div className="flex items-center justify-between text-[11px] text-secondary-500">
-                    <span>{t('dashboard.collected')}: {formatCurrency(weeklyCollected)}</span>
-                    <span className="font-semibold text-emerald-700">{overallProgress}%</span>
-                  </div>
-                  <div className="w-full bg-secondary-100 rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="bg-emerald-600 h-1.5 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, Math.max(overallProgress > 0 ? 2 : 0, overallProgress))}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* 4. Weekly Pending Collection */}
-            <StatCard
-              id="stat-pending-collection"
-              label={t('dashboard.pendingThisWeek')}
-              value={weeklyPending}
-              sublabel={`Across ${dashboardData?.active_groups ?? 0} active groups`}
-              icon={<AlertCircle className="h-5 w-5" aria-hidden="true" />}
-              variant="warning"
-              isCurrency
-            />
-
-            {/* 5. Active Groups & Members Overview */}
+            {/* 3. Active Groups & Members Overview */}
             <StatCard
               id="stat-active-overview"
               label={t('dashboard.activeGroups')}
@@ -251,7 +184,6 @@ export function DashboardPage() {
               sublabel={`${dashboardData?.active_members ?? 0} ${t('dashboard.activeMembers')} (${dashboardData?.total_members ?? 0} ${t('dashboard.totalMembers')})`}
               icon={<Layers className="h-5 w-5" aria-hidden="true" />}
               variant="info"
-              className="col-span-2 sm:col-span-1"
             />
           </div>
         </section>
@@ -275,34 +207,6 @@ export function DashboardPage() {
             </div>
           </section>
         )}
-
-        {/* ── Section 3: Recent Collections with Link to Full Ledger ─────────── */}
-        <section aria-label="Recent collections" className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h2 className="text-base font-bold text-secondary-900 flex items-center gap-2">
-                <ReceiptText className="h-4 w-4 text-primary-500" aria-hidden="true" />
-                {t('dashboard.recentCollections')}
-              </h2>
-              <p className="text-xs text-secondary-500">
-                {t('dashboard.recentCollectionsSub')}
-              </p>
-            </div>
-            <Link
-              to={ROUTES.COLLECTIONS}
-              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-primary-600 hover:text-primary-700 hover:underline transition-colors"
-            >
-              <span>{t('dashboard.viewAllCollections')}</span>
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-            </Link>
-          </div>
-
-          <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-            <RecentCollectionsTable
-              collections={dashboardData?.recent_collections ?? []}
-            />
-          </div>
-        </section>
       </div>
 
       {/* ── Mobile Floating Action Button (FAB) for Record Payment ───────────── */}
@@ -316,18 +220,20 @@ export function DashboardPage() {
         <span>{t('dashboard.recordPayment')}</span>
       </button>
 
-      {/* ── Record Payment Modal ─────────────────────────────────────────────── */}
-      <RecordPaymentModal
-        isOpen={isRecordModalOpen}
-        onClose={() => setIsRecordModalOpen(false)}
-        onSuccess={({ week, memberName, amount }) => {
-          setSuccessToast({
-            message: t('dashboard.paymentRecordedToast') || 'Payment Recorded',
-            description: `Week ${week} • ${memberName} • ${formatCurrency(amount)}`,
-          });
-          refetchDashboard();
-        }}
-      />
+      {/* ── Record Payment Modal (Lazy mounted only when opened) ─────────────── */}
+      {isRecordModalOpen && (
+        <RecordPaymentModal
+          isOpen={isRecordModalOpen}
+          onClose={() => setIsRecordModalOpen(false)}
+          onSuccess={({ week, memberName, amount }) => {
+            setSuccessToast({
+              message: t('dashboard.paymentRecordedToast') || 'Payment Recorded',
+              description: `Week ${week} • ${memberName} • ${formatCurrency(amount)}`,
+            });
+            refetchDashboard();
+          }}
+        />
+      )}
     </PageContainer>
   );
 }

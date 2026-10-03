@@ -54,9 +54,6 @@ function formatAmount(val: number | string | null | undefined): string {
   return isNaN(n) ? String(val) : Math.round(n).toString();
 }
 
-/** 10 groups fit comfortably on one A4 Landscape sheet */
-const GROUPS_PER_PAGE = 10;
-
 interface StreamItem {
   type: 'session-header' | 'group';
   session?: 'morning' | 'evening';
@@ -145,94 +142,57 @@ export function CollectionSheetPage() {
     return activeGroups.reduce((acc, g) => acc + (g.member_count || 5), 0);
   }, [activeGroups]);
 
-  // Build paginated discrete pages for A4 Landscape
+  // Build paginated discrete pages for A4 Landscape with optimal balanced distribution (eliminates all blank bottom space and collisions)
   const pages: StreamItem[][] = useMemo(() => {
-    const stream: StreamItem[] = [];
+    const chunkSessionGroups = (
+      session: 'morning' | 'evening',
+      sessionGroups: Group[],
+    ): StreamItem[][] => {
+      if (sessionGroups.length === 0) return [];
 
-    if (sessionFilter === 'all') {
-      if (morningGroups.length > 0) {
-        stream.push({
-          type: 'session-header',
-          session: 'morning',
-          groupCount: morningGroups.length,
-        });
-        morningGroups.forEach((g, idx) => {
-          stream.push({
-            type: 'group',
-            group: g,
-            members: membersByGroupId.get(g.id) || [],
-            groupIndex: idx + 1,
-            session: 'morning',
-          });
-        });
-      }
-      if (eveningGroups.length > 0) {
-        stream.push({
-          type: 'session-header',
-          session: 'evening',
-          groupCount: eveningGroups.length,
-        });
-        eveningGroups.forEach((g, idx) => {
-          stream.push({
-            type: 'group',
-            group: g,
-            members: membersByGroupId.get(g.id) || [],
-            groupIndex: idx + 1,
-            session: 'evening',
-          });
-        });
-      }
-    } else if (sessionFilter === 'morning') {
-      stream.push({
+      const sessionStream: StreamItem[] = [];
+      sessionStream.push({
         type: 'session-header',
-        session: 'morning',
-        groupCount: morningGroups.length,
+        session,
+        groupCount: sessionGroups.length,
       });
-      morningGroups.forEach((g, idx) => {
-        stream.push({
+      sessionGroups.forEach((g, idx) => {
+        sessionStream.push({
           type: 'group',
           group: g,
           members: membersByGroupId.get(g.id) || [],
           groupIndex: idx + 1,
-          session: 'morning',
+          session,
         });
       });
-    } else {
-      stream.push({
-        type: 'session-header',
-        session: 'evening',
-        groupCount: eveningGroups.length,
-      });
-      eveningGroups.forEach((g, idx) => {
-        stream.push({
-          type: 'group',
-          group: g,
-          members: membersByGroupId.get(g.id) || [],
-          groupIndex: idx + 1,
-          session: 'evening',
-        });
-      });
-    }
 
-    // Chunk stream into physical pages
-    const result: StreamItem[][] = [];
-    let currentPage: StreamItem[] = [];
-    let currentSlots = 0;
+      // Standard 10 items per page creates clean 4-page collection sheets (Morning 2 pages, Evening 2 pages)
+      const MAX_ITEMS = 10;
+      const totalItems = sessionStream.length;
+      const numPages = Math.ceil(totalItems / MAX_ITEMS);
+      const itemsPerPage = Math.ceil(totalItems / numPages);
 
-    for (const item of stream) {
-      const weight = item.type === 'session-header' ? 1 : 1;
-      if (currentSlots + weight > GROUPS_PER_PAGE) {
-        result.push(currentPage);
-        currentPage = [];
-        currentSlots = 0;
+      const sessionPages: StreamItem[][] = [];
+      let startIdx = 0;
+      for (let p = 0; p < numPages; p++) {
+        const endIdx = p === numPages - 1 ? totalItems : Math.min(startIdx + itemsPerPage, totalItems);
+        sessionPages.push(sessionStream.slice(startIdx, endIdx));
+        startIdx = endIdx;
       }
-      currentPage.push(item);
-      currentSlots += weight;
+      return sessionPages;
+    };
+
+    if (sessionFilter === 'morning') {
+      return chunkSessionGroups('morning', morningGroups);
     }
-    if (currentPage.length > 0) {
-      result.push(currentPage);
+    if (sessionFilter === 'evening') {
+      return chunkSessionGroups('evening', eveningGroups);
     }
-    return result;
+
+    // All sessions: Morning pages followed cleanly by Evening pages
+    const morningPages = chunkSessionGroups('morning', morningGroups);
+    const eveningPages = chunkSessionGroups('evening', eveningGroups);
+    return [...morningPages, ...eveningPages];
   }, [sessionFilter, morningGroups, eveningGroups, membersByGroupId]);
 
   const handlePrint = () => {
@@ -256,7 +216,7 @@ export function CollectionSheetPage() {
 
   return (
     <>
-      {/* ── SCREEN UI (Centered Control Panel Only — Matching DL Project) ── */}
+      {/* ── SCREEN UI (Centered Control Panel) ── */}
       <PageContainer>
         <div className="no-print max-w-2xl mx-auto py-4 space-y-6">
           {/* Header */}
@@ -296,7 +256,7 @@ export function CollectionSheetPage() {
           </div>
 
           {/* Configuration Card */}
-          <Card className="p-6 bg-surface border border-border shadow-sm space-y-6">
+          <Card className="p-6 bg-surface border border-border shadow-sm space-y-5">
             {/* Date Input */}
             <div>
               <label className="flex items-center gap-2 text-sm font-semibold text-secondary-700 mb-2">
@@ -383,7 +343,7 @@ export function CollectionSheetPage() {
                 <span className="flex items-center gap-2">
                   <Printer className="w-4 h-4 text-emerald-600" />
                   <span className="font-medium text-secondary-800">
-                    {language === 'ta' ? 'அச்சு பக்கங்கள் (A4 Landscape)' : 'Printable Sheets (A4 Landscape)'}
+                    {language === 'ta' ? 'அச்சு பக்கங்கள் (A4 Landscape — கச்சிதமான 4 பக்கங்கள்)' : 'Printable Sheets (A4 Landscape — 4 Balanced Sheets)'}
                   </span>
                 </span>
                 <span className="font-bold text-emerald-700">{pages.length}</span>
@@ -409,34 +369,34 @@ export function CollectionSheetPage() {
         createPortal(
           <div className="print-document">
             {pages.map((pageItems, pageIdx) => (
-              <div key={pageIdx} className="print-page p-3">
-                {/* ── Clean Single-Line Header (NO Aggregate Amounts at Top) ── */}
-                <div className="flex items-baseline justify-between border-b-2 border-black pb-1 mb-2 leading-none">
-                  <div className="text-base font-black tracking-wide text-black uppercase">
+              <div key={pageIdx} className="print-page p-1 h-[198mm] max-h-[198mm] flex flex-col justify-between">
+                {/* ── Page Header (Repeated on Every Physical Page) ── */}
+                <div className="flex items-baseline justify-between border-b-4 border-black pb-0.5 mb-1 leading-none shrink-0 print-elder-bold">
+                  <div className="text-base font-black tracking-wide text-black uppercase print-elder-bold">
                     VEL FINANCE
-                    {sessionFilter === 'morning' && ' (MORNING)'}
-                    {sessionFilter === 'evening' && ' (EVENING)'}
+                    {sessionFilter === 'morning' && ' — காலை வசூல் (MORNING)'}
+                    {sessionFilter === 'evening' && ' — மாலை வசூல் (EVENING)'}
                   </div>
-                  <div className="text-sm font-black text-black tracking-wider">
+                  <div className="text-sm font-black text-black tracking-wider print-elder-bold">
                     {formatDateDisplay(targetDate)}
                   </div>
-                  <div className="text-xs font-black text-black">
+                  <div className="text-xs font-black text-white bg-black px-2 py-0.5 rounded-sm">
                     PAGE {pageIdx + 1} OF {pages.length}
                   </div>
                 </div>
 
-                {/* ── Page Content (Session Headers & Groups) ── */}
-                <div className="space-y-1">
+                {/* ── Page Content: Groups stretch evenly to fill 100% of page height (Zero blank space) ── */}
+                <div className="flex-1 min-h-0 flex flex-col justify-between gap-1">
                   {pageItems.map((item, itemIdx) => {
                     if (item.type === 'session-header') {
                       const isMorn = item.session === 'morning';
                       return (
                         <div
                           key={`sess-${itemIdx}`}
-                          className="bg-gray-100 border border-black text-black font-black text-[11px] px-2 py-0.5 rounded-2xs flex items-center justify-between uppercase tracking-wider"
+                          className="bg-black text-white font-black text-[11px] px-2.5 py-1 rounded-sm flex items-center justify-between uppercase tracking-wider shrink-0 print-elder-bold"
                         >
-                          <div className="flex items-center gap-1.5">
-                            <span>{isMorn ? '🌅' : '🌇'}</span>
+                          <div className="flex items-center gap-2">
+                            <span>{isMorn ? '☀️' : '🌙'}</span>
                             <span>
                               {isMorn
                                 ? `காலை வசூல் (MORNING SESSION) — ${item.groupCount} குழுக்கள்`
@@ -452,85 +412,92 @@ export function CollectionSheetPage() {
                     const weeklyInstallment = group.scheme?.weekly_installment || 760;
                     const groupTarget = (group.member_count || groupMembers.length || 5) * weeklyInstallment;
 
-                    // Dynamic Member Slots (Supports 5, 6, 7 or more members dynamically)
-                    const totalSlots = Math.max(5, group.member_count || 0, groupMembers.length);
-                    const slots: (Member | null)[] = [];
-                    for (let s = 0; s < totalSlots; s++) {
-                      slots.push(groupMembers[s] || null);
-                    }
-
                     return (
                       <div
                         key={group.id}
-                        className="print-avoid-break border border-black rounded-2xs bg-white text-black p-1 flex items-stretch gap-1 text-[11px] leading-tight"
+                        className="print-avoid-break flex-1 min-h-0 border-2 border-black rounded-sm bg-white text-black py-0.5 px-1.5 flex items-stretch gap-1.5 leading-tight"
                       >
-                        {/* ── Left Column: Group & Place Info (~18% width) ── */}
-                        <div className="w-[18%] shrink-0 border-r border-gray-400 pr-1 flex flex-col justify-between">
+                        {/* ── Left Column: Group & Place Info (~14% width) ── */}
+                        <div className="w-[14%] shrink-0 border-r-2 border-black pr-1.5 flex flex-col justify-between">
                           <div>
-                            <div className="font-black text-[12px] text-black leading-tight">
+                            <div className="font-black text-[11.5px] text-black leading-tight line-clamp-2 print-elder-bold">
                               #{item.groupIndex}. {group.group_name}
                             </div>
-                            <div className="text-[10px] text-gray-800 font-semibold mt-0.5">
+                            <div className="text-[10px] text-black font-extrabold mt-0.5 truncate">
                               {group.location}
                             </div>
                           </div>
-                          <div className="mt-0.5 text-[10px] flex items-center justify-between border-t border-gray-300 pt-0.5">
-                            <span className="text-gray-600">இலக்கு:</span>
-                            <span className="font-black text-black">
+                          <div className="mt-auto text-[10px] flex items-center justify-between border-t border-black pt-0.5 shrink-0">
+                            <span className="font-extrabold text-black print-elder-bold">இலக்கு:</span>
+                            <span className="font-black text-[11px] text-black print-elder-bold">
                               {formatCurrency(groupTarget)}
                             </span>
                           </div>
                         </div>
 
-                        {/* ── Center Column: Dynamic Member Columns (Supports 5, 6, 7+ members, Full Width, NO Truncation) (~66% width) ── */}
-                        <div className="w-[66%] flex flex-row gap-1 items-stretch">
-                          {slots.map((member, slotIdx) => (
-                            <div
-                              key={member?.id || `empty-${slotIdx}`}
-                              className="flex-1 min-w-0 border border-gray-300 rounded-2xs p-1 flex flex-col justify-between bg-white"
-                            >
-                              {member ? (
-                                <>
-                                  <div className="font-bold text-[11px] text-black break-words leading-tight flex-1">
+                        {/* ── Center Column: Dynamic Member Columns (~74% width: generous space for 7 members) ── */}
+                        <div className="w-[74%] flex flex-row gap-1 items-stretch">
+                          {groupMembers.length === 0 ? (
+                            <div className="flex-1 flex items-center justify-center text-gray-400 font-bold text-[10px] italic border-2 border-dashed border-gray-300">
+                              <span>காலி</span>
+                            </div>
+                          ) : (
+                            groupMembers.map((member, slotIdx) => {
+                              const isLargeGroup = groupMembers.length >= 7;
+                              const isMediumGroup = groupMembers.length === 6;
+                              const nameTextSize = isLargeGroup ? 'text-[10.5px]' : isMediumGroup ? 'text-[11px]' : 'text-[11.5px]';
+                              const amountTextSize = isLargeGroup ? 'text-[10.5px]' : 'text-[11px]';
+                              const badgeTextSize = isLargeGroup ? 'text-[8.5px]' : 'text-[9px]';
+
+                              return (
+                                <div
+                                  key={member.id || `member-${slotIdx}`}
+                                  className="flex-1 min-w-0 border-2 border-black rounded-sm px-1 py-0.5 flex flex-col justify-between bg-white overflow-hidden"
+                                >
+                                  <div
+                                    className={`font-black ${nameTextSize} leading-[1.15] text-black break-words print-elder-bold`}
+                                    style={{
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 2,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                    }}
+                                    title={member.member_name}
+                                  >
                                     {slotIdx + 1}. {member.member_name}
                                   </div>
-                                  <div className="mt-0.5 flex items-center justify-between pt-0.5 border-t border-gray-200">
-                                    <div className="flex items-center gap-1">
-                                      <span className="w-3.5 h-3.5 border border-black inline-block rounded-2xs bg-white shrink-0" />
-                                      <span className="font-bold text-[10px] text-black">
+                                  <div className="mt-auto pt-0.5 flex items-center justify-between border-t border-black shrink-0">
+                                    <div className="flex items-center gap-1 min-w-0">
+                                      <span className="w-3.5 h-3.5 border-2 border-black inline-block rounded-xs bg-white shrink-0" />
+                                      <span className={`font-black ${amountTextSize} text-black shrink-0 print-elder-bold`}>
                                         ₹{formatAmount(member.weekly_installment || weeklyInstallment)}
                                       </span>
                                     </div>
                                     {member.weeks_paid !== undefined && (
-                                      <span className="text-[9px] text-gray-600 font-mono">
+                                      <span className={`${badgeTextSize} font-black text-black bg-gray-200 border border-black px-1 rounded-xs shrink-0`}>
                                         W{member.weeks_paid + 1}
                                       </span>
                                     )}
                                   </div>
-                                </>
-                              ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-400 text-[10px] italic">
-                                  <span className="w-3.5 h-3.5 border border-dashed border-gray-400 inline-block mb-0.5" />
-                                  <span>காலி</span>
                                 </div>
-                              )}
-                            </div>
-                          ))}
+                              );
+                            })
+                          )}
                         </div>
 
-                        {/* ── Right Column: Collector Sign Box (~16% width) ── */}
-                        <div className="w-[16%] shrink-0 border-l border-gray-400 pl-1.5 flex flex-col justify-between text-[10px]">
-                          <div>
-                            <div className="text-gray-700 flex items-center justify-between">
-                              <span>வசூல்:</span>
-                              <span className="font-bold text-gray-400">₹ ________</span>
+                        {/* ── Right Column: Collector Sign Box (~12% width) ── */}
+                        <div className="w-[12%] shrink-0 border-l-2 border-black pl-1.5 flex flex-col justify-between text-[10px]">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center justify-between">
+                              <span className="font-black text-black print-elder-bold">வசூல்:</span>
+                              <span className="font-black text-black text-[11px] print-elder-bold">₹ ______</span>
                             </div>
-                            <div className="text-gray-700 flex items-center justify-between mt-1">
-                              <span>ஒப்பம்:</span>
-                              <span className="text-gray-400">________</span>
+                            <div className="flex items-center justify-between">
+                              <span className="font-black text-black print-elder-bold">ஒப்பம்:</span>
+                              <span className="font-bold text-black print-elder-bold">________</span>
                             </div>
                           </div>
-                          <div className="text-right text-[8px] text-gray-500 font-mono">
+                          <div className="text-right text-[9.5px] font-black text-black uppercase mt-auto shrink-0 print-elder-bold">
                             {item.session === 'morning' ? 'காலை' : 'மாலை'}
                           </div>
                         </div>
@@ -541,19 +508,19 @@ export function CollectionSheetPage() {
 
                 {/* ── Page Footer on the Final Page ── */}
                 {pageIdx === pages.length - 1 && (
-                  <div className="print-avoid-break mt-2 pt-1 border-t-2 border-black">
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold border border-black p-1.5 bg-gray-50">
+                  <div className="print-avoid-break mt-1 pt-1 border-t-4 border-black shrink-0">
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold border-2 border-black p-1 bg-gray-100 text-black">
                       <div>
-                        <span className="text-[10px] text-gray-500 block">மொத்த குழுக்கள்</span>
-                        <span className="text-sm font-black">{activeGroups.length}</span>
+                        <span className="text-[10px] font-bold text-black block print-elder-bold">மொத்த குழுக்கள்</span>
+                        <span className="text-sm font-black text-black print-elder-bold">{activeGroups.length}</span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-gray-500 block">உண்மையான வசூல் தொகை</span>
-                        <span className="text-sm font-normal text-gray-400">₹ ______________</span>
+                        <span className="text-[10px] font-bold text-black block print-elder-bold">உண்மையான வசூல் தொகை</span>
+                        <span className="text-sm font-black text-black print-elder-bold">₹ ______________</span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-gray-500 block">வசூலிப்பாளர் / மேலாளர் கையொப்பம்</span>
-                        <span className="text-sm font-normal text-gray-400">___________________</span>
+                        <span className="text-[10px] font-bold text-black block print-elder-bold">வசூலிப்பாளர் / மேலாளர் கையொப்பம்</span>
+                        <span className="text-sm font-black text-black print-elder-bold">___________________</span>
                       </div>
                     </div>
                   </div>

@@ -15,7 +15,6 @@ import {
   RecordPaymentModal,
   CollectionDetailsModal,
   useCollections,
-  useTodayCollections,
   useWeeklyCollectionSummary,
   type Collection,
   type CollectionFiltersState,
@@ -48,8 +47,6 @@ export function CollectionsPage() {
     refetch: refetchCollections,
     isFetching: isFetchingCollections,
   } = useCollections(filters);
-  const { data: todaySummary, isLoading: isLoadingToday } =
-    useTodayCollections();
   const { data: weeklySummary, isLoading: isLoadingWeekly } =
     useWeeklyCollectionSummary(filters.group_id);
 
@@ -121,9 +118,8 @@ export function CollectionsPage() {
 
       {/* ── Summary Cards ────────────────────────────────────────────────────── */}
       <CollectionSummaryCards
-        todaySummary={todaySummary}
         weeklySummary={weeklySummary}
-        isLoading={isLoadingToday || isLoadingWeekly}
+        isLoading={isLoadingWeekly}
         selectedGroupName={selectedGroup?.group_name}
       />
 
@@ -155,17 +151,19 @@ export function CollectionsPage() {
         <span>Record Payment</span>
       </button>
 
-      {/* ── Record Payment Modal ─────────────────────────────────────────────── */}
-      <RecordPaymentModal
-        isOpen={isRecordModalOpen}
-        onClose={() => setIsRecordModalOpen(false)}
-        onSuccess={({ week, memberName, amount }) => {
-          setSuccessToast({
-            message: 'Payment Recorded',
-            description: `Week ${week} • ${memberName} • ${formatCurrency(amount)}`,
-          });
-        }}
-      />
+      {/* ── Record Payment Modal (Lazy mounted only when opened) ─────────────── */}
+      {isRecordModalOpen && (
+        <RecordPaymentModal
+          isOpen={isRecordModalOpen}
+          onClose={() => setIsRecordModalOpen(false)}
+          onSuccess={({ week, memberName, amount }) => {
+            setSuccessToast({
+              message: 'Payment Recorded',
+              description: `Week ${week} • ${memberName} • ${formatCurrency(amount)}`,
+            });
+          }}
+        />
+      )}
 
       {/* ── Collection Details Modal ─────────────────────────────────────────── */}
       <CollectionDetailsModal

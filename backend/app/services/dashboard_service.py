@@ -10,6 +10,7 @@ Per docs/04_ACCOUNTING_RULES.md — Cash Summary, Outstanding Calculation.
 ALL monetary arithmetic uses Python Decimal only.
 No float arithmetic anywhere in this service.
 """
+import concurrent.futures
 import logging
 import time
 from datetime import date
@@ -30,7 +31,7 @@ RECENT_COLLECTIONS_LIMIT = 10
 # ── In-Memory TTL Cache ────────────────────────────────────────────────────────
 _DASHBOARD_CACHE: Optional[DashboardResponse] = None
 _DASHBOARD_CACHE_EXPIRY: float = 0.0
-DASHBOARD_CACHE_TTL: float = 15.0  # 15 seconds
+DASHBOARD_CACHE_TTL: float = 60.0  # 60 seconds (invalidated automatically on payment)
 
 
 def invalidate_dashboard_cache() -> None:
@@ -105,56 +106,28 @@ class DashboardService:
 
         today = date.today()
 
-        # ── Fast-path: Check for high-performance PostgreSQL RPC ───────────────
-        if not is_mock:
-            try:
-                rpc_res = self.db.rpc("get_dashboard_summary", {"p_today": today.isoformat()}).execute()
-                if rpc_res.data and isinstance(rpc_res.data, dict):
-                    data = rpc_res.data
-                    response = DashboardResponse(
-                        available_cash=Decimal(str(data.get("available_cash", 0))),
-                        total_cash_in=Decimal(str(data.get("total_cash_in", 0))),
-                        total_cash_out=Decimal(str(data.get("total_cash_out", 0))),
-                        todays_collection=Decimal(str(data.get("todays_collection", 0))),
-                        todays_collection_count=int(data.get("todays_collection_count", 0)),
-                        total_disbursement=Decimal(str(data.get("total_disbursement", 0))),
-                        total_loan_amount=Decimal(str(data.get("total_loan_amount", 0))),
-                        total_note_cost=Decimal(str(data.get("total_note_cost", 0))),
-                        total_outstanding=Decimal(str(data.get("total_outstanding", 0))),
-                        active_groups=int(data.get("active_groups", 0)),
-                        active_members=int(data.get("active_members", 0)),
-                        total_groups=int(data.get("total_groups", 0)),
-                        total_members=int(data.get("total_members", 0)),
-                        weekly_expected=Decimal(str(data.get("weekly_expected", 0))),
-                        weekly_collected=Decimal(str(data.get("weekly_collected", 0))),
-                        weekly_pending=Decimal(str(data.get("weekly_pending", 0))),
-                        weekly_progress=float(data.get("weekly_progress", 0.0)),
-                        groups_by_location=[GroupLocationSummary(**item) for item in data.get("groups_by_location", [])],
-                        recent_collections=[RecentCollection(**item) for item in data.get("recent_collections", [])],
-                    )
-                    _DASHBOARD_CACHE = response
-                    _DASHBOARD_CACHE_EXPIRY = now + DASHBOARD_CACHE_TTL
-                    return response
-            except Exception as rpc_err:
-                logger.debug("RPC get_dashboard_summary fallback: %s", rpc_err)
-
         try:
-            # ── Consolidated Sequential Queries ────────────────────────────────────
-            total_cash_in, todays_collection, todays_collection_count, weekly_collected = (
-                self._get_collection_aggregates(today)
-            )
-            total_cash_out, total_loan_amount, total_note_cost = self._get_loan_transaction_totals()
-            total_outstanding = self._get_total_outstanding()
+            # ── High-Performance Concurrent Sub-Queries ────────────────────────
+            # Execute database operations in parallel across connection pool
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                f_coll = executor.submit(self._get_collection_aggregates, today)
+                f_loan = executor.submit(self._get_loan_transaction_totals)
+                f_grp = executor.submit(self._get_group_and_member_aggregates)
+                f_out = executor.submit(self._get_total_outstanding)
+                f_rec = executor.submit(self._get_recent_collections)
 
-            # Groups and Members with weekly expected in single unified pass
-            (
-                active_groups,
-                total_groups,
-                active_members,
-                total_members,
-                weekly_expected,
-                groups_by_location,
-            ) = self._get_group_and_member_aggregates()
+                total_cash_in, todays_collection, todays_collection_count, weekly_collected = f_coll.result()
+                total_cash_out, total_loan_amount, total_note_cost = f_loan.result()
+                (
+                    active_groups,
+                    total_groups,
+                    active_members,
+                    total_members,
+                    weekly_expected,
+                    groups_by_location,
+                ) = f_grp.result()
+                total_outstanding = f_out.result()
+                recent_collections = f_rec.result()
 
             weekly_pending = max(Decimal("0.00"), weekly_expected - weekly_collected)
             weekly_progress = (
@@ -162,8 +135,6 @@ class DashboardService:
                 if weekly_expected > 0
                 else 0.0
             )
-
-            recent_collections = self._get_recent_collections()
 
             available_cash = total_cash_in - total_cash_out
             total_disbursement = total_cash_out

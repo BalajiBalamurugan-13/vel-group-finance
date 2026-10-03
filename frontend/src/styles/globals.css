@@ -18,6 +18,9 @@
 /* ── Tailwind v4 ──────────────────────────────────────────────────────────── */
 @import "tailwindcss";
 
+/* ── High-Contrast Tamil Fonts for Senior Readability ────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Mukta+Malar:wght@700;800&family=Noto+Sans+Tamil:wght@700;800;900&display=swap');
+
 /* ── Design Tokens ────────────────────────────────────────────────────────── */
 @import "./tokens.css";
 
@@ -437,7 +440,7 @@
 @media print {
   @page {
     size: A4 landscape;
-    margin: 7mm 10mm;
+    margin: 4mm 6mm;
   }
 
   /* Completely hide the application shell so no watermarks or navigation appear */
@@ -458,9 +461,9 @@
     background: #ffffff !important;
     color: #000000 !important;
     min-height: 0 !important;
-    height: auto !important;
-    width: auto !important;
-    font-family: inherit;
+    height: 100% !important;
+    width: 100% !important;
+    font-family: 'Noto Sans Tamil', 'Mukta Malar', 'Nirmala UI', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -475,12 +478,19 @@
   .print-page {
     position: relative;
     width: 100%;
+    height: 198mm !important;
+    max-height: 198mm !important;
     box-sizing: border-box;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
     background: #ffffff !important;
+    color: #000000 !important;
     page-break-after: always;
     break-after: page;
     page-break-inside: avoid;
     break-inside: avoid;
+    overflow: hidden !important;
   }
 
   .print-page:last-child {
@@ -491,6 +501,22 @@
   .print-avoid-break {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+  }
+
+  /* Ultra-Bold Ink-Rich Typography for Elder Eyesight */
+  .print-elder-bold {
+    font-family: 'Noto Sans Tamil', 'Mukta Malar', 'Nirmala UI', sans-serif !important;
+    font-weight: 900 !important;
+    -webkit-text-stroke: 0.35px #000000 !important;
+    text-shadow: 0 0 0.5px #000000 !important;
+    color: #000000 !important;
+    letter-spacing: 0.01em !important;
+  }
+
+  /* Force solid black text and crisp borders in print for maximum elder readability */
+  .print-document * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 

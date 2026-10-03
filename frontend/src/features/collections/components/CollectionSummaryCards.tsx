@@ -1,26 +1,21 @@
 import { Card } from '@/components/ui/Card';
 import { formatCurrency } from '@/utils/format';
 import { useLanguage } from '@/i18n';
-import { Wallet, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
-import type { TodayCollectionSummary, WeeklyCollectionSummary } from '../types';
+import { TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import type { WeeklyCollectionSummary } from '../types';
 
 interface CollectionSummaryCardsProps {
-  todaySummary?: TodayCollectionSummary;
   weeklySummary?: WeeklyCollectionSummary;
   isLoading?: boolean;
   selectedGroupName?: string;
 }
 
 export function CollectionSummaryCards({
-  todaySummary,
   weeklySummary,
   isLoading,
   selectedGroupName,
 }: CollectionSummaryCardsProps) {
   const { t } = useLanguage();
-
-  const todayTotal = Number(todaySummary?.total_collected || 0);
-  const todayCount = todaySummary?.collection_count || 0;
 
   const weeklyExpected = Number(weeklySummary?.total_expected || 0);
   const weeklyCollected = Number(weeklySummary?.total_collected || 0);
@@ -34,28 +29,8 @@ export function CollectionSummaryCards({
       : Math.min(100, Math.round(rawWeeklyProgress));
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-      {/* 1. Today's Collections */}
-      <Card className="p-3.5 flex flex-col justify-between border border-border shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-medium text-secondary-500 uppercase tracking-wider">
-            {t('dashboard.todaysCollection')}
-          </span>
-          <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
-            <Wallet className="w-4 h-4" />
-          </div>
-        </div>
-        <div className="mt-2">
-          <div className="text-lg lg:text-xl font-bold text-secondary-900">
-            {isLoading ? '—' : formatCurrency(todayTotal)}
-          </div>
-          <p className="text-xs text-secondary-500 mt-0.5">
-            {todayCount} {todayCount === 1 ? t('dashboard.paymentToday') : t('dashboard.paymentsToday')}
-          </p>
-        </div>
-      </Card>
-
-      {/* 2. Total Expected This Week */}
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+      {/* 1. Total Expected This Week */}
       <Card className="p-3.5 flex flex-col justify-between border border-border shadow-sm">
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0">

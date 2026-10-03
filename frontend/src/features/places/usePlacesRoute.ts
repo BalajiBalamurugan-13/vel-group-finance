@@ -140,44 +140,87 @@ export function usePlacesRoute() {
     [placesWithStats],
   );
 
+  const reorderSessionPlaces = useCallback(
+    (session: CollectionSession, reorderedList: PlaceWithGroupStats[]) => {
+      const reorderedIds = reorderedList.map((p) => p.id);
+
+      setRouteConfig((prevConfig) => {
+        let updated: PlaceRouteConfig[];
+        if (session === 'morning') {
+          const morningConfigs = reorderedIds
+            .map((id) => prevConfig.find((p) => p.id === id))
+            .filter((p): p is PlaceRouteConfig => Boolean(p));
+          const eveningConfigs = prevConfig.filter((p) => p.session === 'evening');
+          updated = [...morningConfigs, ...eveningConfigs];
+        } else {
+          const morningConfigs = prevConfig.filter((p) => p.session === 'morning');
+          const eveningConfigs = reorderedIds
+            .map((id) => prevConfig.find((p) => p.id === id))
+            .filter((p): p is PlaceRouteConfig => Boolean(p));
+          updated = [...morningConfigs, ...eveningConfigs];
+        }
+
+        const sorted = updated.map((p, idx) => ({
+          ...p,
+          order: idx + 1,
+        }));
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
+        } catch (e) {
+          console.error('Failed to save places route config', e);
+        }
+        return sorted;
+      });
+    },
+    [],
+  );
+
   const moveUp = useCallback(
     (placeId: string) => {
-      const index = routeConfig.findIndex((p) => p.id === placeId);
-      if (index <= 0) return;
-      const copy = [...routeConfig];
-      const temp = copy[index - 1];
-      copy[index - 1] = copy[index];
-      copy[index] = temp;
-      saveConfig(copy);
+      const target = routeConfig.find((p) => p.id === placeId);
+      if (!target) return;
+      const sessionList = [...routeConfig.filter((p) => p.session === target.session)];
+      const idxInSession = sessionList.findIndex((p) => p.id === placeId);
+      if (idxInSession <= 0) return;
+      const temp = sessionList[idxInSession - 1];
+      sessionList[idxInSession - 1] = sessionList[idxInSession];
+      sessionList[idxInSession] = temp;
+      reorderSessionPlaces(target.session, sessionList as any);
     },
-    [routeConfig, saveConfig],
+    [routeConfig, reorderSessionPlaces],
   );
 
   const moveDown = useCallback(
     (placeId: string) => {
-      const index = routeConfig.findIndex((p) => p.id === placeId);
-      if (index === -1 || index >= routeConfig.length - 1) return;
-      const copy = [...routeConfig];
-      const temp = copy[index + 1];
-      copy[index + 1] = copy[index];
-      copy[index] = temp;
-      saveConfig(copy);
+      const target = routeConfig.find((p) => p.id === placeId);
+      if (!target) return;
+      const sessionList = [...routeConfig.filter((p) => p.session === target.session)];
+      const idxInSession = sessionList.findIndex((p) => p.id === placeId);
+      if (idxInSession === -1 || idxInSession >= sessionList.length - 1) return;
+      const temp = sessionList[idxInSession + 1];
+      sessionList[idxInSession + 1] = sessionList[idxInSession];
+      sessionList[idxInSession] = temp;
+      reorderSessionPlaces(target.session, sessionList as any);
     },
-    [routeConfig, saveConfig],
+    [routeConfig, reorderSessionPlaces],
   );
 
   const toggleSession = useCallback(
     (placeId: string) => {
-      const updated = routeConfig.map((p) => {
-        if (p.id === placeId) {
-          return {
-            ...p,
-            session: (p.session === 'morning' ? 'evening' : 'morning') as CollectionSession,
-          };
-        }
-        return p;
-      });
-      saveConfig(updated);
+      const target = routeConfig.find((p) => p.id === placeId);
+      if (!target) return;
+      const newSession: CollectionSession = target.session === 'morning' ? 'evening' : 'morning';
+
+      const remaining = routeConfig.filter((p) => p.id !== placeId);
+      const updatedTarget: PlaceRouteConfig = { ...target, session: newSession };
+
+      if (newSession === 'morning') {
+        const morningItems = remaining.filter((p) => p.session === 'morning');
+        const eveningItems = remaining.filter((p) => p.session === 'evening');
+        saveConfig([...morningItems, updatedTarget, ...eveningItems]);
+      } else {
+        saveConfig([...remaining, updatedTarget]);
+      }
     },
     [routeConfig, saveConfig],
   );
@@ -260,7 +303,7 @@ export function usePlacesRoute() {
     moveUp,
     moveDown,
     toggleSession,
-    setSession,
+    reorderSessionPlaces,
     addPlace,
     removePlace,
     resetDefault,
