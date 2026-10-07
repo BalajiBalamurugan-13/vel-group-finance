@@ -10,6 +10,7 @@ from app.schemas import SuccessResponse
 from app.schemas.collection import (
     CollectionCreate,
     BulkCollectionCreate,
+    RecordWeekRequest,
 )
 from app.services.collection_service import CollectionService, get_collection_service
 
@@ -95,6 +96,39 @@ def record_bulk_collections(
         message=f"{result['total_recorded']} weekly payments recorded successfully.",
     )
 
+
+
+@router.get("/record-week/preview", response_model=SuccessResponse)
+def preview_record_week(
+    payment_date: Optional[date] = Query(None, description="Target collection date (defaults to today)"),
+    business_week: Optional[int] = Query(None, description="Optional business week number override"),
+    service: CollectionService = Depends(get_service),
+):
+    """
+    Preview eligible members and expected collection amounts for the business week.
+    """
+    preview = service.preview_whole_week_collections(
+        payment_date=payment_date, business_week=business_week
+    )
+    return SuccessResponse(
+        data=preview,
+        message="Weekly collection preview calculated successfully.",
+    )
+
+
+@router.post("/record-week", response_model=SuccessResponse, status_code=status.HTTP_201_CREATED)
+def record_whole_week(
+    data: RecordWeekRequest,
+    service: CollectionService = Depends(get_service),
+):
+    """
+    One-click atomic recording of collections for the whole business week.
+    """
+    result = service.record_whole_week_collections(data)
+    return SuccessResponse(
+        data=result,
+        message=f"{result['total_recorded']} weekly payments recorded successfully (Rs. {result['total_amount']:,.2f}).",
+    )
 
 
 @router.get("/{id}", response_model=SuccessResponse)

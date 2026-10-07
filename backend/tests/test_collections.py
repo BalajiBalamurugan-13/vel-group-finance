@@ -845,3 +845,49 @@ def test_service_historical_past_payment_accepted(mock_db):
     assert result["week_number"] == 1
     assert result["payment_date"] == past_date.isoformat()
 
+
+def test_preview_record_week_endpoint(client, mock_service):
+    """Test GET /record-week/preview endpoint."""
+    mock_service.preview_whole_week_collections.return_value = {
+        "business_week": 9,
+        "target_date": date.today(),
+        "week_start_date": date.today() - timedelta(days=3),
+        "week_end_date": date.today() + timedelta(days=3),
+        "total_active_members": 152,
+        "eligible_members_count": 152,
+        "already_paid_count": 0,
+        "total_expected_amount": Decimal("116240.00"),
+        "total_pending_amount": Decimal("116240.00"),
+        "total_already_paid_amount": Decimal("0.00"),
+        "groups": [],
+    }
+
+    response = client.get("/api/v1/collections/record-week/preview")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"]["business_week"] == 9
+    assert data["data"]["eligible_members_count"] == 152
+    assert float(data["data"]["total_pending_amount"]) == 116240.0
+
+
+def test_record_whole_week_endpoint(client, mock_service):
+    """Test POST /record-week endpoint."""
+    mock_service.record_whole_week_collections.return_value = {
+        "business_week": 9,
+        "payment_date": date.today(),
+        "total_recorded": 152,
+        "total_amount": Decimal("116240.00"),
+        "skipped_count": 0,
+        "errors": [],
+    }
+
+    response = client.post(
+        "/api/v1/collections/record-week",
+        json={"payment_date": date.today().isoformat()},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["data"]["total_recorded"] == 152
+    assert float(data["data"]["total_amount"]) == 116240.0
+
+

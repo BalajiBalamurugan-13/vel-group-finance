@@ -38,6 +38,7 @@ from app.api.endpoints.dashboard import router as dashboard_router
 from app.api.endpoints.investments import router as investments_router
 from app.api.endpoints.profit import router as profit_router
 from app.api.endpoints.loan_risk import router as loan_risk_router
+from app.api.endpoints.settings import router as settings_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -51,6 +52,7 @@ api_router.include_router(dashboard_router, prefix="/dashboard", tags=["Dashboar
 api_router.include_router(investments_router, prefix="/investments", tags=["Investments"])
 api_router.include_router(profit_router, prefix="/profit", tags=["Profit"])
 api_router.include_router(loan_risk_router, prefix="/loan-risk", tags=["Loan Risk"])
+api_router.include_router(settings_router, prefix="/settings", tags=["Settings"])
 
 # ── Future Module Routes (add as each milestone is implemented) ────────────────
 

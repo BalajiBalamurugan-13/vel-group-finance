@@ -40,6 +40,14 @@ export function useSuggestGroupName(location: string, enabled = true) {
   });
 }
 
+export function useLocations() {
+  return useQuery({
+    queryKey: ['group-locations'],
+    queryFn: () => groupApi.getLocations(),
+    staleTime: 60_000,
+  });
+}
+
 export function useCreateGroup() {
   const queryClient = useQueryClient();
 
@@ -47,6 +55,7 @@ export function useCreateGroup() {
     mutationFn: groupApi.createGroup,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['group-locations'] });
     },
   });
 }

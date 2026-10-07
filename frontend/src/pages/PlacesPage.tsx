@@ -11,6 +11,9 @@ import {
   Users,
   CheckCircle2,
   GripVertical,
+  Save,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { PageContainer } from '@/components/common/PageContainer';
@@ -32,16 +35,29 @@ export function PlacesPage() {
     places,
     morningPlaces,
     eveningPlaces,
+    moveUp,
+    moveDown,
     toggleSession,
     reorderSessionPlaces,
     addPlace,
     removePlace,
     resetDefault,
+    isSaving,
+    saveCurrentOrder,
   } = usePlacesRoute();
 
   const [newPlaceName, setNewPlaceName] = useState('');
   const [newPlaceSession, setNewPlaceSession] = useState<CollectionSession>('morning');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleSaveOrder = async () => {
+    await saveCurrentOrder();
+    setToastMessage(
+      language === 'ta'
+        ? 'வழித்தட வரிசை தரவுத்தளத்தில் வெற்றிகரமாக சேமிக்கப்பட்டது!'
+        : 'Route order saved permanently to database!'
+    );
+  };
 
   const handleAddPlace = (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +107,17 @@ export function PlacesPage() {
 
         <div className="flex items-center gap-2 flex-wrap">
           <Button
+            variant="primary"
+            size="sm"
+            onClick={handleSaveOrder}
+            isLoading={isSaving}
+            className="flex items-center gap-1.5 shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+          >
+            <Save className="w-4 h-4" />
+            <span>{language === 'ta' ? 'வரிசையை சேமி' : 'Save Order'}</span>
+          </Button>
+
+          <Button
             variant="outline"
             size="sm"
             onClick={handleReset}
@@ -102,9 +129,9 @@ export function PlacesPage() {
 
           <Link to={ROUTES.COLLECTION_SHEET}>
             <Button
-              variant="primary"
+              variant="outline"
               size="sm"
-              className="flex items-center gap-1.5 shadow-sm"
+              className="flex items-center gap-1.5 shadow-sm text-secondary-700"
             >
               <Printer className="w-4 h-4" />
               <span>{t('sheet.title')}</span>
@@ -253,6 +280,10 @@ export function PlacesPage() {
                     index={idx}
                     onToggleSession={() => toggleSession(place.id)}
                     onRemove={() => removePlace(place.id)}
+                    onMoveUp={() => moveUp(place.id)}
+                    onMoveDown={() => moveDown(place.id)}
+                    canMoveUp={idx > 0}
+                    canMoveDown={idx < morningPlaces.length - 1}
                     language={language}
                   />
                 ))}
@@ -301,6 +332,10 @@ export function PlacesPage() {
                     index={idx}
                     onToggleSession={() => toggleSession(place.id)}
                     onRemove={() => removePlace(place.id)}
+                    onMoveUp={() => moveUp(place.id)}
+                    onMoveDown={() => moveDown(place.id)}
+                    canMoveUp={idx > 0}
+                    canMoveDown={idx < eveningPlaces.length - 1}
                     language={language}
                   />
                 ))}
@@ -320,6 +355,10 @@ interface PlaceRowCardProps {
   index: number;
   onToggleSession: () => void;
   onRemove: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   language: string;
 }
 
@@ -328,6 +367,10 @@ function PlaceRowCard({
   index,
   onToggleSession,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   language,
 }: PlaceRowCardProps) {
   const controls = useDragControls();
@@ -357,6 +400,30 @@ function PlaceRowCard({
             aria-label="Drag to reorder"
           >
             <GripVertical className="w-5 h-5" />
+          </div>
+
+          {/* Quick Click-to-Move Up / Down Controls */}
+          <div className="flex flex-col -my-1 shrink-0">
+            <button
+              type="button"
+              onClick={onMoveUp}
+              disabled={!canMoveUp}
+              className="p-1 rounded text-secondary-400 hover:text-secondary-800 hover:bg-secondary-100 disabled:opacity-20 disabled:pointer-events-none transition-colors cursor-pointer"
+              title={language === 'ta' ? 'மேலே நகர்த்தவும்' : 'Move Up'}
+              aria-label="Move Up"
+            >
+              <ArrowUp className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onMoveDown}
+              disabled={!canMoveDown}
+              className="p-1 rounded text-secondary-400 hover:text-secondary-800 hover:bg-secondary-100 disabled:opacity-20 disabled:pointer-events-none transition-colors cursor-pointer"
+              title={language === 'ta' ? 'கீழே நகர்த்தவும்' : 'Move Down'}
+              aria-label="Move Down"
+            >
+              <ArrowDown className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {/* Sequence Badge */}

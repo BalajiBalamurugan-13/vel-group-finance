@@ -11,6 +11,8 @@ import {
   Users,
   Layers,
   MapPin,
+  Clock,
+  AlertCircle,
 } from 'lucide-react';
 import { PageContainer } from '@/components/common/PageContainer';
 import { LoadingState } from '@/components/common/LoadingState';
@@ -28,14 +30,57 @@ import { useDocumentTitle } from '@/hooks';
 import { ROUTES } from '@/constants';
 import { formatCurrency } from '@/utils';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers & Constants ────────────────────────────────────────────────────────
 
-function getNextOrCurrentSunday(): string {
+export interface DayOption {
+  dayNum: number;
+  nameTa: string;
+  nameEn: string;
+}
+
+export const DAYS_OF_WEEK: DayOption[] = [
+  { dayNum: 0, nameTa: 'ஞாயிறு', nameEn: 'Sunday' },
+  { dayNum: 1, nameTa: 'திங்கள்', nameEn: 'Monday' },
+  { dayNum: 2, nameTa: 'செவ்வாய்', nameEn: 'Tuesday' },
+  { dayNum: 3, nameTa: 'புதன்', nameEn: 'Wednesday' },
+  { dayNum: 4, nameTa: 'வியாழன்', nameEn: 'Thursday' },
+  { dayNum: 5, nameTa: 'வெள்ளி', nameEn: 'Friday' },
+  { dayNum: 6, nameTa: 'சனி', nameEn: 'Saturday' },
+];
+
+function getNextDateForDay(targetDay: number): string {
   const d = new Date();
-  const day = d.getDay(); // 0 is Sunday
-  const diff = (7 - day) % 7;
+  const currentDay = d.getDay();
+  const diff = (targetDay - currentDay + 7) % 7;
   d.setDate(d.getDate() + diff);
   return d.toISOString().split('T')[0];
+}
+
+function getGroupDayOfWeek(group: Group): number {
+  if (!group.start_date) return 0; // Default to Sunday (0) for historical groups
+  try {
+    const [y, m, d] = group.start_date.split('-').map(Number);
+    if (!y || !m || !d) return 0;
+    return new Date(y, m - 1, d).getDay();
+  } catch {
+    return 0;
+  }
+}
+
+function getDayOfWeekFromDate(isoDate: string): number {
+  if (!isoDate) return 0;
+  try {
+    const [y, m, d] = isoDate.split('-').map(Number);
+    return new Date(y, m - 1, d).getDay();
+  } catch {
+    return 0;
+  }
+}
+
+function getDayName(dayNum: number, lang: 'en' | 'ta'): string {
+  const item = DAYS_OF_WEEK.find((d) => d.dayNum === dayNum);
+  if (!item) return '';
+  return lang === 'ta' ? `${item.nameTa} (${item.nameEn})` : `${item.nameEn} (${item.nameTa})`;
 }
 
 function formatDateDisplay(isoDate: string): string {
@@ -55,21 +100,21 @@ function formatAmount(val: number | string | null | undefined): string {
 }
 
 interface StreamItem {
-  type: 'session-header' | 'group';
-  session?: 'morning' | 'evening';
-  groupCount?: number;
-  group?: Group;
-  members?: Member[];
-  groupIndex?: number;
+  group: Group;
+  members: Member[];
+  groupIndex: number;
+  session: 'morning' | 'evening';
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function CollectionSheetPage() {
-  useDocumentTitle('Sunday Collection Sheet');
+  useDocumentTitle('Collection Sheet');
   const { t, language } = useLanguage();
 
-  const [targetDate, setTargetDate] = useState<string>(getNextOrCurrentSunday);
+  // Day filter: 0 = Sunday (default for current 33 groups), 1 = Monday, 2 = Tuesday, etc., or -1 = All Days
+  const [dayFilter, setDayFilter] = useState<number | -1>(0);
+  const [targetDate, setTargetDate] = useState<string>(() => getNextDateForDay(0));
   const [sessionFilter, setSessionFilter] = useState<'all' | 'morning' | 'evening'>('all');
 
   const { data: groups = [], isLoading: isGroupsLoading, refetch: refetchGroups } = useGroups({
@@ -97,12 +142,45 @@ export function CollectionSheetPage() {
     return map;
   }, [members]);
 
-  // Categorize and sort groups into Morning and Evening
+  // Calculate total groups per weekday
+  const groupCountsByDay = useMemo(() => {
+    const counts: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    for (const g of groups) {
+      const d = getGroupDayOfWeek(g);
+      counts[d] = (counts[d] || 0) + 1;
+    }
+    return counts;
+  }, [groups]);
+
+  // Handle day tab click: sets dayFilter and auto-syncs targetDate to upcoming day
+  const handleSelectDay = (dayNum: number | -1) => {
+    setDayFilter(dayNum);
+    if (dayNum !== -1) {
+      setTargetDate(getNextDateForDay(dayNum));
+    }
+  };
+
+  // Handle manual date picker change: auto-syncs dayFilter to selected date's weekday
+  const handleDateChange = (newDate: string) => {
+    setTargetDate(newDate);
+    if (newDate) {
+      const day = getDayOfWeekFromDate(newDate);
+      setDayFilter(day);
+    }
+  };
+
+  // Filter groups by collection day
+  const dayFilteredGroups = useMemo(() => {
+    if (dayFilter === -1) return groups;
+    return groups.filter((g) => getGroupDayOfWeek(g) === dayFilter);
+  }, [groups, dayFilter]);
+
+  // Categorize and sort groups into Morning and Evening according to Places & Route order
   const { morningGroups, eveningGroups } = useMemo(() => {
     const morning: Group[] = [];
     const evening: Group[] = [];
 
-    groups.forEach((g) => {
+    dayFilteredGroups.forEach((g) => {
       const place = resolvePlaceRouteInfo(g.location, g.group_name, placeLookup, places);
       const session = place.session || 'morning';
       if (session === 'morning') {
@@ -128,7 +206,7 @@ export function CollectionSheetPage() {
     evening.sort(sortFn);
 
     return { morningGroups: morning, eveningGroups: evening };
-  }, [groups, placeLookup, places]);
+  }, [dayFilteredGroups, placeLookup, places]);
 
   // Filter based on active session selector
   const activeGroups = useMemo(() => {
@@ -142,34 +220,36 @@ export function CollectionSheetPage() {
     return activeGroups.reduce((acc, g) => acc + (g.member_count || 5), 0);
   }, [activeGroups]);
 
-  // Build paginated discrete pages for A4 Landscape with optimal balanced distribution (eliminates all blank bottom space and collisions)
+  // Total weekly target amount for active groups
+  const activeTotalTarget = useMemo(() => {
+    return activeGroups.reduce((acc, g) => {
+      const gMembers = membersByGroupId.get(g.id) || [];
+      const installment = g.weekly_installment || g.scheme?.weekly_installment || 760;
+      const count = g.member_count || gMembers.length || 5;
+      return acc + count * installment;
+    }, 0);
+  }, [activeGroups, membersByGroupId]);
+
+  // Build paginated discrete pages for A4 Landscape with optimal balanced distribution (Ink-saving, No solid black lines)
   const pages: StreamItem[][] = useMemo(() => {
     const chunkSessionGroups = (
       session: 'morning' | 'evening',
       sessionGroups: Group[],
+      startOffsetIndex: number = 0,
     ): StreamItem[][] => {
       if (sessionGroups.length === 0) return [];
 
-      const sessionStream: StreamItem[] = [];
-      sessionStream.push({
-        type: 'session-header',
+      const sessionStream: StreamItem[] = sessionGroups.map((g, idx) => ({
+        group: g,
+        members: membersByGroupId.get(g.id) || [],
+        groupIndex: startOffsetIndex + idx + 1,
         session,
-        groupCount: sessionGroups.length,
-      });
-      sessionGroups.forEach((g, idx) => {
-        sessionStream.push({
-          type: 'group',
-          group: g,
-          members: membersByGroupId.get(g.id) || [],
-          groupIndex: idx + 1,
-          session,
-        });
-      });
+      }));
 
-      // Standard 10 items per page creates clean 4-page collection sheets (Morning 2 pages, Evening 2 pages)
-      const MAX_ITEMS = 10;
+      // Up to 9 groups per A4 landscape page creates clean balanced collection sheets (Morning 2 pages, Evening 2 pages for 33 groups)
+      const MAX_GROUPS_PER_PAGE = 9;
       const totalItems = sessionStream.length;
-      const numPages = Math.ceil(totalItems / MAX_ITEMS);
+      const numPages = Math.ceil(totalItems / MAX_GROUPS_PER_PAGE);
       const itemsPerPage = Math.ceil(totalItems / numPages);
 
       const sessionPages: StreamItem[][] = [];
@@ -183,15 +263,15 @@ export function CollectionSheetPage() {
     };
 
     if (sessionFilter === 'morning') {
-      return chunkSessionGroups('morning', morningGroups);
+      return chunkSessionGroups('morning', morningGroups, 0);
     }
     if (sessionFilter === 'evening') {
-      return chunkSessionGroups('evening', eveningGroups);
+      return chunkSessionGroups('evening', eveningGroups, 0);
     }
 
     // All sessions: Morning pages followed cleanly by Evening pages
-    const morningPages = chunkSessionGroups('morning', morningGroups);
-    const eveningPages = chunkSessionGroups('evening', eveningGroups);
+    const morningPages = chunkSessionGroups('morning', morningGroups, 0);
+    const eveningPages = chunkSessionGroups('evening', eveningGroups, morningGroups.length);
     return [...morningPages, ...eveningPages];
   }, [sessionFilter, morningGroups, eveningGroups, membersByGroupId]);
 
@@ -213,6 +293,9 @@ export function CollectionSheetPage() {
       </PageContainer>
     );
   }
+
+  const targetDayNum = getDayOfWeekFromDate(targetDate);
+  const targetDayLabel = getDayName(targetDayNum, language);
 
   return (
     <>
@@ -257,21 +340,139 @@ export function CollectionSheetPage() {
 
           {/* Configuration Card */}
           <Card className="p-6 bg-surface border border-border shadow-sm space-y-5">
-            {/* Date Input */}
+            {/* 1. Day of the Week Selector (Sunday / Monday / Tuesday) */}
             <div>
-              <label className="flex items-center gap-2 text-sm font-semibold text-secondary-700 mb-2">
-                <Calendar className="w-4 h-4 text-primary-600" />
-                <span>{t('sheet.targetDate')}</span>
+              <label className="flex items-center justify-between text-sm font-semibold text-secondary-700 mb-2">
+                <span className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary-600" />
+                  <span>{language === 'ta' ? 'வசூல் நாள் (வடிகட்டி)' : 'Collection Day'}</span>
+                </span>
+                <span className="text-xs text-secondary-500 font-normal">
+                  {language === 'ta' ? 'சுமை குறைக்க நாள் வாரியாக அச்சிடுக' : 'Filter by collection day'}
+                </span>
+              </label>
+
+              {/* Main Days: Sunday, Monday, Tuesday, All */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                {/* Sunday */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectDay(0)}
+                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border transition-all text-center flex flex-col items-center gap-0.5 ${
+                    dayFilter === 0
+                      ? 'bg-primary-600 text-white border-primary-700 shadow-xs'
+                      : 'bg-secondary-50 text-secondary-700 border-secondary-200 hover:bg-secondary-100'
+                  }`}
+                >
+                  <span className="font-bold">{language === 'ta' ? 'ஞாயிறு' : 'Sunday'}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    dayFilter === 0 ? 'bg-primary-800 text-primary-100' : 'bg-secondary-200 text-secondary-700'
+                  }`}>
+                    {groupCountsByDay[0]} {language === 'ta' ? 'குழு' : 'grp'}
+                  </span>
+                </button>
+
+                {/* Monday */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectDay(1)}
+                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border transition-all text-center flex flex-col items-center gap-0.5 ${
+                    dayFilter === 1
+                      ? 'bg-primary-600 text-white border-primary-700 shadow-xs'
+                      : 'bg-secondary-50 text-secondary-700 border-secondary-200 hover:bg-secondary-100'
+                  }`}
+                >
+                  <span className="font-bold">{language === 'ta' ? 'திங்கள்' : 'Monday'}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    dayFilter === 1 ? 'bg-primary-800 text-primary-100' : 'bg-secondary-200 text-secondary-700'
+                  }`}>
+                    {groupCountsByDay[1]} {language === 'ta' ? 'குழு' : 'grp'}
+                  </span>
+                </button>
+
+                {/* Tuesday */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectDay(2)}
+                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border transition-all text-center flex flex-col items-center gap-0.5 ${
+                    dayFilter === 2
+                      ? 'bg-primary-600 text-white border-primary-700 shadow-xs'
+                      : 'bg-secondary-50 text-secondary-700 border-secondary-200 hover:bg-secondary-100'
+                  }`}
+                >
+                  <span className="font-bold">{language === 'ta' ? 'செவ்வாய்' : 'Tuesday'}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    dayFilter === 2 ? 'bg-primary-800 text-primary-100' : 'bg-secondary-200 text-secondary-700'
+                  }`}>
+                    {groupCountsByDay[2]} {language === 'ta' ? 'குழு' : 'grp'}
+                  </span>
+                </button>
+
+                {/* All Days */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectDay(-1)}
+                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border transition-all text-center flex flex-col items-center gap-0.5 ${
+                    dayFilter === -1
+                      ? 'bg-secondary-800 text-white border-secondary-900 shadow-xs'
+                      : 'bg-secondary-50 text-secondary-700 border-secondary-200 hover:bg-secondary-100'
+                  }`}
+                >
+                  <span className="font-bold">{language === 'ta' ? 'அனைத்தும்' : 'All Days'}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    dayFilter === -1 ? 'bg-secondary-950 text-secondary-200' : 'bg-secondary-200 text-secondary-700'
+                  }`}>
+                    {groups.length} {language === 'ta' ? 'குழு' : 'grp'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Other days pills (Wednesday - Saturday) */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+                <span className="text-secondary-400 text-[11px] mr-1">
+                  {language === 'ta' ? 'பிற நாட்கள்:' : 'Other days:'}
+                </span>
+                {[3, 4, 5, 6].map((dayNum) => {
+                  const day = DAYS_OF_WEEK.find((d) => d.dayNum === dayNum)!;
+                  const isSelected = dayFilter === dayNum;
+                  return (
+                    <button
+                      key={dayNum}
+                      type="button"
+                      onClick={() => handleSelectDay(dayNum)}
+                      className={`px-2 py-1 rounded text-[11px] font-medium border transition-colors ${
+                        isSelected
+                          ? 'bg-primary-600 text-white border-primary-700 font-bold'
+                          : 'bg-surface text-secondary-600 border-secondary-200 hover:bg-secondary-50'
+                      }`}
+                    >
+                      {language === 'ta' ? day.nameTa : day.nameEn} ({groupCountsByDay[dayNum]})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Target Date Input */}
+            <div>
+              <label className="flex items-center justify-between text-sm font-semibold text-secondary-700 mb-2">
+                <span className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-primary-600" />
+                  <span>{t('sheet.targetDate')}</span>
+                </span>
+                <span className="text-xs font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded border border-primary-200">
+                  {targetDayLabel}
+                </span>
               </label>
               <input
                 type="date"
                 value={targetDate}
-                onChange={(e) => setTargetDate(e.target.value)}
+                onChange={(e) => handleDateChange(e.target.value)}
                 className="w-full px-4 py-2.5 text-sm border border-secondary-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-medium"
               />
             </div>
 
-            {/* Session Selector */}
+            {/* 3. Session Selector */}
             <div>
               <label className="flex items-center gap-2 text-sm font-semibold text-secondary-700 mb-2">
                 <Sun className="w-4 h-4 text-amber-500" />
@@ -316,6 +517,25 @@ export function CollectionSheetPage() {
               </div>
             </div>
 
+            {/* Empty State Warning if Selected Day Has 0 Groups */}
+            {activeGroups.length === 0 && (
+              <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-bold">
+                    {language === 'ta'
+                      ? `தேர்ந்தெடுத்த நாளில் (${targetDayLabel}) செயலில் உள்ள குழுக்கள் இல்லை`
+                      : `No active groups scheduled for ${targetDayLabel}`}
+                  </div>
+                  <div className="mt-0.5 text-amber-800">
+                    {language === 'ta'
+                      ? 'குழுக்கள் பக்கத்தில் புதிய குழுவை உருவாக்கும் போது தொடக்க தேதியை இந்த நாளாக தேர்வு செய்யவும்.'
+                      : 'When creating or updating groups, assign their start date to this day to include them.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Status Information Counters */}
             <div className="p-4 bg-secondary-50 rounded-xl border border-secondary-200/80 space-y-2 text-sm text-secondary-600">
               <div className="flex items-center justify-between">
@@ -334,6 +554,13 @@ export function CollectionSheetPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-secondary-500" />
+                  <span>{t('sheet.totalTarget')}</span>
+                </span>
+                <span className="font-bold text-secondary-900">{formatCurrency(activeTotalTarget)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-secondary-500" />
                   <span>{t('places.totalRoute')}</span>
                 </span>
@@ -343,10 +570,12 @@ export function CollectionSheetPage() {
                 <span className="flex items-center gap-2">
                   <Printer className="w-4 h-4 text-emerald-600" />
                   <span className="font-medium text-secondary-800">
-                    {language === 'ta' ? 'அச்சு பக்கங்கள் (A4 Landscape — கச்சிதமான 4 பக்கங்கள்)' : 'Printable Sheets (A4 Landscape — 4 Balanced Sheets)'}
+                    {language === 'ta' ? 'அச்சு பக்கங்கள் (A4 Landscape)' : 'Printable Sheets (A4 Landscape)'}
                   </span>
                 </span>
-                <span className="font-bold text-emerald-700">{pages.length}</span>
+                <span className="font-bold text-emerald-700">
+                  {pages.length} {language === 'ta' ? 'பக்கங்கள்' : 'Sheets'}
+                </span>
               </div>
             </div>
 
@@ -364,169 +593,139 @@ export function CollectionSheetPage() {
         </div>
       </PageContainer>
 
-      {/* ── PRINT DOCUMENT (Rendered in React Portal, Hidden on Screen) ── */}
+      {/* ── PRINT DOCUMENT (Rendered in React Portal, Hidden on Screen, Ink-Optimized) ── */}
       {typeof document !== 'undefined' &&
         createPortal(
           <div className="print-document">
-            {pages.map((pageItems, pageIdx) => (
-              <div key={pageIdx} className="print-page p-1 h-[198mm] max-h-[198mm] flex flex-col justify-between">
-                {/* ── Page Header (Repeated on Every Physical Page) ── */}
-                <div className="flex items-baseline justify-between border-b-4 border-black pb-0.5 mb-1 leading-none shrink-0 print-elder-bold">
-                  <div className="text-base font-black tracking-wide text-black uppercase print-elder-bold">
-                    VEL FINANCE
-                    {sessionFilter === 'morning' && ' — காலை வசூல் (MORNING)'}
-                    {sessionFilter === 'evening' && ' — மாலை வசூல் (EVENING)'}
-                  </div>
-                  <div className="text-sm font-black text-black tracking-wider print-elder-bold">
-                    {formatDateDisplay(targetDate)}
-                  </div>
-                  <div className="text-xs font-black text-white bg-black px-2 py-0.5 rounded-sm">
-                    PAGE {pageIdx + 1} OF {pages.length}
-                  </div>
-                </div>
+            {pages.map((pageItems, pageIdx) => {
+              const firstItem = pageItems[0];
+              const isPageMorning = firstItem?.session === 'morning';
+              const isPageEvening = firstItem?.session === 'evening';
 
-                {/* ── Page Content: Groups stretch evenly to fill 100% of page height (Zero blank space) ── */}
-                <div className="flex-1 min-h-0 flex flex-col justify-between gap-1">
-                  {pageItems.map((item, itemIdx) => {
-                    if (item.type === 'session-header') {
-                      const isMorn = item.session === 'morning';
+              return (
+                <div key={pageIdx} className="print-page p-1 h-[198mm] max-h-[198mm] flex flex-col justify-between">
+                  {/* ── Page Header (Repeated on Every Physical Page, Thin Border, Zero Ink Waste) ── */}
+                  <div className="flex items-baseline justify-between border-b-2 border-black pb-0.5 mb-1 leading-none shrink-0 print-elder-bold">
+                    <div className="text-sm font-black tracking-wide text-black uppercase print-elder-bold">
+                      VEL FINANCE
+                      {isPageMorning && ' — காலை வசூல் (MORNING)'}
+                      {isPageEvening && ' — மாலை வசூல் (EVENING)'}
+                    </div>
+                    <div className="text-xs font-black text-black tracking-wider print-elder-bold">
+                      {targetDayLabel} — {formatDateDisplay(targetDate)}
+                    </div>
+                    <div className="text-xs font-black text-black border border-black bg-white px-2 py-0.5 rounded-sm print-elder-bold">
+                      PAGE {pageIdx + 1} OF {pages.length}
+                    </div>
+                  </div>
+
+                  {/* ── Page Content: Groups stretch evenly to fill 100% of page height (Zero blank space) ── */}
+                  <div className="flex-1 min-h-0 flex flex-col justify-between gap-1">
+                    {pageItems.map((item) => {
+                      const group = item.group;
+                      const groupMembers = item.members || [];
+                      const weeklyInstallment = group.weekly_installment || group.scheme?.weekly_installment || 760;
+                      const groupTarget = (group.member_count || groupMembers.length || 5) * weeklyInstallment;
+
                       return (
                         <div
-                          key={`sess-${itemIdx}`}
-                          className="bg-black text-white font-black text-[11px] px-2.5 py-1 rounded-sm flex items-center justify-between uppercase tracking-wider shrink-0 print-elder-bold"
+                          key={group.id}
+                          className="print-avoid-break flex-1 min-h-0 border-2 border-black rounded-sm bg-white text-black py-0.5 px-1.5 flex items-stretch gap-1.5 leading-tight"
                         >
-                          <div className="flex items-center gap-2">
-                            <span>{isMorn ? '☀️' : '🌙'}</span>
-                            <span>
-                              {isMorn
-                                ? `காலை வசூல் (MORNING SESSION) — ${item.groupCount} குழுக்கள்`
-                                : `மாலை வசூல் (EVENING SESSION) — ${item.groupCount} குழுக்கள்`}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    const group = item.group!;
-                    const groupMembers = item.members || [];
-                    const weeklyInstallment = group.scheme?.weekly_installment || 760;
-                    const groupTarget = (group.member_count || groupMembers.length || 5) * weeklyInstallment;
-
-                    return (
-                      <div
-                        key={group.id}
-                        className="print-avoid-break flex-1 min-h-0 border-2 border-black rounded-sm bg-white text-black py-0.5 px-1.5 flex items-stretch gap-1.5 leading-tight"
-                      >
-                        {/* ── Left Column: Group & Place Info (~14% width) ── */}
-                        <div className="w-[14%] shrink-0 border-r-2 border-black pr-1.5 flex flex-col justify-between">
-                          <div>
-                            <div className="font-black text-[11.5px] text-black leading-tight line-clamp-2 print-elder-bold">
+                          {/* ── Left Column: Group Name Only (~13% width, Location Removed per Req 2) ── */}
+                          <div className="w-[13%] shrink-0 border-r-2 border-black pr-1.5 flex flex-col justify-center">
+                            <div className="font-black text-[12px] text-black leading-tight line-clamp-2 print-elder-bold">
                               #{item.groupIndex}. {group.group_name}
                             </div>
-                            <div className="text-[10px] text-black font-extrabold mt-0.5 truncate">
-                              {group.location}
-                            </div>
                           </div>
-                          <div className="mt-auto text-[10px] flex items-center justify-between border-t border-black pt-0.5 shrink-0">
-                            <span className="font-extrabold text-black print-elder-bold">இலக்கு:</span>
-                            <span className="font-black text-[11px] text-black print-elder-bold">
+
+                          {/* ── Center Column: Dynamic Member Columns (~74% width) ── */}
+                          <div className="w-[74%] flex flex-row gap-1 items-stretch">
+                            {groupMembers.length === 0 ? (
+                              <div className="flex-1 flex items-center justify-center text-gray-400 font-bold text-[10px] italic border-2 border-dashed border-gray-300">
+                                <span>காலி</span>
+                              </div>
+                            ) : (
+                              groupMembers.map((member, slotIdx) => {
+                                const isLargeGroup = groupMembers.length >= 7;
+                                const isMediumGroup = groupMembers.length === 6;
+                                const nameTextSize = isLargeGroup ? 'text-[10px]' : isMediumGroup ? 'text-[11px]' : 'text-[11.5px]';
+                                const amountTextSize = isLargeGroup ? 'text-[10px]' : 'text-[11px]';
+                                const weekNum = (member.weeks_paid ?? 0) + 1;
+                                const weekBadgeText = isLargeGroup ? `W${weekNum}` : `Week ${weekNum}`;
+
+                                return (
+                                  <div
+                                    key={member.id || `member-${slotIdx}`}
+                                    className="flex-1 min-w-0 border-2 border-black rounded-sm px-1 py-0.5 flex flex-col justify-between bg-white overflow-hidden"
+                                  >
+                                    <div
+                                      className={`font-black ${nameTextSize} leading-[1.15] text-black break-words print-elder-bold`}
+                                      style={{
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden',
+                                      }}
+                                      title={member.member_name}
+                                    >
+                                      {slotIdx + 1}. {member.member_name}
+                                    </div>
+                                    <div className="mt-auto pt-0.5 flex items-center justify-between border-t border-black shrink-0">
+                                      <div className="flex items-center gap-1 min-w-0">
+                                        <span className="w-3.5 h-3.5 border-2 border-black inline-block rounded-xs bg-white shrink-0" />
+                                        <span className={`font-black ${amountTextSize} text-black shrink-0 print-elder-bold`}>
+                                          ₹{formatAmount(member.weekly_installment || weeklyInstallment)}
+                                        </span>
+                                      </div>
+                                      {member.weeks_paid !== undefined && (
+                                        <span className="text-[10.5px] font-black text-black bg-gray-100 border-1.5 border-black px-1.5 py-0.2 rounded-xs shrink-0 print-elder-bold">
+                                          {weekBadgeText}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          {/* ── Right Column: Group Total Target Amount (~13% width, Replaces Sign/Amt per Req 2) ── */}
+                          <div className="w-[13%] shrink-0 border-l-2 border-black pl-1.5 flex flex-col justify-center items-center text-center">
+                            <span className="text-[9px] font-black text-black uppercase tracking-wider print-elder-bold">
+                              மொத்த இலக்கு
+                            </span>
+                            <span className="text-[13.5px] font-black text-black print-elder-bold tracking-tight mt-0.5">
                               {formatCurrency(groupTarget)}
                             </span>
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
 
-                        {/* ── Center Column: Dynamic Member Columns (~74% width: generous space for 7 members) ── */}
-                        <div className="w-[74%] flex flex-row gap-1 items-stretch">
-                          {groupMembers.length === 0 ? (
-                            <div className="flex-1 flex items-center justify-center text-gray-400 font-bold text-[10px] italic border-2 border-dashed border-gray-300">
-                              <span>காலி</span>
-                            </div>
-                          ) : (
-                            groupMembers.map((member, slotIdx) => {
-                              const isLargeGroup = groupMembers.length >= 7;
-                              const isMediumGroup = groupMembers.length === 6;
-                              const nameTextSize = isLargeGroup ? 'text-[10.5px]' : isMediumGroup ? 'text-[11px]' : 'text-[11.5px]';
-                              const amountTextSize = isLargeGroup ? 'text-[10.5px]' : 'text-[11px]';
-                              const badgeTextSize = isLargeGroup ? 'text-[8.5px]' : 'text-[9px]';
-
-                              return (
-                                <div
-                                  key={member.id || `member-${slotIdx}`}
-                                  className="flex-1 min-w-0 border-2 border-black rounded-sm px-1 py-0.5 flex flex-col justify-between bg-white overflow-hidden"
-                                >
-                                  <div
-                                    className={`font-black ${nameTextSize} leading-[1.15] text-black break-words print-elder-bold`}
-                                    style={{
-                                      display: '-webkit-box',
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: 'vertical',
-                                      overflow: 'hidden',
-                                    }}
-                                    title={member.member_name}
-                                  >
-                                    {slotIdx + 1}. {member.member_name}
-                                  </div>
-                                  <div className="mt-auto pt-0.5 flex items-center justify-between border-t border-black shrink-0">
-                                    <div className="flex items-center gap-1 min-w-0">
-                                      <span className="w-3.5 h-3.5 border-2 border-black inline-block rounded-xs bg-white shrink-0" />
-                                      <span className={`font-black ${amountTextSize} text-black shrink-0 print-elder-bold`}>
-                                        ₹{formatAmount(member.weekly_installment || weeklyInstallment)}
-                                      </span>
-                                    </div>
-                                    {member.weeks_paid !== undefined && (
-                                      <span className={`${badgeTextSize} font-black text-black bg-gray-200 border border-black px-1 rounded-xs shrink-0`}>
-                                        W{member.weeks_paid + 1}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })
-                          )}
+                  {/* ── Page Footer on the Final Page (White background to save toner) ── */}
+                  {pageIdx === pages.length - 1 && (
+                    <div className="print-avoid-break mt-1 pt-1 border-t-2 border-black shrink-0">
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold border-2 border-black p-1 bg-white text-black">
+                        <div>
+                          <span className="text-[10px] font-bold text-black block print-elder-bold">மொத்த குழுக்கள்</span>
+                          <span className="text-sm font-black text-black print-elder-bold">{activeGroups.length}</span>
                         </div>
-
-                        {/* ── Right Column: Collector Sign Box (~12% width) ── */}
-                        <div className="w-[12%] shrink-0 border-l-2 border-black pl-1.5 flex flex-col justify-between text-[10px]">
-                          <div className="space-y-0.5">
-                            <div className="flex items-center justify-between">
-                              <span className="font-black text-black print-elder-bold">வசூல்:</span>
-                              <span className="font-black text-black text-[11px] print-elder-bold">₹ ______</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="font-black text-black print-elder-bold">ஒப்பம்:</span>
-                              <span className="font-bold text-black print-elder-bold">________</span>
-                            </div>
-                          </div>
-                          <div className="text-right text-[9.5px] font-black text-black uppercase mt-auto shrink-0 print-elder-bold">
-                            {item.session === 'morning' ? 'காலை' : 'மாலை'}
-                          </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-black block print-elder-bold">உண்மையான வசூல் தொகை</span>
+                          <span className="text-sm font-black text-black print-elder-bold">₹ ______________</span>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* ── Page Footer on the Final Page ── */}
-                {pageIdx === pages.length - 1 && (
-                  <div className="print-avoid-break mt-1 pt-1 border-t-4 border-black shrink-0">
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold border-2 border-black p-1 bg-gray-100 text-black">
-                      <div>
-                        <span className="text-[10px] font-bold text-black block print-elder-bold">மொத்த குழுக்கள்</span>
-                        <span className="text-sm font-black text-black print-elder-bold">{activeGroups.length}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-black block print-elder-bold">உண்மையான வசூல் தொகை</span>
-                        <span className="text-sm font-black text-black print-elder-bold">₹ ______________</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-black block print-elder-bold">வசூலிப்பாளர் / மேலாளர் கையொப்பம்</span>
-                        <span className="text-sm font-black text-black print-elder-bold">___________________</span>
+                        <div>
+                          <span className="text-[10px] font-bold text-black block print-elder-bold">வசூலிப்பாளர் / மேலாளர் கையொப்பம்</span>
+                          <span className="text-sm font-black text-black print-elder-bold">___________________</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>,
           document.body,
         )}

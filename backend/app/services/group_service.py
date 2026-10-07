@@ -9,6 +9,11 @@ from fastapi import HTTPException
 from supabase import Client
 
 from app.core.business_week import get_business_week
+from app.core.finance_calc import (
+    get_effective_weekly_installment,
+    load_overrides,
+    set_group_override,
+)
 from app.schemas.group import (
     GroupCreate,
     GroupStatus,
@@ -36,6 +41,7 @@ class GroupService:
 
     def __init__(self, db: Client):
         self.db = db
+        load_overrides(self.db)
 
     def suggest_next_group_name(self, location: str) -> dict:
         """
@@ -76,6 +82,27 @@ class GroupService:
             "suggested_name": suggested_name,
             "next_number": next_number,
         }
+
+    def get_distinct_locations(self) -> list[str]:
+        """
+        Returns a sorted list of unique locations currently present in the groups table.
+        Used to provide autocomplete suggestions when creating or updating groups.
+        """
+        try:
+            response = self.db.table("groups").select("location").execute()
+            rows = response.data or []
+        except Exception as e:
+            logger.error("Failed to query locations for autocomplete: %s", e)
+            return []
+
+        seen: set[str] = set()
+        locations: list[str] = []
+        for r in rows:
+            loc = (r.get("location") or "").strip()
+            if loc and loc.lower() not in seen:
+                seen.add(loc.lower())
+                locations.append(loc)
+        return sorted(locations, key=lambda s: s.lower())
 
     def get_groups(
         self,
@@ -174,6 +201,9 @@ class GroupService:
             if isinstance(data.status, GroupStatus)
             else (data.status or GroupStatus.ACTIVE.value)
         )
+        eff_installment = get_effective_weekly_installment(
+            {"weekly_installment": data.weekly_installment}, scheme
+        )
         insert_data = {
             "location": data.location,
             "scheme_id": str(data.scheme_id),
@@ -182,6 +212,7 @@ class GroupService:
             "funding_source": data.funding_source or "Recycled Collections",
             "recycled_sub_type": data.recycled_sub_type or "Fully Recycled",
             "owner_investment_amount": float(owner_amt),
+            "weekly_installment": float(eff_installment),
             "remarks": data.remarks,
             "status": desired_status,
         }
@@ -190,6 +221,8 @@ class GroupService:
             response = self.db.table("groups").insert(insert_data).execute()
         except Exception as e:
             err_msg = str(e).lower()
+            if "weekly_installment" in err_msg:
+                insert_data.pop("weekly_installment", None)
             if "recycled_sub_type" in err_msg or "owner_investment_amount" in err_msg:
                 insert_data.pop("recycled_sub_type", None)
                 insert_data.pop("owner_investment_amount", None)
@@ -199,6 +232,8 @@ class GroupService:
             elif "funding_source" in err_msg:
                 insert_data.pop("funding_source", None)
                 response = self.db.table("groups").insert(insert_data).execute()
+            elif "weekly_installment" in err_msg:
+                response = self.db.table("groups").insert(insert_data).execute()
             else:
                 raise
 
@@ -207,6 +242,8 @@ class GroupService:
 
         new_group = response.data[0]
         new_group["scheme"] = scheme
+        if eff_installment:
+            set_group_override(str(new_group["id"]), eff_installment, self.db)
         self._enrich_dynamic_fields(new_group)
 
         # 5. Automatically create investment entry if extra owner cash was introduced
@@ -402,6 +439,12 @@ class GroupService:
         if "owner_investment_amount" in update_dict and update_dict["owner_investment_amount"] is not None:
             update_dict["owner_investment_amount"] = float(update_dict["owner_investment_amount"])
 
+        eff_installment_override = None
+        if "weekly_installment" in update_dict and update_dict["weekly_installment"] is not None:
+            eff_installment_override = Decimal(str(update_dict["weekly_installment"]))
+            set_group_override(str(group_id), eff_installment_override, self.db)
+            update_dict["weekly_installment"] = float(eff_installment_override)
+
         try:
             response = (
                 self.db.table("groups")
@@ -411,20 +454,21 @@ class GroupService:
             )
         except Exception as e:
             err_msg = str(e).lower()
+            if "weekly_installment" in err_msg:
+                update_dict.pop("weekly_installment", None)
             if "recycled_sub_type" in err_msg or "owner_investment_amount" in err_msg or "funding_source" in err_msg:
                 update_dict.pop("recycled_sub_type", None)
                 update_dict.pop("owner_investment_amount", None)
                 update_dict.pop("funding_source", None)
-                if not update_dict:
-                    return current_group
-                response = (
-                    self.db.table("groups")
-                    .update(update_dict)
-                    .eq("id", str(group_id))
-                    .execute()
-                )
-            else:
-                raise
+            if not update_dict:
+                current_group["weekly_installment"] = eff_installment_override or current_group.get("weekly_installment")
+                return current_group
+            response = (
+                self.db.table("groups")
+                .update(update_dict)
+                .eq("id", str(group_id))
+                .execute()
+            )
 
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to update group")
@@ -432,6 +476,8 @@ class GroupService:
         updated_group = response.data[0]
         updated_group["scheme"] = current_group.get("scheme")
         self._enrich_dynamic_fields(updated_group)
+        if eff_installment_override:
+            updated_group["weekly_installment"] = eff_installment_override
 
         # Sync linked investment record
         s_date_str = updated_group.get("start_date")
@@ -648,6 +694,8 @@ class GroupService:
             group["owner_investment_amount"] = Decimal("0.00")
         else:
             group["owner_investment_amount"] = Decimal(str(group["owner_investment_amount"]))
+
+        group["weekly_installment"] = get_effective_weekly_installment(group, scheme, self.db)
 
 
 def get_group_service(db: Client) -> GroupService:

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, Zap } from 'lucide-react';
 import { PageContainer } from '@/components/common/PageContainer';
 import { Button } from '@/components/ui/Button';
 import { Toast } from '@/components/ui/Toast';
@@ -13,6 +13,7 @@ import {
   CollectionSummaryCards,
   CollectionFilters,
   RecordPaymentModal,
+  RecordWholeWeekModal,
   CollectionDetailsModal,
   useCollections,
   useWeeklyCollectionSummary,
@@ -37,6 +38,7 @@ export function CollectionsPage() {
 
   // Modal States
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  const [isRecordWholeWeekModalOpen, setIsRecordWholeWeekModalOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
 
   // Queries
@@ -88,7 +90,7 @@ export function CollectionsPage() {
             {t('collections.subtitle')}
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           <Button
             variant="ghost"
             size="sm"
@@ -103,6 +105,16 @@ export function CollectionsPage() {
             <span className="ml-1.5 text-xs text-secondary-600 font-medium">
               {t('common.refresh')}
             </span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setIsRecordWholeWeekModalOpen(true)}
+            leftIcon={<Zap className="h-4 w-4 text-emerald-300" />}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+            aria-label="Record Whole Week Collection"
+          >
+            Record Whole Week
           </Button>
 
           <Button
@@ -161,6 +173,21 @@ export function CollectionsPage() {
               message: 'Payment Recorded',
               description: `Week ${week} • ${memberName} • ${formatCurrency(amount)}`,
             });
+          }}
+        />
+      )}
+
+      {/* ── Record Whole Week Modal (One-click batch collection) ───────────────── */}
+      {isRecordWholeWeekModalOpen && (
+        <RecordWholeWeekModal
+          isOpen={isRecordWholeWeekModalOpen}
+          onClose={() => setIsRecordWholeWeekModalOpen(false)}
+          onSuccess={(result) => {
+            setSuccessToast({
+              message: `Week ${result.business_week} Collections Recorded!`,
+              description: `${result.total_recorded} payments successfully recorded (${formatCurrency(Number(result.total_amount))}).`,
+            });
+            refetchCollections();
           }}
         />
       )}

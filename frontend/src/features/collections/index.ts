@@ -8,4 +8,5 @@ export * from './components/CollectionTable';
 export * from './components/CollectionCard';
 export * from './components/CollectionList';
 export * from './components/RecordPaymentModal';
+export * from './components/RecordWholeWeekModal';
 export * from './components/CollectionDetailsModal';

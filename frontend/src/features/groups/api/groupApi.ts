@@ -43,6 +43,11 @@ export const groupApi = {
     return data.data;
   },
 
+  getLocations: async (): Promise<string[]> => {
+    const { data } = await httpClient.get<ApiResponse<string[]>>('/groups/locations');
+    return data.data;
+  },
+
   createGroup: async (payload: GroupCreate): Promise<Group> => {
     const { data } = await httpClient.post<ApiResponse<Group>>('/groups', payload);
     return data.data;

@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useSchemes } from '@/features/schemes/hooks/useSchemes';
-import { useCreateGroup, useSuggestGroupName } from '../hooks/useGroups';
+import { useCreateGroup, useSuggestGroupName, useLocations } from '../hooks/useGroups';
 import type { GroupCreate } from '../types';
 import type { ApiError } from '@/types/common';
 import { cn } from '@/lib/cn';
-import { Sparkles, X, CheckCircle2 } from 'lucide-react';
+import { Sparkles, X, CheckCircle2, MapPin, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 
 interface GroupFormModalProps {
@@ -20,9 +20,23 @@ interface GroupFormModalProps {
 
 export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalProps) {
   const { data: schemes = [], isLoading: isLoadingSchemes } = useSchemes();
+  const { data: existingLocations = [] } = useLocations();
   const { mutateAsync: createGroup, isPending: isCreating } = useCreateGroup();
   const [apiError, setApiError] = useState<string | null>(null);
   const [isActive, setIsActive] = useState<boolean>(true);
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const locationWrapperRef = useRef<HTMLDivElement>(null);
+
+  // Close location autocomplete when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (locationWrapperRef.current && !locationWrapperRef.current.contains(event.target as Node)) {
+        setIsLocationDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -47,6 +61,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
       location: '',
       group_name: '',
       scheme_id: '',
+      weekly_installment: 760,
       start_date: new Date().toISOString().split('T')[0],
       funding_source: 'Recycled Collections',
       recycled_sub_type: 'Fully Recycled',
@@ -57,8 +72,29 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
 
   const watchedLocation = watch('location');
   const watchedSchemeId = watch('scheme_id');
+  const watchedStartDate = watch('start_date');
   const watchedFundingSource = watch('funding_source') || 'Recycled Collections';
   const watchedRecycledSubType = watch('recycled_sub_type') || 'Fully Recycled';
+
+  const collectionDayInfo = useMemo(() => {
+    if (!watchedStartDate) return null;
+    try {
+      const [y, m, d] = watchedStartDate.split('-').map(Number);
+      if (!y || !m || !d) return null;
+      const day = new Date(y, m - 1, d).getDay();
+      const daysTa = ['ஞாயிற்றுக்கிழமை', 'திங்கட்கிழமை', 'செவ்வாய்க்கிழமை', 'புதன்கிழமை', 'வியாழக்கிழமை', 'வெள்ளிக்கிழமை', 'சனிக்கிழமை'];
+      const daysEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      return { nameTa: daysTa[day], nameEn: daysEn[day] };
+    } catch {
+      return null;
+    }
+  }, [watchedStartDate]);
+
+  const filteredLocations = useMemo(() => {
+    const term = (watchedLocation || '').toLowerCase().trim();
+    if (!term) return existingLocations;
+    return existingLocations.filter((loc) => loc.toLowerCase().includes(term));
+  }, [existingLocations, watchedLocation]);
 
   // Query suggested running group name from backend helper endpoint
   const { data: suggestion, isFetching: isSuggesting } = useSuggestGroupName(
@@ -72,6 +108,16 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
       setValue('group_name', suggestion.suggested_name);
     }
   }, [suggestion, setValue]);
+
+  // Find selected active scheme configuration for informational display
+  const selectedScheme = schemes.find((s) => s.id === watchedSchemeId);
+
+  // Pre-fill weekly installment when user selects a scheme
+  useEffect(() => {
+    if (selectedScheme?.weekly_installment) {
+      setValue('weekly_installment', Number(selectedScheme.weekly_installment));
+    }
+  }, [selectedScheme, setValue]);
 
   const handleClose = () => {
     reset();
@@ -105,6 +151,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
         location: data.location.trim(),
         scheme_id: data.scheme_id,
         group_name: data.group_name?.trim() || undefined,
+        weekly_installment: data.weekly_installment ? Number(data.weekly_installment) : undefined,
         start_date: data.start_date || undefined,
         funding_source: data.funding_source || 'Recycled Collections',
         recycled_sub_type: data.funding_source === 'Recycled Collections'
@@ -123,9 +170,6 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
       setApiError(apiErr.message || 'An error occurred while creating the group.');
     }
   };
-
-  // Find selected active scheme configuration for informational display
-  const selectedScheme = schemes.find((s) => s.id === watchedSchemeId);
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -223,17 +267,74 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
             </button>
           </div>
 
-          {/* Location Input */}
-          <Input
-            id="group_location"
-            label="Location *"
-            placeholder="e.g. PTM, TNK, ABC"
-            {...register('location', {
-              required: 'Location is required',
-              maxLength: 100,
-            })}
-            errorMessage={errors.location?.message}
-          />
+          {/* Location Input with Autocomplete Suggestions */}
+          <div ref={locationWrapperRef} className="relative z-30">
+            <Input
+              id="group_location"
+              label="Location *"
+              placeholder="e.g. PTM, TNK, ABC"
+              autoComplete="off"
+              {...register('location', {
+                required: 'Location is required',
+                maxLength: 100,
+              })}
+              onFocus={() => setIsLocationDropdownOpen(true)}
+              onClick={() => setIsLocationDropdownOpen(true)}
+              rightElement={
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-label="Toggle location suggestions"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsLocationDropdownOpen((prev) => !prev);
+                  }}
+                  className="p-1 hover:text-secondary-700 text-secondary-400 transition-colors focus:outline-none"
+                >
+                  <ChevronDown
+                    className={cn(
+                      'w-4 h-4 transition-transform duration-200',
+                      isLocationDropdownOpen && 'rotate-180 text-primary-600'
+                    )}
+                  />
+                </button>
+              }
+              errorMessage={errors.location?.message}
+            />
+
+            {/* Interactive Suggestions Popover */}
+            {isLocationDropdownOpen && (
+              <div className="absolute left-0 right-0 top-full mt-1 z-50 max-h-52 overflow-y-auto rounded-xl border border-border bg-surface shadow-2xl py-1 text-sm animate-in fade-in-50 zoom-in-95 duration-100">
+                {filteredLocations.length > 0 ? (
+                  <>
+                    <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-secondary-400 border-b border-border/60 flex items-center justify-between">
+                      <span>Existing Locations ({filteredLocations.length})</span>
+                      <span className="text-[10px] lowercase font-normal text-secondary-400">click to pick</span>
+                    </div>
+                    {filteredLocations.map((loc) => (
+                      <button
+                        key={loc}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // keep input focused
+                          setValue('location', loc, { shouldValidate: true });
+                          setIsLocationDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-primary-50 hover:text-primary-900 transition-colors flex items-center gap-2 text-secondary-800"
+                      >
+                        <MapPin className="w-3.5 h-3.5 text-secondary-400 shrink-0" />
+                        <span className="font-medium">{loc}</span>
+                      </button>
+                    ))}
+                  </>
+                ) : (
+                  <div className="px-3 py-2.5 text-xs text-secondary-500">
+                    New location: <span className="font-semibold text-secondary-800">"{watchedLocation}"</span> (will be saved with this group)
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Scheme Selection */}
           <div className="flex flex-col gap-1.5">
@@ -268,32 +369,50 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
             )}
           </div>
 
-          {/* Read-only Scheme Financial Details */}
+          {/* Read-only Scheme Financial Details & Editable Weekly Installment */}
           {selectedScheme && (
-            <div className="rounded-lg bg-secondary-50 p-3 border border-border">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Loan</span>
-                  <span className="font-semibold text-secondary-900">{formatMoney(selectedScheme.loan_amount)}</span>
-                </div>
-                <div>
-                  <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Installment</span>
-                  <span className="font-semibold text-secondary-900">{formatMoney(selectedScheme.weekly_installment)}/wk</span>
-                </div>
-                <div>
-                  <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Duration</span>
-                  <span className="font-semibold text-secondary-900">{selectedScheme.total_weeks} Weeks</span>
-                </div>
-                <div>
-                  <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Note Cost</span>
-                  <span className="font-semibold text-secondary-900">{formatMoney(selectedScheme.note_cost)}</span>
+            <div className="space-y-3">
+              <div className="rounded-lg bg-secondary-50 p-3 border border-border">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Loan</span>
+                    <span className="font-semibold text-secondary-900">{formatMoney(selectedScheme.loan_amount)}</span>
+                  </div>
+                  <div>
+                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Scheme Default</span>
+                    <span className="font-semibold text-secondary-900">{formatMoney(selectedScheme.weekly_installment)}/wk</span>
+                  </div>
+                  <div>
+                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Duration</span>
+                    <span className="font-semibold text-secondary-900">{selectedScheme.total_weeks} Weeks</span>
+                  </div>
+                  <div>
+                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Note Cost</span>
+                    <span className="font-semibold text-secondary-900">{formatMoney(selectedScheme.note_cost)}</span>
+                  </div>
                 </div>
               </div>
+
+              {/* Configurable Per-Group Weekly Installment */}
+              <Input
+                id="group_weekly_installment"
+                type="number"
+                step="any"
+                min="1"
+                label="Weekly Installment (₹) *"
+                placeholder="760"
+                helperText={`Default is ₹${selectedScheme.weekly_installment}/wk. If members pay ₹1000/wk to close early, enter 1000 here.`}
+                {...register('weekly_installment', {
+                  required: 'Weekly installment is required',
+                  min: { value: 1, message: 'Must be greater than 0' },
+                })}
+                errorMessage={errors.weekly_installment?.message}
+              />
             </div>
           )}
 
           {/* Group Name (Auto-suggested) */}
-          <div className="relative">
+          <div>
             <Input
               id="group_name"
               label="Group Name *"
@@ -319,16 +438,26 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
           </div>
 
           {/* Start Date */}
-          <Input
-            id="group_start_date"
-            type="date"
-            label="Start Date *"
-            required
-            {...register('start_date', {
-              required: 'Start date is required',
-            })}
-            errorMessage={errors.start_date?.message}
-          />
+          <div>
+            <Input
+              id="group_start_date"
+              type="date"
+              label="Start Date *"
+              required
+              {...register('start_date', {
+                required: 'Start date is required',
+              })}
+              errorMessage={errors.start_date?.message}
+            />
+            {collectionDayInfo && (
+              <div className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-md border border-primary-200">
+                <span>📅</span>
+                <span>
+                  வசூல் நாள் (Collection Day): {collectionDayInfo.nameTa} ({collectionDayInfo.nameEn})
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Funding Source (Section 8) */}
           <div className="flex flex-col gap-1.5">

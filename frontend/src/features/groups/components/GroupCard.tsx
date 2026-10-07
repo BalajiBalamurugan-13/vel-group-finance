@@ -113,8 +113,8 @@ export function GroupCard({
             <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400 truncate">
               Scheme
             </div>
-            <div className="text-xs font-semibold text-secondary-900 truncate mt-0.5">
-              {schemeName}
+            <div className="text-xs font-semibold text-secondary-900 truncate mt-0.5" title={`${schemeName} (₹${group.weekly_installment || group.scheme?.weekly_installment || 760}/wk)`}>
+              {schemeName} · ₹{group.weekly_installment || group.scheme?.weekly_installment || 760}
             </div>
           </div>
 

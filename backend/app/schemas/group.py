@@ -35,6 +35,7 @@ class GroupCreate(BaseModel):
     funding_source: Optional[str] = "Recycled Collections"
     recycled_sub_type: Optional[str] = "Fully Recycled"
     owner_investment_amount: Optional[Decimal] = Field(default=Decimal("0.00"), ge=0)
+    weekly_installment: Optional[Decimal] = Field(default=None, gt=0)
     status: Optional[GroupStatus] = GroupStatus.ACTIVE
     remarks: Optional[str] = None
 
@@ -86,6 +87,7 @@ class GroupUpdate(BaseModel):
     funding_source: Optional[str] = None
     recycled_sub_type: Optional[str] = None
     owner_investment_amount: Optional[Decimal] = Field(default=None, ge=0)
+    weekly_installment: Optional[Decimal] = Field(default=None, gt=0)
     remarks: Optional[str] = None
 
     model_config = {"extra": "forbid"}
@@ -167,6 +169,7 @@ class GroupResponse(BaseModel):
     remarks: Optional[str] = None
     member_count: int = 0
     total_group_amount: Decimal = Decimal("0.00")
+    weekly_installment: Optional[Decimal] = None
     scheme: Optional[GroupSchemeSummary] = None
     created_at: datetime
     updated_at: datetime

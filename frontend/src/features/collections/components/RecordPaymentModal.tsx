@@ -102,7 +102,7 @@ export function RecordPaymentModal({
     [groups, selectedGroupId]
   );
   const groupTotalWeeks = selectedGroup?.scheme?.total_weeks || 15;
-  const groupDefaultWeekly = Number(selectedGroup?.scheme?.weekly_installment || 760);
+  const groupDefaultWeekly = Number(selectedGroup?.weekly_installment || selectedGroup?.scheme?.weekly_installment || 760);
 
   // Fetch active members belonging strictly to the selected group
   const {
@@ -141,7 +141,14 @@ export function RecordPaymentModal({
     new Date().toISOString().split('T')[0]
   );
   const [batchRemarks, setBatchRemarks] = useState<string>('');
-  const [quickAmountInput, setQuickAmountInput] = useState<string>('760');
+  const [quickAmountInput, setQuickAmountInput] = useState<string>(String(groupDefaultWeekly || 760));
+
+  // Keep quickAmountInput in sync when selected group changes
+  useEffect(() => {
+    if (groupDefaultWeekly) {
+      setQuickAmountInput(String(groupDefaultWeekly));
+    }
+  }, [groupDefaultWeekly]);
 
   // When group members load, group changes, or modal opens, initialize batch member states
   useEffect(() => {
@@ -693,7 +700,7 @@ export function RecordPaymentModal({
                     const weeksPaid = member.weeks_paid || 0;
                     const isCompleted = weeksPaid >= groupTotalWeeks;
                     const nextWeek = memberWeeks[member.id] || weeksPaid + 1;
-                    const currentAmt = memberAmounts[member.id] ?? (member.weekly_installment || 760);
+                    const currentAmt = memberAmounts[member.id] ?? (member.weekly_installment || groupDefaultWeekly || 760);
 
                     return (
                       <div

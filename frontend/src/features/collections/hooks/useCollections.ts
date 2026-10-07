@@ -82,14 +82,13 @@ export function useRecordCollection() {
         });
       }
 
-      // Invalidate active collections, members, groups, and dashboard for immediate visual feedback
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY }),
-        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
-        queryClient.invalidateQueries({ queryKey: ['members'], refetchType: 'active' }),
-        queryClient.invalidateQueries({ queryKey: ['groups'], refetchType: 'active' }),
-      ]);
-      queryClient.invalidateQueries({ queryKey: ['profit'], refetchType: 'none' });
+      // Invalidate active collections, members, groups, and dashboard in background (non-blocking)
+      queryClient.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-collection-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['profit'] });
     },
   });
 }
@@ -99,7 +98,7 @@ export function useRecordBulkCollections() {
 
   return useMutation({
     mutationFn: collectionApi.recordBulkCollections,
-    onSuccess: async (_, variables) => {
+    onSuccess: (_, variables) => {
       // Optimistically update repayment progress in all members queries immediately
       if (variables && Array.isArray(variables)) {
         const itemMap = new Map(variables.map((it) => [it.member_id, it.week_number]));
@@ -128,14 +127,56 @@ export function useRecordBulkCollections() {
         });
       }
 
-      // Invalidate active collections, members, groups, and dashboard for complete server synchronization
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY }),
-        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
-        queryClient.invalidateQueries({ queryKey: ['members'], refetchType: 'active' }),
-        queryClient.invalidateQueries({ queryKey: ['groups'], refetchType: 'active' }),
-      ]);
-      queryClient.invalidateQueries({ queryKey: ['profit'], refetchType: 'none' });
+      // Invalidate in background for fast modal completion (<500ms)
+      queryClient.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-collection-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['profit'] });
+    },
+  });
+}
+
+export function useRecordWeekPreview(params?: { payment_date?: string; business_week?: number }) {
+  return useQuery({
+    queryKey: ['record-week-preview', params?.payment_date, params?.business_week],
+    queryFn: () => collectionApi.previewRecordWeek(params),
+    staleTime: 10 * 1000,
+  });
+}
+
+export function useRecordWholeWeek() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: collectionApi.recordWholeWeek,
+    onSuccess: (_result) => {
+      // Optimistically advance weeks_paid for all members in client cache immediately
+      queryClient.setQueriesData({ queryKey: ['members'] }, (oldData: any) => {
+        if (!oldData) return oldData;
+        if (Array.isArray(oldData)) {
+          return oldData.map((m: any) => {
+            if (m.status === 'Active') {
+              return {
+                ...m,
+                weeks_paid: (m.weeks_paid || 0) + 1,
+              };
+            }
+            return m;
+          });
+        }
+        return oldData;
+      });
+
+      // Invalidate active collections, dashboard, weekly summary, and members in background
+      queryClient.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-collection-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['record-week-preview'] });
+      queryClient.invalidateQueries({ queryKey: ['profit'] });
     },
   });
 }

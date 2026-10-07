@@ -13,8 +13,8 @@ interface UpdateMemberFormModalProps {
   member: Member | null;
   isOpen: boolean;
   onClose: () => void;
-  /** Called after successful update */
-  onSuccess?: () => void;
+  /** Called after successful update with member name */
+  onSuccess?: (memberName: string) => void;
 }
 
 export function UpdateMemberFormModal({
@@ -101,7 +101,8 @@ export function UpdateMemberFormModal({
           remarks: data.remarks?.trim() || undefined,
         },
       });
-      onSuccess?.();
+      const savedName = data.member_name?.trim() || member.member_name;
+      onSuccess?.(savedName);
       handleClose();
     } catch (err: unknown) {
       const apiErr = err as ApiError;

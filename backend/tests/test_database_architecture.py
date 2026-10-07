@@ -303,3 +303,19 @@ def test_migration_004_file_integrity():
     assert "v_groups_readable" in content
 
 
+def test_migration_006_file_integrity():
+    """Migration 006 file must exist and contain weekly_installment column definition and backfill."""
+    migration_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "supabase", "migrations", "006_per_group_weekly_installment.sql")
+    )
+    assert os.path.exists(migration_path), f"Migration 006 not found at {migration_path}"
+
+    with open(migration_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    assert "weekly_installment NUMERIC(12,2)" in content
+    assert "groups_weekly_installment_positive" in content
+    assert "UPDATE groups g" in content
+    assert "GRP-0022" in content
+
+

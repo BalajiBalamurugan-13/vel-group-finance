@@ -6,6 +6,9 @@ import type {
   BulkCollectionResponse,
   TodayCollectionSummary,
   WeeklyCollectionSummary,
+  RecordWeekPreviewResponse,
+  RecordWeekRequest,
+  RecordWeekResponse,
 } from '../types';
 
 export const collectionApi = {
@@ -71,6 +74,24 @@ export const collectionApi = {
 
   recordBulkCollections: async (items: CollectionCreate[]): Promise<BulkCollectionResponse> => {
     const { data } = await httpClient.post<ApiResponse<BulkCollectionResponse>>('/collections/bulk', { items });
+    return data.data;
+  },
+
+  previewRecordWeek: async (params?: {
+    payment_date?: string;
+    business_week?: number;
+  }): Promise<RecordWeekPreviewResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params?.payment_date) queryParams.append('payment_date', params.payment_date);
+    if (params?.business_week) queryParams.append('business_week', String(params.business_week));
+    const queryStr = queryParams.toString();
+    const url = `/collections/record-week/preview${queryStr ? `?${queryStr}` : ''}`;
+    const { data } = await httpClient.get<ApiResponse<RecordWeekPreviewResponse>>(url);
+    return data.data;
+  },
+
+  recordWholeWeek: async (payload: RecordWeekRequest): Promise<RecordWeekResponse> => {
+    const { data } = await httpClient.post<ApiResponse<RecordWeekResponse>>('/collections/record-week', payload);
     return data.data;
   },
 };

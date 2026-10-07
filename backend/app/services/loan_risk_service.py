@@ -23,6 +23,7 @@ from fastapi import HTTPException
 from supabase import Client
 
 from app.core.business_week import get_business_week, get_current_business_week
+from app.core.finance_calc import get_effective_weekly_installment
 from app.schemas.profit import LoanRiskMember, LoanRiskSummary
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,7 @@ class LoanRiskService:
         try:
             m_query = self.db.table("members").select(
                 "id, member_code, member_name, phone_number, joined_week, status, group_id, "
-                "group:groups(id, group_code, group_name, location, start_date, "
+                "group:groups(id, group_code, group_name, location, start_date, weekly_installment, "
                 "scheme:schemes(scheme_name, loan_amount, weekly_installment, total_weeks))"
             ).eq("status", "Active")
 
@@ -123,7 +124,7 @@ class LoanRiskService:
 
             mid = str(member["id"])
             cid = member_cycle_map.get(mid)
-            weekly_installment = Decimal(str(scheme.get("weekly_installment") or "0.00"))
+            weekly_installment = get_effective_weekly_installment(group, scheme)
             total_weeks = int(scheme.get("total_weeks") or 18)
             loan_amount = Decimal(str(scheme.get("loan_amount") or "10000.00"))
             joined_week = int(member.get("joined_week") or 1)

@@ -49,6 +49,17 @@ async def suggest_group_name(
     return SuccessResponse(message="Suggested group name generated.", data=suggestion)
 
 
+@router.get("/locations", response_model=SuccessResponse)
+async def list_locations(
+    service: GroupService = Depends(get_service),
+):
+    """
+    Get all distinct group locations for autocomplete suggestions.
+    """
+    locations = service.get_distinct_locations()
+    return SuccessResponse(message="Locations retrieved successfully.", data=locations)
+
+
 @router.get("/{group_id}", response_model=SuccessResponse)
 async def get_group(
     group_id: UUID,

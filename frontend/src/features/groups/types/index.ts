@@ -28,6 +28,7 @@ export interface Group {
   remarks: string | null;
   member_count: number;
   total_group_amount: number;
+  weekly_installment?: number;
   scheme?: GroupSchemeSummary;
   created_at: string;
   updated_at: string;
@@ -41,6 +42,7 @@ export interface GroupCreate {
   funding_source?: GroupFundingSource;
   recycled_sub_type?: RecycledSubType;
   owner_investment_amount?: number;
+  weekly_installment?: number;
   status?: GroupStatus;
   remarks?: string;
 }
@@ -52,6 +54,7 @@ export interface GroupUpdate {
   funding_source?: GroupFundingSource;
   recycled_sub_type?: RecycledSubType;
   owner_investment_amount?: number;
+  weekly_installment?: number;
   remarks?: string;
 }
 

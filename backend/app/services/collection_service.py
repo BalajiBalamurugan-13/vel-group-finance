@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from supabase import Client
 
 from app.core.business_week import get_business_week, get_week_date_range
+from app.core.finance_calc import get_effective_weekly_installment
 from app.schemas.collection import (
     CollectionCreate,
     CollectionResponse,
@@ -15,6 +16,10 @@ from app.schemas.collection import (
     PaymentStatus,
     TodayCollectionSummary,
     WeeklyCollectionSummary,
+    RecordWeekRequest,
+    RecordWeekResponse,
+    RecordWeekPreviewResponse,
+    RecordWeekGroupBreakdown,
 )
 from app.services.dashboard_service import invalidate_dashboard_cache
 
@@ -135,7 +140,7 @@ class CollectionService:
             raise HTTPException(status_code=404, detail="Loan scheme not found.")
 
         total_weeks = int(scheme["total_weeks"])
-        weekly_installment = Decimal(str(scheme["weekly_installment"]))
+        weekly_installment = get_effective_weekly_installment(group, scheme)
 
         # 3. Validate Week Number & Sequential Enforcement
         if data.week_number < 1 or data.week_number > total_weeks:
@@ -679,7 +684,7 @@ class CollectionService:
             gid = str(g["id"])
             active_count = active_members_by_group.get(gid, 0)
 
-            weekly_inst = Decimal(str(scheme["weekly_installment"]))
+            weekly_inst = get_effective_weekly_installment(g, scheme)
             total_weeks = int(scheme["total_weeks"])
             
             # Query all paid collections for this group
@@ -859,7 +864,7 @@ class CollectionService:
                 scheme = loan_cycle.get("scheme")
 
             if scheme:
-                weekly_inst = Decimal(str(scheme["weekly_installment"]))
+                weekly_inst = get_effective_weekly_installment(group, scheme)
                 total_weeks = int(scheme["total_weeks"])
                 item["weekly_installment"] = weekly_inst
                 item["total_weeks"] = total_weeks
@@ -896,7 +901,7 @@ class CollectionService:
             item["group_name"] = group.get("group_name")
             item["location"] = group.get("location")
         if scheme:
-            weekly_inst = Decimal(str(scheme["weekly_installment"]))
+            weekly_inst = get_effective_weekly_installment(group, scheme)
             total_weeks = int(scheme["total_weeks"])
             item["weekly_installment"] = weekly_inst
             item["total_weeks"] = total_weeks
@@ -933,6 +938,340 @@ class CollectionService:
     def _enrich_collection_joined(self, collection: dict) -> dict:
         """Legacy helper delegating to _enrich_collections_batch."""
         return self._enrich_collections_batch([collection])[0]
+
+    def preview_whole_week_collections(
+        self,
+        payment_date: Optional[date] = None,
+        business_week: Optional[int] = None,
+        group_ids: Optional[list[UUID]] = None,
+    ) -> dict:
+        """
+        Pre-computes weekly collections breakdown and pending amounts for a selected target date / week.
+        Identifies active members who have not yet paid for this business week.
+        """
+        target_date = payment_date or date.today()
+        bw = business_week if business_week is not None else get_business_week(target_date)
+        w_start, w_end = get_week_date_range(bw)
+
+        # 1. Fetch active groups
+        group_query = (
+            self.db.table("groups")
+            .select("id, group_name, location, status, scheme:schemes(*)")
+            .eq("status", "Active")
+        )
+        if group_ids:
+            group_query = group_query.in_("id", [str(gid) for gid in group_ids])
+        groups_res = group_query.order("group_name").execute()
+        active_groups = groups_res.data or []
+        group_map = {str(g["id"]): g for g in active_groups}
+        active_gids = list(group_map.keys())
+
+        if not active_gids:
+            return {
+                "business_week": bw,
+                "target_date": target_date,
+                "week_start_date": w_start,
+                "week_end_date": w_end,
+                "total_active_members": 0,
+                "eligible_members_count": 0,
+                "already_paid_count": 0,
+                "total_expected_amount": Decimal("0.00"),
+                "total_pending_amount": Decimal("0.00"),
+                "total_already_paid_amount": Decimal("0.00"),
+                "groups": [],
+            }
+
+        # 2. Fetch active members
+        members_res = (
+            self.db.table("members")
+            .select("id, member_name, phone_number, group_id, status")
+            .eq("status", "Active")
+            .in_("group_id", active_gids)
+            .execute()
+        )
+        active_members = members_res.data or []
+        active_mids = [str(m["id"]) for m in active_members]
+
+        # 3. Fetch latest active loan cycles
+        cycles_res = (
+            self.db.table("loan_cycles")
+            .select("id, member_id, cycle_number, status, scheme:schemes(*)")
+            .in_("member_id", active_mids)
+            .eq("status", "Active")
+            .order("cycle_number", desc=True)
+            .execute()
+        )
+        cycle_map = {}
+        for c in (cycles_res.data or []):
+            mid = str(c["member_id"])
+            if mid not in cycle_map:
+                cycle_map[mid] = c
+
+        active_cids = [str(c["id"]) for c in cycle_map.values()]
+
+        # 4. Fetch paid collections for these cycles
+        colls_map: dict[str, list[dict]] = {}
+        if active_cids:
+            colls_res = (
+                self.db.table("collections")
+                .select("id, member_id, loan_cycle_id, week_number, payment_date, amount_paid, payment_status")
+                .in_("loan_cycle_id", active_cids)
+                .eq("payment_status", "Paid")
+                .execute()
+            )
+            for cl in (colls_res.data or []):
+                mid = str(cl["member_id"])
+                colls_map.setdefault(mid, []).append(cl)
+
+        # 5. Evaluate eligibility & group breakdown
+        group_stats = {
+            gid: {
+                "group_id": gid,
+                "group_name": group_map[gid]["group_name"],
+                "location": group_map[gid].get("location"),
+                "active_members": 0,
+                "pending_members": 0,
+                "already_paid_members": 0,
+                "weekly_installment": get_effective_weekly_installment(group_map[gid], group_map[gid].get("scheme") or {}),
+                "pending_amount": Decimal("0.00"),
+                "paid_amount": Decimal("0.00"),
+            }
+            for gid in active_gids
+        }
+
+        total_expected_amount = Decimal("0.00")
+        total_pending_amount = Decimal("0.00")
+        total_already_paid_amount = Decimal("0.00")
+        eligible_count = 0
+        already_paid_count = 0
+
+        for m in active_members:
+            mid = str(m["id"])
+            gid = str(m["group_id"])
+            group = group_map.get(gid)
+            if not group:
+                continue
+
+            scheme = group.get("scheme") or {}
+            total_weeks = int(scheme.get("total_weeks") or 20)
+            weekly_inst = get_effective_weekly_installment(group, scheme)
+
+            m_cycle = cycle_map.get(mid)
+            if not m_cycle:
+                continue
+
+            c_list = colls_map.get(mid, [])
+            paid_weeks_count = len(c_list)
+
+            # Check if member already has a collection recorded in this business week
+            paid_this_week = any(
+                w_start.isoformat() <= str(c.get("payment_date")) <= w_end.isoformat()
+                for c in c_list
+            )
+
+            group_stats[gid]["active_members"] += 1
+            total_expected_amount += weekly_inst
+
+            if paid_this_week or paid_weeks_count >= total_weeks:
+                already_paid_count += 1
+                group_stats[gid]["already_paid_members"] += 1
+                group_stats[gid]["paid_amount"] += weekly_inst
+                total_already_paid_amount += weekly_inst
+            else:
+                eligible_count += 1
+                group_stats[gid]["pending_members"] += 1
+                group_stats[gid]["pending_amount"] += weekly_inst
+                total_pending_amount += weekly_inst
+
+        return {
+            "business_week": bw,
+            "target_date": target_date,
+            "week_start_date": w_start,
+            "week_end_date": w_end,
+            "total_active_members": len(active_members),
+            "eligible_members_count": eligible_count,
+            "already_paid_count": already_paid_count,
+            "total_expected_amount": total_expected_amount,
+            "total_pending_amount": total_pending_amount,
+            "total_already_paid_amount": total_already_paid_amount,
+            "groups": list(group_stats.values()),
+        }
+
+    def record_whole_week_collections(self, data: RecordWeekRequest) -> dict:
+        """
+        One-click atomic recording of collections for the whole business week.
+        Supports custom payment date (e.g., Sunday, Monday) and executes rapid batch inserts.
+        """
+        target_date = data.payment_date or date.today()
+        bw = data.business_week if data.business_week is not None else get_business_week(target_date)
+        w_start, w_end = get_week_date_range(bw)
+
+        # 1. Fetch active groups
+        group_query = (
+            self.db.table("groups")
+            .select("id, group_name, location, status, scheme:schemes(*)")
+            .eq("status", "Active")
+        )
+        if data.group_ids:
+            group_query = group_query.in_("id", [str(gid) for gid in data.group_ids])
+        groups_res = group_query.order("group_name").execute()
+        active_groups = groups_res.data or []
+        group_map = {str(g["id"]): g for g in active_groups}
+        active_gids = list(group_map.keys())
+
+        if not active_gids:
+            return {
+                "business_week": bw,
+                "payment_date": target_date,
+                "total_recorded": 0,
+                "total_amount": Decimal("0.00"),
+                "skipped_count": 0,
+                "errors": ["No active groups found."],
+            }
+
+        # 2. Fetch active members
+        members_res = (
+            self.db.table("members")
+            .select("id, member_name, phone_number, group_id, status")
+            .eq("status", "Active")
+            .in_("group_id", active_gids)
+            .execute()
+        )
+        active_members = members_res.data or []
+        active_mids = [str(m["id"]) for m in active_members]
+
+        # 3. Fetch active loan cycles
+        cycles_res = (
+            self.db.table("loan_cycles")
+            .select("id, member_id, cycle_number, status, scheme:schemes(*)")
+            .in_("member_id", active_mids)
+            .eq("status", "Active")
+            .order("cycle_number", desc=True)
+            .execute()
+        )
+        cycle_map = {}
+        for c in (cycles_res.data or []):
+            mid = str(c["member_id"])
+            if mid not in cycle_map:
+                cycle_map[mid] = c
+
+        active_cids = [str(c["id"]) for c in cycle_map.values()]
+
+        # 4. Fetch paid collections
+        colls_map: dict[str, list[dict]] = {}
+        if active_cids:
+            colls_res = (
+                self.db.table("collections")
+                .select("id, member_id, loan_cycle_id, week_number, payment_date, amount_paid, payment_status")
+                .in_("loan_cycle_id", active_cids)
+                .eq("payment_status", "Paid")
+                .execute()
+            )
+            for cl in (colls_res.data or []):
+                mid = str(cl["member_id"])
+                colls_map.setdefault(mid, []).append(cl)
+
+        # 5. Resolve default collector
+        collector_id = self._get_or_create_default_collector_id(data.collector_id)
+
+        # 6. Prepare insert rows
+        insert_rows = []
+        members_to_complete = []
+        skipped_count = 0
+        total_amount = Decimal("0.00")
+        errors = []
+
+        default_remarks = data.remarks or f"Business Week {bw} bulk collection"
+
+        for m in active_members:
+            mid = str(m["id"])
+            gid = str(m["group_id"])
+            group = group_map.get(gid)
+            if not group:
+                continue
+
+            scheme = group.get("scheme") or {}
+            total_weeks = int(scheme.get("total_weeks") or 20)
+            weekly_inst = get_effective_weekly_installment(group, scheme)
+
+            m_cycle = cycle_map.get(mid)
+            if not m_cycle:
+                errors.append(f"Member {m.get('member_name', mid)}: No active loan cycle")
+                continue
+
+            cid = str(m_cycle["id"])
+            c_list = colls_map.get(mid, [])
+            paid_weeks_count = len(c_list)
+
+            # Check duplicate in this business week
+            paid_this_week = any(
+                w_start.isoformat() <= str(c.get("payment_date")) <= w_end.isoformat()
+                for c in c_list
+            )
+            if paid_this_week:
+                skipped_count += 1
+                continue
+
+            next_week = paid_weeks_count + 1
+            if next_week > total_weeks:
+                skipped_count += 1
+                continue
+
+            insert_rows.append({
+                "loan_cycle_id": cid,
+                "member_id": mid,
+                "group_id": gid,
+                "collector_id": collector_id,
+                "week_number": next_week,
+                "payment_date": target_date.isoformat(),
+                "amount_paid": float(weekly_inst),
+                "payment_status": PaymentStatus.PAID.value,
+                "remarks": default_remarks,
+            })
+            total_amount += weekly_inst
+
+            if next_week >= total_weeks:
+                members_to_complete.append((mid, cid))
+
+        if not insert_rows:
+            return {
+                "business_week": bw,
+                "payment_date": target_date,
+                "total_recorded": 0,
+                "total_amount": Decimal("0.00"),
+                "skipped_count": skipped_count,
+                "errors": errors or ["All active members have already paid for this week."],
+            }
+
+        # 7. Execute batch inserts in chunks of 50
+        chunk_size = 50
+        total_inserted = 0
+        for i in range(0, len(insert_rows), chunk_size):
+            chunk = insert_rows[i : i + chunk_size]
+            res = self.db.table("collections").insert(chunk).execute()
+            if res.data:
+                total_inserted += len(res.data)
+            else:
+                logger.error("Failed to insert collection chunk %d-%d", i, i + len(chunk))
+
+        # 8. Mark completed members if any
+        for comp_mid, comp_cid in members_to_complete:
+            try:
+                self.db.table("members").update({"status": "Completed"}).eq("id", comp_mid).execute()
+                self.db.table("loan_cycles").update({"status": "Completed"}).eq("id", comp_cid).execute()
+            except Exception:
+                pass
+
+        invalidate_dashboard_cache()
+
+        return {
+            "business_week": bw,
+            "payment_date": target_date,
+            "total_recorded": total_inserted,
+            "total_amount": total_amount,
+            "skipped_count": skipped_count,
+            "errors": errors,
+        }
 
 
 def get_collection_service(db: Client) -> CollectionService:

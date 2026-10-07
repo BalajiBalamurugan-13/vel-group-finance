@@ -22,6 +22,7 @@ from fastapi import HTTPException
 from supabase import Client
 
 from app.core.business_week import get_business_week, get_week_date_range
+from app.core.finance_calc import get_effective_weekly_installment
 from app.schemas.dashboard import DashboardResponse, GroupLocationSummary, RecentCollection
 
 logger = logging.getLogger(__name__)
@@ -258,7 +259,7 @@ class DashboardService:
             # Fetch active loan cycles with their scheme data
             cycles_res = self._execute(
                 self.db.table("loan_cycles")
-                .select("id, member_id, scheme_id, status, scheme:schemes(weekly_installment, total_weeks)")
+                .select("id, member_id, group_id, scheme_id, status, scheme:schemes(weekly_installment, total_weeks)")
                 .eq("status", "Active")
             )
             cycles = cycles_res.data or []
@@ -285,7 +286,7 @@ class DashboardService:
                 scheme = cycle.get("scheme")
                 if not scheme:
                     continue
-                weekly_inst = Decimal(str(scheme["weekly_installment"]))
+                weekly_inst = Decimal(str(scheme.get("weekly_installment") or "0.00"))
                 total_weeks = int(scheme["total_weeks"])
                 paid_count = paid_counts.get(str(cycle["id"]), 0)
                 remaining = max(0, total_weeks - paid_count)
@@ -309,7 +310,7 @@ class DashboardService:
         try:
             g_res = self._execute(
                 self.db.table("groups")
-                .select("id, location, status, start_date, scheme:schemes(weekly_installment)")
+                .select("*, scheme:schemes(weekly_installment)")
             )
             groups = g_res.data or []
 
@@ -344,9 +345,9 @@ class DashboardService:
                         except Exception:
                             pass
 
-                    scheme = g.get("scheme")
-                    if scheme and scheme.get("weekly_installment") is not None:
-                        group_schemes[gid] = Decimal(str(scheme["weekly_installment"]))
+                    weekly_inst = get_effective_weekly_installment(g, g.get("scheme"))
+                    if weekly_inst > Decimal("0.00"):
+                        group_schemes[gid] = weekly_inst
 
             active_members = 0
             member_count_by_group: dict[str, int] = {}

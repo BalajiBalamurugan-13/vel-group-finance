@@ -52,7 +52,14 @@ export function useUpdateMember() {
 
   return useMutation({
     mutationFn: memberApi.updateMember,
-    onSuccess: (_, variables) => {
+    onSuccess: (_updatedData, variables) => {
+      // Optimistically update the member in any cached member lists immediately
+      queryClient.setQueriesData({ queryKey: MEMBERS_QUERY_KEY }, (oldData: unknown) => {
+        if (!oldData || !Array.isArray(oldData)) return oldData;
+        return oldData.map((m: Record<string, unknown>) =>
+          m.id === variables.id ? { ...m, ...variables.payload } : m
+        );
+      });
       queryClient.invalidateQueries({ queryKey: MEMBERS_QUERY_KEY });
       queryClient.invalidateQueries({
         queryKey: [...MEMBERS_QUERY_KEY, variables.id],

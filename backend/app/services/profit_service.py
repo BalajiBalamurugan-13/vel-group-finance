@@ -18,6 +18,7 @@ from app.core.business_week import (
     get_week_start_date,
     get_week_end_date,
 )
+from app.core.finance_calc import get_effective_weekly_installment
 from app.services.investment_service import InvestmentService
 from app.schemas.profit import (
     GroupCreationSummary,
@@ -113,7 +114,9 @@ class ProfitService:
                 continue
             cid = str(c["id"])
             loan_amt = Decimal(str(scheme.get("loan_amount") or "0.00"))
-            installment = Decimal(str(scheme.get("weekly_installment") or "0.00"))
+            gid = str(c.get("group_id") or "")
+            group_obj = {"id": gid} if gid else None
+            installment = get_effective_weekly_installment(group_obj, scheme, self.db)
             weeks = int(scheme.get("total_weeks") or 0)
             repayment = installment * Decimal(weeks)
             profit = repayment - loan_amt
@@ -289,7 +292,7 @@ class ProfitService:
         try:
             cycles_res = (
                 self.db.table("loan_cycles")
-                .select("id, start_date, created_at, scheme:schemes(loan_amount, weekly_installment, total_weeks)")
+                .select("id, start_date, created_at, group_id, scheme:schemes(loan_amount, weekly_installment, total_weeks)")
                 .execute()
             )
             cycles = cycles_res.data or []
@@ -306,7 +309,9 @@ class ProfitService:
             if not scheme:
                 continue
             loan_amt = Decimal(str(scheme.get("loan_amount") or "0.00"))
-            installment = Decimal(str(scheme.get("weekly_installment") or "0.00"))
+            gid = str(c.get("group_id") or "")
+            group_obj = {"id": gid} if gid else None
+            installment = get_effective_weekly_installment(group_obj, scheme, self.db)
             total_weeks = int(scheme.get("total_weeks") or 0)
             contractual_repayment = installment * Decimal(total_weeks)
             contractual_profit = contractual_repayment - loan_amt

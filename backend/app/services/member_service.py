@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from supabase import Client
 
+from app.core.finance_calc import get_effective_weekly_installment
 from app.schemas.member import (
     MemberCreate,
     MemberStatus,
@@ -144,7 +145,7 @@ class MemberService:
                 group = m.get("group") or {}
                 scheme = group.get("scheme") or {}
                 total_wks = int(scheme.get("total_weeks") or 0)
-                weekly_inst = Decimal(str(scheme.get("weekly_installment") or "0.00"))
+                weekly_inst = get_effective_weekly_installment(group, scheme)
                 remaining = max(0, total_wks - weeks_paid)
                 m["outstanding_amount"] = float(Decimal(remaining) * weekly_inst)
             else:
@@ -207,7 +208,7 @@ class MemberService:
             group = member.get("group") or {}
             scheme = group.get("scheme") or {}
             total_wks = int(scheme.get("total_weeks") or 0)
-            weekly_inst = Decimal(str(scheme.get("weekly_installment") or "0.00"))
+            weekly_inst = get_effective_weekly_installment(group, scheme)
             remaining = max(0, total_wks - weeks_paid)
             member["outstanding_amount"] = float(Decimal(remaining) * weekly_inst)
         else:
@@ -369,7 +370,16 @@ class MemberService:
         Update member profile (name, phone, address, photo, nominee, id_proof, remarks).
         group_id is immutable.
         """
-        current_member = self.get_member_by_id(member_id)
+        # Fast lookup of current member and group info (skips heavy loan_cycles/collections scans)
+        cur_res = (
+            self.db.table("members")
+            .select("id, phone_number, group_id, status, member_name, address, nominee, id_proof, remarks, group:groups(id, group_name, location, status, scheme:schemes(*))")
+            .eq("id", str(member_id))
+            .execute()
+        )
+        if not cur_res.data:
+            raise HTTPException(status_code=404, detail="Member not found")
+        current_member = cur_res.data[0]
 
         update_dict = data.model_dump(exclude_unset=True)
         if not update_dict:
@@ -378,7 +388,7 @@ class MemberService:
         # Check phone uniqueness if phone is changing
         if (
             "phone_number" in update_dict
-            and update_dict["phone_number"] != current_member["phone_number"]
+            and update_dict["phone_number"] != current_member.get("phone_number")
         ):
             new_phone = update_dict["phone_number"].strip()
             existing = (
@@ -410,8 +420,6 @@ class MemberService:
 
         updated_member = response.data[0]
         updated_member["group"] = current_member.get("group")
-        updated_member["current_cycle"] = current_member.get("current_cycle")
-        self._enrich_member_calculations(updated_member)
         return updated_member
 
     def update_member_status(
@@ -500,7 +508,7 @@ class MemberService:
                 member["scheme_name"] = scheme.get("scheme_name")
                 loan_amt = Decimal(str(scheme.get("loan_amount", "0.00")))
                 note_cst = Decimal(str(scheme.get("note_cost", "0.00")))
-                weekly_inst = Decimal(str(scheme.get("weekly_installment", "0.00")))
+                weekly_inst = get_effective_weekly_installment(group, scheme)
 
                 member["loan_amount"] = loan_amt
                 member["note_cost"] = note_cst

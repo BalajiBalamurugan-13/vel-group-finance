@@ -210,10 +210,10 @@ export function MembersPage() {
         member={editingMember}
         isOpen={Boolean(editingMember)}
         onClose={() => setEditingMember(null)}
-        onSuccess={() => {
+        onSuccess={(memberName) => {
           setSuccessToast({
-            message: 'Member Updated',
-            description: 'Member details saved successfully.',
+            message: 'Member Profile Saved',
+            description: `${memberName || 'Member'} details saved successfully.`,
           });
         }}
       />

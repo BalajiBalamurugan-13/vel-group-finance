@@ -1,25 +1,14 @@
+/* ── High-Contrast Tamil Fonts for Senior Readability ────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Mukta+Malar:wght@700;800&family=Noto+Sans+Tamil:wght@700;800;900&display=swap');
+
 /**
  * VEL Finance — Global Styles
  * ─────────────────────────────────────────────────────────────────────────────
  * This is the single CSS entry point.
- *
- * Load order:
- * 1. Tailwind v4 base styles
- * 2. Design tokens (CSS custom properties)
- * 3. Global resets and typography
- * 4. Scrollbar, selection, focus styles
- *
- * Tailwind v4 note:
- * - @import "tailwindcss" replaces the v3 @tailwind base/components/utilities directives.
- * - Custom tokens are registered in @theme{} to make them available as Tailwind utilities.
- * - No tailwind.config.ts file is used.
  */
 
 /* ── Tailwind v4 ──────────────────────────────────────────────────────────── */
 @import "tailwindcss";
-
-/* ── High-Contrast Tamil Fonts for Senior Readability ────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Mukta+Malar:wght@700;800&family=Noto+Sans+Tamil:wght@700;800;900&display=swap');
 
 /* ── Design Tokens ────────────────────────────────────────────────────────── */
 @import "./tokens.css";
@@ -123,6 +112,10 @@
  */
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility z-dropdown {
+  z-index: 100;
 }
 
 @utility z-sticky {
@@ -423,11 +416,11 @@
 /* ── Toast Notification ──────────────────────────────────────────────────── */
 .vel-toast {
   position: fixed;
-  top: 1rem;
+  top: 1.25rem;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 700; /* above modals */
-  max-width: 380px;
+  z-index: 9999; /* above all modals and layers */
+  max-width: 420px;
   width: calc(100% - 32px);
   pointer-events: auto;
 }

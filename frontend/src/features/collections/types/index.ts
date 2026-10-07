@@ -85,3 +85,45 @@ export interface CollectionFiltersState {
   to_date?: string;
   search?: string;
 }
+
+export interface RecordWeekGroupBreakdown {
+  group_id: string;
+  group_name: string;
+  location?: string | null;
+  active_members: number;
+  pending_members: number;
+  already_paid_members: number;
+  weekly_installment: number | string;
+  pending_amount: number | string;
+}
+
+export interface RecordWeekPreviewResponse {
+  business_week: number;
+  target_date: string;
+  week_start_date: string;
+  week_end_date: string;
+  total_active_members: number;
+  eligible_members_count: number;
+  already_paid_count: number;
+  total_expected_amount: number | string;
+  total_pending_amount: number | string;
+  total_already_paid_amount: number | string;
+  groups: RecordWeekGroupBreakdown[];
+}
+
+export interface RecordWeekRequest {
+  payment_date?: string;
+  business_week?: number;
+  collector_id?: string;
+  group_ids?: string[];
+  remarks?: string;
+}
+
+export interface RecordWeekResponse {
+  business_week: number;
+  payment_date: string;
+  total_recorded: number;
+  total_amount: number | string;
+  skipped_count: number;
+  errors?: string[];
+}

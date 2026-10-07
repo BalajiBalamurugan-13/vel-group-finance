@@ -6,6 +6,7 @@
  * Positioned at top-center, above modals.
  */
 import { useEffect, useState, useCallback, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/cn';
 import { CheckCircle2, XCircle, X } from 'lucide-react';
 import { TOAST_DURATION_MS } from '@/constants/app';
@@ -69,7 +70,9 @@ export function Toast({
     return () => clearTimeout(timer);
   }, [duration, handleClose]);
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div className="vel-toast" role="status" aria-live="polite">
       <div
         className={cn(
@@ -96,6 +99,7 @@ export function Toast({
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

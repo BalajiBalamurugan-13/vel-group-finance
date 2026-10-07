@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
-import { X } from 'lucide-react';
+import { X, MapPin, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { useUpdateGroup } from '../hooks/useGroups';
+import { useUpdateGroup, useLocations } from '../hooks/useGroups';
 import type { Group, GroupUpdate } from '../types';
 import type { ApiError } from '@/types/common';
 import { cn } from '@/lib/cn';
@@ -21,7 +21,21 @@ export function UpdateGroupFormModal({
   onClose,
 }: UpdateGroupFormModalProps) {
   const { mutateAsync: updateGroup, isPending } = useUpdateGroup();
+  const { data: existingLocations = [] } = useLocations();
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const locationWrapperRef = useRef<HTMLDivElement>(null);
+
+  // Close location autocomplete when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (locationWrapperRef.current && !locationWrapperRef.current.contains(event.target as Node)) {
+        setIsLocationDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const {
     register,
@@ -32,14 +46,37 @@ export function UpdateGroupFormModal({
     formState: { errors },
   } = useForm<GroupUpdate>();
 
+  const watchedLocation = watch('location');
+  const watchedStartDate = watch('start_date');
   const watchedFundingSource = watch('funding_source') || 'Recycled Collections';
   const watchedRecycledSubType = watch('recycled_sub_type') || 'Fully Recycled';
+
+  const collectionDayInfo = useMemo(() => {
+    if (!watchedStartDate) return null;
+    try {
+      const [y, m, d] = watchedStartDate.split('-').map(Number);
+      if (!y || !m || !d) return null;
+      const day = new Date(y, m - 1, d).getDay();
+      const daysTa = ['ஞாயிற்றுக்கிழமை', 'திங்கட்கிழமை', 'செவ்வாய்க்கிழமை', 'புதன்கிழமை', 'வியாழக்கிழமை', 'வெள்ளிக்கிழமை', 'சனிக்கிழமை'];
+      const daysEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      return { nameTa: daysTa[day], nameEn: daysEn[day] };
+    } catch {
+      return null;
+    }
+  }, [watchedStartDate]);
+
+  const filteredLocations = useMemo(() => {
+    const term = (watchedLocation || '').toLowerCase().trim();
+    if (!term) return existingLocations;
+    return existingLocations.filter((loc) => loc.toLowerCase().includes(term));
+  }, [existingLocations, watchedLocation]);
 
   useEffect(() => {
     if (group) {
       reset({
         group_name: group.group_name,
         location: group.location,
+        weekly_installment: group.weekly_installment || group.scheme?.weekly_installment || 760,
         start_date: group.start_date || '',
         funding_source: group.funding_source || 'Recycled Collections',
         recycled_sub_type: group.recycled_sub_type || 'Fully Recycled',
@@ -92,6 +129,7 @@ export function UpdateGroupFormModal({
         payload: {
           group_name: data.group_name?.trim() || undefined,
           location: data.location?.trim() || undefined,
+          weekly_installment: data.weekly_installment ? Number(data.weekly_installment) : undefined,
           start_date: data.start_date || undefined,
           funding_source: data.funding_source || undefined,
           recycled_sub_type: data.funding_source === 'Recycled Collections'
@@ -168,36 +206,123 @@ export function UpdateGroupFormModal({
               errorMessage={errors.group_name?.message}
             />
 
-            <Input
-              id="edit_location"
-              label="Location *"
-              {...register('location', {
-                required: 'Location is required',
-                maxLength: 100,
-              })}
-              errorMessage={errors.location?.message}
-            />
+            {/* Location Input with Autocomplete Suggestions */}
+            <div ref={locationWrapperRef} className="relative z-30">
+              <Input
+                id="edit_location"
+                label="Location *"
+                placeholder="e.g. PTM, TNK, ABC"
+                autoComplete="off"
+                {...register('location', {
+                  required: 'Location is required',
+                  maxLength: 100,
+                })}
+                onFocus={() => setIsLocationDropdownOpen(true)}
+                onClick={() => setIsLocationDropdownOpen(true)}
+                rightElement={
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-label="Toggle location suggestions"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setIsLocationDropdownOpen((prev) => !prev);
+                    }}
+                    className="p-1 hover:text-secondary-700 text-secondary-400 transition-colors focus:outline-none"
+                  >
+                    <ChevronDown
+                      className={cn(
+                        'w-4 h-4 transition-transform duration-200',
+                        isLocationDropdownOpen && 'rotate-180 text-primary-600'
+                      )}
+                    />
+                  </button>
+                }
+                errorMessage={errors.location?.message}
+              />
 
-            {/* Scheme (Immutable) */}
-            <div className="rounded-lg bg-secondary-50 p-3 text-xs text-secondary-500 border border-border">
-              <span className="font-semibold text-secondary-800 block">
-                Scheme: {group.scheme?.scheme_name || 'N/A'}
-              </span>
-              <span className="text-[11px]">
-                Cannot be changed after group creation.
-              </span>
+              {/* Interactive Suggestions Popover */}
+              {isLocationDropdownOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-50 max-h-52 overflow-y-auto rounded-xl border border-border bg-surface shadow-2xl py-1 text-sm animate-in fade-in-50 zoom-in-95 duration-100">
+                  {filteredLocations.length > 0 ? (
+                    <>
+                      <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-secondary-400 border-b border-border/60 flex items-center justify-between">
+                        <span>Existing Locations ({filteredLocations.length})</span>
+                        <span className="text-[10px] lowercase font-normal text-secondary-400">click to pick</span>
+                      </div>
+                      {filteredLocations.map((loc) => (
+                        <button
+                          key={loc}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setValue('location', loc, { shouldValidate: true });
+                            setIsLocationDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-primary-50 hover:text-primary-900 transition-colors flex items-center gap-2 text-secondary-800"
+                        >
+                          <MapPin className="w-3.5 h-3.5 text-secondary-400 shrink-0" />
+                          <span className="font-medium">{loc}</span>
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="px-3 py-2.5 text-xs text-secondary-500">
+                      New location: <span className="font-semibold text-secondary-800">"{watchedLocation}"</span> (will be saved with this group)
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            <Input
-              id="edit_start_date"
-              type="date"
-              label="Start Date *"
-              required
-              {...register('start_date', {
-                required: 'Start date is required',
-              })}
-              errorMessage={errors.start_date?.message}
-            />
+            {/* Scheme (Immutable) & Editable Weekly Installment */}
+            <div className="space-y-3">
+              <div className="rounded-lg bg-secondary-50 p-3 text-xs text-secondary-500 border border-border">
+                <span className="font-semibold text-secondary-800 block">
+                  Scheme: {group.scheme?.scheme_name || 'N/A'} (Default: ₹{group.scheme?.weekly_installment || 760}/wk)
+                </span>
+                <span className="text-[11px]">
+                  Scheme cannot be changed after group creation.
+                </span>
+              </div>
+
+              {/* Configurable Weekly Installment */}
+              <Input
+                id="edit_weekly_installment"
+                type="number"
+                step="any"
+                min="1"
+                label="Weekly Installment (₹) *"
+                placeholder="760"
+                helperText={`Change if this group pays ₹1000/wk or another amount instead of scheme default (₹${group.scheme?.weekly_installment || 760}/wk).`}
+                {...register('weekly_installment', {
+                  required: 'Weekly installment is required',
+                  min: { value: 1, message: 'Must be greater than 0' },
+                })}
+                errorMessage={errors.weekly_installment?.message}
+              />
+            </div>
+
+            <div>
+              <Input
+                id="edit_start_date"
+                type="date"
+                label="Start Date *"
+                required
+                {...register('start_date', {
+                  required: 'Start date is required',
+                })}
+                errorMessage={errors.start_date?.message}
+              />
+              {collectionDayInfo && (
+                <div className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-md border border-primary-200">
+                  <span>📅</span>
+                  <span>
+                    வசூல் நாள் (Collection Day): {collectionDayInfo.nameTa} ({collectionDayInfo.nameEn})
+                  </span>
+                </div>
+              )}
+            </div>
 
             {/* Funding Source (Section 8) */}
             <div className="flex flex-col gap-1.5">

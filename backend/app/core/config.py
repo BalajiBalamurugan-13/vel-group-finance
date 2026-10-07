@@ -74,9 +74,11 @@ class Settings(BaseSettings):
         """Return CORS origins as a list."""
         origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
         if self.is_development:
-            for dev_origin in ["http://localhost:5173", "http://127.0.0.1:5173"]:
-                if dev_origin not in origins:
-                    origins.append(dev_origin)
+            for port in ["5173", "5174", "5175", "5176", "3000"]:
+                for host in ["localhost", "127.0.0.1"]:
+                    origin = f"http://{host}:{port}"
+                    if origin not in origins:
+                        origins.append(origin)
         return origins
 
     @property

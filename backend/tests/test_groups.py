@@ -780,3 +780,47 @@ def test_create_group_recycled_with_owner_investment(mock_db):
     assert "PTM 2" in inv["description"]
     assert inv["group_id"] == MOCK_GROUP_ID
 
+
+def test_list_locations_endpoint(client, mock_service):
+    """GET /api/v1/groups/locations returns distinct locations list."""
+    mock_service.get_distinct_locations.return_value = ["PTM", "TNK", "VLM"]
+    response = client.get("/api/v1/groups/locations")
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert response.json()["data"] == ["PTM", "TNK", "VLM"]
+
+
+def test_get_distinct_locations_service(mock_db):
+    """Service returns deduplicated, sorted, non-empty locations."""
+    groups_mock = MagicMock()
+    groups_mock.select.return_value.execute.return_value = MagicMock(
+        data=[
+            {"location": "PTM"},
+            {"location": "TNK"},
+            {"location": "ptm"},
+            {"location": "  VLM  "},
+            {"location": ""},
+            {"location": None},
+        ]
+    )
+    mock_db.table.return_value = groups_mock
+
+    service = GroupService(mock_db)
+    locations = service.get_distinct_locations()
+    assert locations == ["PTM", "TNK", "VLM"]
+
+
+def test_effective_weekly_installment_helper():
+    """Validates get_effective_weekly_installment resolution priority."""
+    from app.core.finance_calc import get_effective_weekly_installment, DEFAULT_WEEKLY_INSTALLMENT
+
+    # 1. Group override takes highest precedence
+    assert get_effective_weekly_installment({"weekly_installment": 1000}, {"weekly_installment": 760}) == Decimal("1000")
+    # 2. Scheme fallback when group has none
+    assert get_effective_weekly_installment({"weekly_installment": None}, {"weekly_installment": 760}) == Decimal("760")
+    # 3. Embedded scheme in group dict
+    assert get_effective_weekly_installment({"scheme": {"weekly_installment": 800}}) == Decimal("800")
+    # 4. Default fallback
+    assert get_effective_weekly_installment(None, None) == DEFAULT_WEEKLY_INSTALLMENT
+
+

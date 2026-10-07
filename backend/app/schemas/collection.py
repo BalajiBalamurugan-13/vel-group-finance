@@ -116,3 +116,45 @@ class WeeklyCollectionSummary(BaseModel):
     full_cycle_collected: Optional[Decimal] = None
     full_cycle_pending: Optional[Decimal] = None
     groups_summary: list[GroupWeeklySummary] = []
+
+
+class RecordWeekGroupBreakdown(BaseModel):
+    group_id: UUID
+    group_name: str
+    location: Optional[str] = None
+    active_members: int
+    pending_members: int
+    already_paid_members: int
+    weekly_installment: Decimal
+    pending_amount: Decimal
+
+
+class RecordWeekPreviewResponse(BaseModel):
+    business_week: int
+    target_date: date
+    week_start_date: date
+    week_end_date: date
+    total_active_members: int
+    eligible_members_count: int
+    already_paid_count: int
+    total_expected_amount: Decimal
+    total_pending_amount: Decimal
+    total_already_paid_amount: Decimal
+    groups: list[RecordWeekGroupBreakdown] = []
+
+
+class RecordWeekRequest(BaseModel):
+    payment_date: Optional[date] = None
+    business_week: Optional[int] = None
+    collector_id: Optional[UUID] = None
+    group_ids: Optional[list[UUID]] = None
+    remarks: Optional[str] = None
+
+
+class RecordWeekResponse(BaseModel):
+    business_week: int
+    payment_date: date
+    total_recorded: int
+    total_amount: Decimal
+    skipped_count: int
+    errors: list[str] = []
