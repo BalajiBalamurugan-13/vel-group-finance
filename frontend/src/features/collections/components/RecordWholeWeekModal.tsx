@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Calendar,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/utils/format';
+import { useGroups } from '@/features/groups';
 import {
   useRecordWeekPreview,
   useRecordWholeWeek,
@@ -25,6 +26,8 @@ interface RecordWholeWeekModalProps {
   onClose: () => void;
   onSuccess: (result: RecordWeekResponse) => void;
 }
+
+export type CollectionDayFilter = 'all' | 'sunday' | 'monday';
 
 // Helpers for quick date selection
 function getNearestSunday(): string {
@@ -58,16 +61,45 @@ function formatDateDisplay(isoDate: string): string {
   }
 }
 
+function getGroupDayOfWeek(group: { start_date?: string | null }): number {
+  if (!group.start_date) return 0; // Default to Sunday (0) for historical groups
+  try {
+    const [y, m, d] = group.start_date.split('-').map(Number);
+    if (!y || !m || !d) return 0;
+    return new Date(y, m - 1, d).getDay();
+  } catch {
+    return 0;
+  }
+}
+
 export function RecordWholeWeekModal({
   isOpen,
   onClose,
   onSuccess,
 }: RecordWholeWeekModalProps) {
-  // Date state defaults to nearest Sunday
+  // Day of week selection state: 'all' | 'sunday' | 'monday'
+  const [dayFilter, setDayFilter] = useState<CollectionDayFilter>('all');
   const [selectedDate, setSelectedDate] = useState<string>(getNearestSunday);
   const [remarks, setRemarks] = useState<string>('');
   const [showGroupsBreakdown, setShowGroupsBreakdown] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Fetch all active groups to allow day-based filtering
+  const { data: allGroups = [] } = useGroups({ status: 'Active' });
+
+  const sundayGroups = useMemo(() => {
+    return (allGroups || []).filter((g) => getGroupDayOfWeek(g) === 0);
+  }, [allGroups]);
+
+  const mondayGroups = useMemo(() => {
+    return (allGroups || []).filter((g) => getGroupDayOfWeek(g) === 1);
+  }, [allGroups]);
+
+  const filteredGroupIds = useMemo(() => {
+    if (dayFilter === 'sunday') return sundayGroups.map((g) => g.id);
+    if (dayFilter === 'monday') return mondayGroups.map((g) => g.id);
+    return undefined; // All groups
+  }, [dayFilter, sundayGroups, mondayGroups]);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -92,12 +124,12 @@ export function RecordWholeWeekModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Live preview query based on selected date
+  // Live preview query based on selected date & filtered group IDs
   const {
     data: preview,
     isLoading: isPreviewLoading,
   } = useRecordWeekPreview(
-    isOpen ? { payment_date: selectedDate } : undefined
+    isOpen ? { payment_date: selectedDate, group_ids: filteredGroupIds } : undefined
   );
 
   const { mutateAsync: recordWholeWeek, isPending: isSubmitting } = useRecordWholeWeek();
@@ -115,22 +147,36 @@ export function RecordWholeWeekModal({
     onClose();
   };
 
+  const handleDayFilterChange = (filter: CollectionDayFilter) => {
+    setDayFilter(filter);
+    if (filter === 'sunday') {
+      setSelectedDate(getNearestSunday());
+    } else if (filter === 'monday') {
+      setSelectedDate(getNearestMonday());
+    }
+  };
+
   const handleConfirm = async () => {
     if (!preview) return;
     setErrorMessage(null);
 
     if (preview.eligible_members_count === 0) {
+      const dayName = dayFilter === 'sunday' ? 'Sunday' : dayFilter === 'monday' ? 'Monday' : 'the week';
       setErrorMessage(
-        `All active members have already paid their installments for Business Week ${preview.business_week}.`
+        `All active members for ${dayName} have already paid their installments for Business Week ${preview.business_week}.`
       );
       return;
     }
 
     try {
+      const dayLabel = dayFilter === 'sunday' ? 'Sunday' : dayFilter === 'monday' ? 'Monday' : '';
       const res = await recordWholeWeek({
         payment_date: selectedDate,
         business_week: preview.business_week,
-        remarks: remarks.trim() || `Business Week ${preview.business_week} bulk recording (${formatDateDisplay(selectedDate)})`,
+        group_ids: filteredGroupIds,
+        remarks:
+          remarks.trim() ||
+          `Business Week ${preview.business_week}${dayLabel ? ` ${dayLabel}` : ''} bulk recording (${formatDateDisplay(selectedDate)})`,
       });
 
       onSuccess(res);
@@ -203,6 +249,81 @@ export function RecordWholeWeekModal({
             </div>
           )}
 
+          {/* Collection Day Filter Tabs */}
+          <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-secondary-600">
+                Collection Day
+              </span>
+              <span className="text-xs text-secondary-500 font-medium">
+                {dayFilter === 'all'
+                  ? `All ${allGroups.length} Active Groups`
+                  : dayFilter === 'sunday'
+                  ? `${sundayGroups.length} Sunday Groups`
+                  : `${mondayGroups.length} Monday Groups`}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => handleDayFilterChange('all')}
+                disabled={isSubmitting}
+                className={cn(
+                  'flex flex-col items-center justify-center py-2 px-2 rounded-lg border text-xs font-semibold transition-all',
+                  dayFilter === 'all'
+                    ? 'bg-primary-50 border-primary-500 text-primary-700 shadow-xs ring-1 ring-primary-500'
+                    : 'bg-secondary-50/70 border-border text-secondary-700 hover:bg-secondary-100'
+                )}
+              >
+                <span>All Groups</span>
+                <span className="text-[11px] font-normal text-secondary-500 mt-0.5">
+                  {allGroups.length} groups
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDayFilterChange('sunday')}
+                disabled={isSubmitting}
+                className={cn(
+                  'flex flex-col items-center justify-center py-2 px-2 rounded-lg border text-xs font-semibold transition-all',
+                  dayFilter === 'sunday'
+                    ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs ring-1 ring-emerald-500'
+                    : 'bg-secondary-50/70 border-border text-secondary-700 hover:bg-secondary-100'
+                )}
+              >
+                <span>Sunday (ஞாயிறு)</span>
+                <span className="text-[11px] font-normal text-secondary-500 mt-0.5">
+                  {sundayGroups.length} groups
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDayFilterChange('monday')}
+                disabled={isSubmitting}
+                className={cn(
+                  'flex flex-col items-center justify-center py-2 px-2 rounded-lg border text-xs font-semibold transition-all',
+                  dayFilter === 'monday'
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-800 shadow-xs ring-1 ring-indigo-500'
+                    : 'bg-secondary-50/70 border-border text-secondary-700 hover:bg-secondary-100'
+                )}
+              >
+                <span>Monday (திங்கள்)</span>
+                <span className="text-[11px] font-normal text-secondary-500 mt-0.5">
+                  {mondayGroups.length} groups
+                </span>
+              </button>
+            </div>
+
+            {dayFilter === 'monday' && mondayGroups.length === 0 && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 rounded-lg p-2 border border-amber-200">
+                Tip: No Monday groups created yet. Upcoming groups configured with Monday start date will automatically appear here for 1-click collection!
+              </p>
+            )}
+          </div>
+
           {/* Date Picker & Quick Day Chips */}
           <div className="rounded-xl border border-border bg-secondary-50/60 p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -232,10 +353,10 @@ export function RecordWholeWeekModal({
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => setSelectedDate(getNearestSunday())}
+                  onClick={() => handleDayFilterChange('sunday')}
                   className={cn(
                     'px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors',
-                    selectedDate === getNearestSunday()
+                    dayFilter === 'sunday' || selectedDate === getNearestSunday()
                       ? 'bg-primary-600 text-white border-primary-600 shadow-xs'
                       : 'bg-surface text-secondary-700 border-border hover:bg-secondary-100'
                   )}
@@ -244,10 +365,10 @@ export function RecordWholeWeekModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedDate(getNearestMonday())}
+                  onClick={() => handleDayFilterChange('monday')}
                   className={cn(
                     'px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors',
-                    selectedDate === getNearestMonday()
+                    dayFilter === 'monday' || selectedDate === getNearestMonday()
                       ? 'bg-primary-600 text-white border-primary-600 shadow-xs'
                       : 'bg-surface text-secondary-700 border-border hover:bg-secondary-100'
                   )}
@@ -292,7 +413,7 @@ export function RecordWholeWeekModal({
                   )}
                 </div>
                 <p className="text-xs text-secondary-600 mt-1">
-                  For {eligibleCount} customer installment{eligibleCount === 1 ? '' : 's'} across {preview?.groups?.length || 33} groups
+                  For {eligibleCount} customer installment{eligibleCount === 1 ? '' : 's'} across {preview?.groups?.length || 0} groups
                 </p>
               </div>
 
@@ -316,7 +437,7 @@ export function RecordWholeWeekModal({
               <div className="bg-surface/80 rounded-lg p-2 border border-primary-100/60">
                 <div className="text-[10px] font-medium text-secondary-500 uppercase">Active Total</div>
                 <div className="text-sm font-bold text-secondary-800">
-                  {preview?.total_active_members || 152}
+                  {preview?.total_active_members || 0}
                 </div>
               </div>
               <div className="bg-surface/80 rounded-lg p-2 border border-primary-100/60">
@@ -345,7 +466,7 @@ export function RecordWholeWeekModal({
             <input
               id="record-week-remarks"
               type="text"
-              placeholder={`e.g. Business Week ${preview?.business_week || 9} payment collection`}
+              placeholder={`e.g. Business Week ${preview?.business_week || ''} payment collection`}
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
               disabled={isSubmitting}
@@ -443,6 +564,10 @@ export function RecordWholeWeekModal({
               ? 'Recording...'
               : eligibleCount === 0
               ? 'All Already Recorded'
+              : dayFilter === 'sunday'
+              ? `Record Sunday Collections (${formatCurrency(totalPendingAmountNum)})`
+              : dayFilter === 'monday'
+              ? `Record Monday Collections (${formatCurrency(totalPendingAmountNum)})`
               : `Record Week Collections (${formatCurrency(totalPendingAmountNum)})`}
           </Button>
         </div>

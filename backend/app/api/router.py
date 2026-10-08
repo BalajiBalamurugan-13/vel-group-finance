@@ -39,6 +39,7 @@ from app.api.endpoints.investments import router as investments_router
 from app.api.endpoints.profit import router as profit_router
 from app.api.endpoints.loan_risk import router as loan_risk_router
 from app.api.endpoints.settings import router as settings_router
+from app.api.endpoints.expenses import router as expenses_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -53,6 +54,7 @@ api_router.include_router(investments_router, prefix="/investments", tags=["Inve
 api_router.include_router(profit_router, prefix="/profit", tags=["Profit"])
 api_router.include_router(loan_risk_router, prefix="/loan-risk", tags=["Loan Risk"])
 api_router.include_router(settings_router, prefix="/settings", tags=["Settings"])
+api_router.include_router(expenses_router, prefix="/expenses", tags=["Expenses"])
 
 # ── Future Module Routes (add as each milestone is implemented) ────────────────
 

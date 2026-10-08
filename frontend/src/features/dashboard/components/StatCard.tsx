@@ -22,6 +22,8 @@ interface StatCardProps {
   /** If true, format value as Indian Rupees */
   isCurrency?: boolean;
   className?: string;
+  /** Optional click handler to open details drawer */
+  onClick?: () => void;
 }
 
 const variantStyles: Record<StatCardVariant, { iconBg: string; iconText: string; accent: string }> = {
@@ -57,6 +59,7 @@ export function StatCard({
   variant = 'neutral',
   isCurrency = false,
   className,
+  onClick,
 }: StatCardProps) {
   const styles = variantStyles[variant];
   const displayValue = isCurrency ? formatCurrency(value) : value;
@@ -64,10 +67,24 @@ export function StatCard({
   return (
     <div
       id={id}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
       className={cn(
         'bg-surface border border-border rounded-xl shadow-sm',
         'border-l-4 p-3.5 sm:p-4',
-        'transition-shadow duration-200 hover:shadow-md',
+        'transition-all duration-200 hover:shadow-md',
+        onClick && 'cursor-pointer hover:border-secondary-400 active:scale-[0.99] select-none',
         styles.accent,
         className,
       )}

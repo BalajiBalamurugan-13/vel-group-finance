@@ -43,6 +43,7 @@ export function useCreateMember() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MEMBERS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -64,6 +65,7 @@ export function useUpdateMember() {
       queryClient.invalidateQueries({
         queryKey: [...MEMBERS_QUERY_KEY, variables.id],
       });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -79,6 +81,7 @@ export function useUpdateMemberStatus() {
         queryKey: [...MEMBERS_QUERY_KEY, variables.id],
       });
       queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

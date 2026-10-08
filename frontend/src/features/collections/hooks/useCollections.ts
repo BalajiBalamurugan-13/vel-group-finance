@@ -138,9 +138,13 @@ export function useRecordBulkCollections() {
   });
 }
 
-export function useRecordWeekPreview(params?: { payment_date?: string; business_week?: number }) {
+export function useRecordWeekPreview(params?: {
+  payment_date?: string;
+  business_week?: number;
+  group_ids?: string[];
+}) {
   return useQuery({
-    queryKey: ['record-week-preview', params?.payment_date, params?.business_week],
+    queryKey: ['record-week-preview', params?.payment_date, params?.business_week, params?.group_ids],
     queryFn: () => collectionApi.previewRecordWeek(params),
     staleTime: 10 * 1000,
   });

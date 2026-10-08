@@ -80,10 +80,14 @@ export const collectionApi = {
   previewRecordWeek: async (params?: {
     payment_date?: string;
     business_week?: number;
+    group_ids?: string[];
   }): Promise<RecordWeekPreviewResponse> => {
     const queryParams = new URLSearchParams();
     if (params?.payment_date) queryParams.append('payment_date', params.payment_date);
     if (params?.business_week) queryParams.append('business_week', String(params.business_week));
+    if (params?.group_ids && params.group_ids.length > 0) {
+      params.group_ids.forEach((gid) => queryParams.append('group_ids', gid));
+    }
     const queryStr = queryParams.toString();
     const url = `/collections/record-week/preview${queryStr ? `?${queryStr}` : ''}`;
     const { data } = await httpClient.get<ApiResponse<RecordWeekPreviewResponse>>(url);

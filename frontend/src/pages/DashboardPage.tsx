@@ -2,13 +2,12 @@
  * VEL Finance — Executive Business Dashboard
  * ============================================
  * Fast, reliable overview of core financial operations:
- * - Available Cash (Formula 11: Collections - Disbursements)
+ * - Available Cash (Double-entry cashbook: Collections + Owner Cash - Disbursements - Expenses)
+ * - Click Available Cash to view complete Cash Flow Drawer (same as Vel Finance DL)
  * - Today's Collection & Payment Count
  * - Active Groups & Member Counts
+ * - Business Expenses Tracking & Deduction
  * - Route Breakdown by Location
- *
- * Weekly collection tracking, expected targets, pending installments,
- * member search, and date filters are hosted on the dedicated Weekly Collections page (/collections).
  */
 import { useState } from 'react';
 import { PageContainer } from '@/components/common/PageContainer';
@@ -19,13 +18,13 @@ import { TOAST_DURATION_MS } from '@/constants/app';
 import { formatCurrency } from '@/utils/format';
 import {
   useDashboard,
-  useCompleteMigration,
   DashboardSkeleton,
   StatCard,
   GroupLocationList,
-  MigrationBanner,
+  CashDrawer,
 } from '@/features/dashboard';
 import { RecordPaymentModal } from '@/features/collections';
+import { ExpenseDrawer, AddExpenseModal } from '@/features/expenses';
 import { useLanguage } from '@/i18n';
 import {
   Wallet,
@@ -35,6 +34,7 @@ import {
   MapPin,
   Plus,
   RefreshCw,
+  Receipt,
 } from 'lucide-react';
 
 interface ToastState {
@@ -49,8 +49,11 @@ export function DashboardPage() {
   // Toast State
   const [successToast, setSuccessToast] = useState<ToastState | null>(null);
 
-  // Modal State
+  // Modal & Drawer States
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  const [isCashDrawerOpen, setIsCashDrawerOpen] = useState(false);
+  const [isExpenseDrawerOpen, setIsExpenseDrawerOpen] = useState(false);
+  const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
 
   // Single consolidated query — loads in milliseconds with zero redundant fetches
   const {
@@ -62,28 +65,10 @@ export function DashboardPage() {
     isFetching: isFetchingDashboard,
   } = useDashboard();
 
-  // Migration calibration mutation
-  const { mutateAsync: completeMigration, isPending: isCalibrating } = useCompleteMigration();
-
-  const handleCalibrateMigration = async () => {
-    try {
-      const res = await completeMigration();
-      setSuccessToast({
-        message: t('dashboard.calibrationSuccess') || 'Available Cash Calibrated',
-        description: res.message,
-      });
-    } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message || 'Failed to calibrate Available Cash';
-      setSuccessToast({
-        message: 'Calibration Error',
-        description: msg,
-      });
-    }
-  };
-
   // Operational KPI calculations from server-provided Decimal fields
   const todayTotal = Number(dashboardData?.todays_collection ?? 0);
   const todayCount = dashboardData?.todays_collection_count ?? 0;
+  const totalExpenses = Number(dashboardData?.total_expenses ?? 0);
 
   // ── Error State ────────────────────────────────────────────────────────────
   if (isDashboardError && !dashboardData) {
@@ -143,7 +128,7 @@ export function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           <Button
             variant="ghost"
             size="sm"
@@ -162,6 +147,16 @@ export function DashboardPage() {
 
           <Button
             size="sm"
+            variant="outline"
+            onClick={() => setIsAddExpenseModalOpen(true)}
+            leftIcon={<Receipt className="h-4 w-4 text-error-600" />}
+            aria-label="Record Business Expense"
+          >
+            {t('expenses.addExpense') || 'Record Expense'}
+          </Button>
+
+          <Button
+            size="sm"
             onClick={() => setIsRecordModalOpen(true)}
             leftIcon={<Plus className="h-4 w-4" />}
             aria-label="Record Weekly Collection Payment"
@@ -172,29 +167,19 @@ export function DashboardPage() {
       </div>
 
       <div className="space-y-6">
-        {/* ── Migration Baseline Calibration Banner ──────────────────────────── */}
-        <MigrationBanner
-          summary={dashboardData}
-          onCalibrate={handleCalibrateMigration}
-          isCalibrating={isCalibrating}
-        />
-
-        {/* ── Section 1: Core Operational Pulse ──────────────────────────────── */}
+        {/* ── Section 1: Core Operational Pulse (4 Stat Cards) ───────────────── */}
         <section aria-label="Key operational metrics">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* 1. Available Cash */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* 1. Available Cash (Clickable -> Opens CashDrawer) */}
             <StatCard
               id="stat-available-cash"
               label={t('dashboard.availableCash')}
               value={dashboardData?.available_cash ?? 0}
-              sublabel={
-                dashboardData?.is_migration_completed && Number(dashboardData.migration_offset || 0) !== 0
-                  ? `${t('dashboard.availableCashSub')} (Offset: +${formatCurrency(Number(dashboardData.migration_offset))})`
-                  : t('dashboard.availableCashSub')
-              }
+              sublabel={t('dashboard.viewCashLedger') || 'Click to view cash ledger'}
               icon={<Wallet className="h-5 w-5" aria-hidden="true" />}
               variant="primary"
               isCurrency
+              onClick={() => setIsCashDrawerOpen(true)}
             />
 
             {/* 2. Today's Collection */}
@@ -216,6 +201,18 @@ export function DashboardPage() {
               sublabel={`${dashboardData?.active_members ?? 0} ${t('dashboard.activeMembers')} (${dashboardData?.total_members ?? 0} ${t('dashboard.totalMembers')})`}
               icon={<Layers className="h-5 w-5" aria-hidden="true" />}
               variant="info"
+            />
+
+            {/* 4. Business Expenses (Clickable -> Opens ExpenseDrawer) */}
+            <StatCard
+              id="stat-expenses"
+              label={t('dashboard.expenses') || 'Expenses'}
+              value={totalExpenses}
+              sublabel={t('dashboard.viewExpenses') || 'Click to view & add expenses'}
+              icon={<Receipt className="h-5 w-5" aria-hidden="true" />}
+              variant="danger"
+              isCurrency
+              onClick={() => setIsExpenseDrawerOpen(true)}
             />
           </div>
         </section>
@@ -251,6 +248,48 @@ export function DashboardPage() {
         <Plus className="h-4 w-4" />
         <span>{t('dashboard.recordPayment')}</span>
       </button>
+
+      {/* ── Available Cash Slide-over Ledger (DL CashDrawer) ────────────────── */}
+      <CashDrawer
+        open={isCashDrawerOpen}
+        onClose={() => setIsCashDrawerOpen(false)}
+        summary={dashboardData}
+        onOpenExpenses={() => {
+          setIsCashDrawerOpen(false);
+          setIsExpenseDrawerOpen(true);
+        }}
+        onAddExpense={() => {
+          setIsAddExpenseModalOpen(true);
+        }}
+      />
+
+      {/* ── Business Expenses Drawer ────────────────────────────────────────── */}
+      <ExpenseDrawer
+        open={isExpenseDrawerOpen}
+        onClose={() => setIsExpenseDrawerOpen(false)}
+        onExpenseAdded={(amt, note) => {
+          setSuccessToast({
+            message: t('expenses.addExpense') || 'Expense Recorded',
+            description: `${note} • -${formatCurrency(amt)}`,
+          });
+          refetchDashboard();
+        }}
+      />
+
+      {/* ── Add Expense Modal ──────────────────────────────────────────────── */}
+      {isAddExpenseModalOpen && (
+        <AddExpenseModal
+          isOpen={isAddExpenseModalOpen}
+          onClose={() => setIsAddExpenseModalOpen(false)}
+          onSuccess={(amt, note) => {
+            setSuccessToast({
+              message: t('expenses.addExpense') || 'Expense Recorded',
+              description: `${note} • -${formatCurrency(amt)}`,
+            });
+            refetchDashboard();
+          }}
+        />
+      )}
 
       {/* ── Record Payment Modal (Lazy mounted only when opened) ─────────────── */}
       {isRecordModalOpen && (

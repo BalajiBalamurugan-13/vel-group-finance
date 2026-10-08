@@ -56,6 +56,7 @@ export function useCreateGroup() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ['group-locations'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -70,6 +71,7 @@ export function useUpdateGroup() {
       queryClient.invalidateQueries({
         queryKey: [...GROUPS_QUERY_KEY, variables.id],
       });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -84,6 +86,7 @@ export function useUpdateGroupStatus() {
       queryClient.invalidateQueries({
         queryKey: [...GROUPS_QUERY_KEY, variables.id],
       });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

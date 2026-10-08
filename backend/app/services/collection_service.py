@@ -959,7 +959,21 @@ class CollectionService:
             .select("id, group_name, location, status, scheme:schemes(*)")
             .eq("status", "Active")
         )
-        if group_ids:
+        if group_ids is not None:
+            if not group_ids:
+                return {
+                    "business_week": bw,
+                    "target_date": target_date,
+                    "week_start_date": w_start,
+                    "week_end_date": w_end,
+                    "total_active_members": 0,
+                    "eligible_members_count": 0,
+                    "already_paid_count": 0,
+                    "total_expected_amount": Decimal("0.00"),
+                    "total_pending_amount": Decimal("0.00"),
+                    "total_already_paid_amount": Decimal("0.00"),
+                    "groups": [],
+                }
             group_query = group_query.in_("id", [str(gid) for gid in group_ids])
         groups_res = group_query.order("group_name").execute()
         active_groups = groups_res.data or []
@@ -1112,7 +1126,16 @@ class CollectionService:
             .select("id, group_name, location, status, scheme:schemes(*)")
             .eq("status", "Active")
         )
-        if data.group_ids:
+        if data.group_ids is not None:
+            if not data.group_ids:
+                return {
+                    "business_week": bw,
+                    "payment_date": target_date,
+                    "total_recorded": 0,
+                    "total_amount": Decimal("0.00"),
+                    "skipped_count": 0,
+                    "errors": ["No active groups found for the selected filter."],
+                }
             group_query = group_query.in_("id", [str(gid) for gid in data.group_ids])
         groups_res = group_query.order("group_name").execute()
         active_groups = groups_res.data or []

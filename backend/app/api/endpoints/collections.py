@@ -102,13 +102,14 @@ def record_bulk_collections(
 def preview_record_week(
     payment_date: Optional[date] = Query(None, description="Target collection date (defaults to today)"),
     business_week: Optional[int] = Query(None, description="Optional business week number override"),
+    group_ids: Optional[list[UUID]] = Query(None, description="Optional filter by group IDs"),
     service: CollectionService = Depends(get_service),
 ):
     """
     Preview eligible members and expected collection amounts for the business week.
     """
     preview = service.preview_whole_week_collections(
-        payment_date=payment_date, business_week=business_week
+        payment_date=payment_date, business_week=business_week, group_ids=group_ids
     )
     return SuccessResponse(
         data=preview,

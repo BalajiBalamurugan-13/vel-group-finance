@@ -61,6 +61,13 @@ export interface DashboardSummary {
   total_investment?: string;
   /** Total collections sum */
   total_collection?: string;
+  /** Total business expenses deducted from available cash */
+  total_expenses?: string;
+  /** Active cycle weekly cash ledger fields (Matches Vel Finance weekly cash flow) */
+  weekly_opening_cash?: string;
+  weekly_investment?: string;
+  weekly_disbursement?: string;
+  weekly_disbursement_count?: number;
   /** Calibration offset applied during data migration */
   migration_offset?: string;
   /** Whether initial migration calibration has been performed */

@@ -30,3 +30,4 @@ export { GroupLocationList } from './components/GroupLocationList';
 export { RecentCollectionsTable } from './components/RecentCollectionsTable';
 export { DashboardSkeleton } from './components/DashboardSkeleton';
 export { MigrationBanner } from './components/MigrationBanner';
+export { CashDrawer } from './components/CashDrawer';

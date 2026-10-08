@@ -90,6 +90,11 @@ class DashboardResponse(BaseModel):
         decimal_places=2,
         description="Migration calibration offset applied to zero historical balance",
     )
+    total_expenses: Decimal = Field(
+        default=Decimal("0.00"),
+        decimal_places=2,
+        description="SUM of all operational expenses deducted from available cash",
+    )
     is_migration_completed: bool = Field(
         default=False,
         description="Whether initial customer/group migration has been completed",
@@ -124,6 +129,25 @@ class DashboardResponse(BaseModel):
     weekly_progress: float = Field(
         default=0.0,
         description="Weekly collection progress percentage (0 - 100)",
+    )
+    weekly_opening_cash: Decimal = Field(
+        default=Decimal("0.00"),
+        decimal_places=2,
+        description="Opening cash / collection baseline for the active weekly cycle",
+    )
+    weekly_investment: Decimal = Field(
+        default=Decimal("0.00"),
+        decimal_places=2,
+        description="Additional owner investments added in this active cycle",
+    )
+    weekly_disbursement: Decimal = Field(
+        default=Decimal("0.00"),
+        decimal_places=2,
+        description="New loans disbursed in this active cycle",
+    )
+    weekly_disbursement_count: int = Field(
+        default=0,
+        description="Count of new loans disbursed in this active cycle",
     )
 
     # ── Loan Totals ───────────────────────────────────────────────────────────

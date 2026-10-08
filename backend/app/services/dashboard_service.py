@@ -11,6 +11,7 @@ ALL monetary arithmetic uses Python Decimal only.
 No float arithmetic anywhere in this service.
 """
 import concurrent.futures
+import json
 import logging
 import time
 from datetime import date, datetime, timezone
@@ -110,18 +111,20 @@ class DashboardService:
         try:
             # ── High-Performance Concurrent Sub-Queries ────────────────────────
             # Execute database operations in parallel across connection pool
-            with concurrent.futures.ThreadPoolExecutor(max_workers=7) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
                 f_coll = executor.submit(self._get_collection_aggregates, today)
                 f_loan = executor.submit(self._get_loan_transaction_totals)
                 f_inv = executor.submit(self._get_investment_totals)
+                f_exp = executor.submit(self._get_expense_totals)
                 f_mig = executor.submit(self._get_migration_status)
                 f_grp = executor.submit(self._get_group_and_member_aggregates)
                 f_out = executor.submit(self._get_total_outstanding)
                 f_rec = executor.submit(self._get_recent_collections)
 
                 total_collections, todays_collection, todays_collection_count, weekly_collected = f_coll.result()
-                total_cash_out, total_loan_amount, total_note_cost = f_loan.result()
+                total_disbursement, total_loan_amount, total_note_cost = f_loan.result()
                 total_investments = f_inv.result()
+                total_expenses = f_exp.result()
                 is_migration_completed, migration_completed_at, migration_offset = f_mig.result()
                 (
                     active_groups,
@@ -143,10 +146,16 @@ class DashboardService:
 
             # Cash In = Paid Collections + Owner Investments (Formula 11)
             total_cash_in = total_collections + total_investments
-            total_disbursement = total_cash_out
+            # Cash Out = Loan Disbursements + Expenses
+            total_cash_out = total_disbursement + total_expenses
 
             # Available Cash = (Cash In − Cash Out) + migration_offset
             available_cash = (total_cash_in - total_cash_out) + migration_offset
+
+            # Active cycle weekly cash ledger (for CashDrawer)
+            weekly_opening_cash, weekly_investment, weekly_disbursement, weekly_disbursement_count = (
+                self._get_weekly_cash_ledger(migration_completed_at, weekly_collected)
+            )
 
             response = DashboardResponse(
                 available_cash=available_cash,
@@ -154,6 +163,7 @@ class DashboardService:
                 total_cash_out=total_cash_out,
                 total_investment=total_investments,
                 total_collection=total_collections,
+                total_expenses=total_expenses,
                 migration_offset=migration_offset,
                 is_migration_completed=is_migration_completed,
                 todays_collection=todays_collection,
@@ -170,6 +180,10 @@ class DashboardService:
                 weekly_collected=weekly_collected,
                 weekly_pending=weekly_pending,
                 weekly_progress=weekly_progress,
+                weekly_opening_cash=weekly_opening_cash,
+                weekly_investment=weekly_investment,
+                weekly_disbursement=weekly_disbursement,
+                weekly_disbursement_count=weekly_disbursement_count,
                 groups_by_location=groups_by_location,
                 recent_collections=recent_collections,
             )
@@ -280,6 +294,88 @@ class DashboardService:
             logger.debug("No investments table or query issue: %s", e)
             return Decimal("0.00")
 
+    def _get_expense_totals(self) -> Decimal:
+        """
+        Calculates total operational expenses from expenses table or settings fallback.
+        Deducts from Available Cash.
+        """
+        table_total = Decimal("0.00")
+        has_table_data = False
+        try:
+            res = self._execute(
+                self.db.table("expenses").select("amount")
+            )
+            if res.data:
+                has_table_data = True
+                for row in res.data:
+                    amt_raw = row.get("amount")
+                    if amt_raw is not None:
+                        table_total += Decimal(str(amt_raw))
+        except Exception:
+            pass
+
+        if has_table_data:
+            return table_total
+
+        try:
+            res = self._execute(
+                self.db.table("settings").select("value").eq("key", "business_expenses").limit(1)
+            )
+            if res.data and res.data[0].get("value"):
+                expenses = json.loads(res.data[0]["value"])
+                tot = Decimal("0.00")
+                for e in expenses:
+                    amt_raw = e.get("amount")
+                    if amt_raw is not None:
+                        tot += Decimal(str(amt_raw))
+                return tot
+            return Decimal("0.00")
+        except Exception as e:
+            logger.debug("Expense total query issue: %s", e)
+            return Decimal("0.00")
+
+    def _get_weekly_cash_ledger(
+        self, migration_completed_at: Optional[str], weekly_collected: Decimal
+    ) -> tuple[Decimal, Decimal, Decimal, int]:
+        """
+        Calculates active cycle weekly cash flow for the CashDrawer:
+        - Opening cash: starting weekly collection (e.g. 116,240.00)
+        - Additional owner investments added post-migration / for this cycle
+        - New loans disbursed post-migration / for this cycle
+        - Count of new loans disbursed
+        """
+        weekly_opening_cash = weekly_collected
+        weekly_investment = Decimal("0.00")
+        weekly_disbursement = Decimal("0.00")
+        weekly_disbursement_count = 0
+
+        try:
+            inv_query = self.db.table("investments").select("amount, created_at")
+            if migration_completed_at:
+                inv_query = inv_query.gte("created_at", migration_completed_at)
+            inv_res = self._execute(inv_query)
+            for row in (inv_res.data or []):
+                amt = row.get("amount")
+                if amt is not None:
+                    weekly_investment += Decimal(str(amt))
+        except Exception as e:
+            logger.debug("Failed to query weekly investments: %s", e)
+
+        try:
+            loan_query = self.db.table("loan_transactions").select("cash_given, created_at")
+            if migration_completed_at:
+                loan_query = loan_query.gte("created_at", migration_completed_at)
+            loan_res = self._execute(loan_query)
+            for row in (loan_res.data or []):
+                cg = row.get("cash_given")
+                if cg is not None:
+                    weekly_disbursement += Decimal(str(cg))
+                    weekly_disbursement_count += 1
+        except Exception as e:
+            logger.debug("Failed to query weekly loan transactions: %s", e)
+
+        return weekly_opening_cash, weekly_investment, weekly_disbursement, weekly_disbursement_count
+
     def _get_migration_status(self) -> tuple[bool, Optional[str], Decimal]:
         """
         Returns (is_completed, completed_at, offset_amount).
@@ -354,9 +450,10 @@ class DashboardService:
         # Compute raw operational cash balance without existing migration offset
         total_collections, _, _, _ = self._get_collection_aggregates(today)
         total_investments = self._get_investment_totals()
-        total_cash_out, _, _ = self._get_loan_transaction_totals()
+        total_disbursement, _, _ = self._get_loan_transaction_totals()
+        total_expenses = self._get_expense_totals()
 
-        raw_balance = (total_collections + total_investments) - total_cash_out
+        raw_balance = (total_collections + total_investments) - (total_disbursement + total_expenses)
         offset_amount = -raw_balance
 
         now_iso = datetime.now(timezone.utc).isoformat()
