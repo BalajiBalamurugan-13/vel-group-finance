@@ -48,29 +48,70 @@ export function PlacesPage() {
 
   const [newPlaceName, setNewPlaceName] = useState('');
   const [newPlaceSession, setNewPlaceSession] = useState<CollectionSession>('morning');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
 
   const handleSaveOrder = async () => {
-    await saveCurrentOrder();
-    setToastMessage(
-      language === 'ta'
-        ? 'வழித்தட வரிசை தரவுத்தளத்தில் வெற்றிகரமாக சேமிக்கப்பட்டது!'
-        : 'Route order saved permanently to database!'
-    );
+    try {
+      await saveCurrentOrder();
+      setToast({
+        message:
+          language === 'ta'
+            ? 'வழித்தட வரிசை தரவுத்தளத்தில் வெற்றிகரமாக சேமிக்கப்பட்டது!'
+            : 'Route order saved permanently to database!',
+        variant: 'success',
+      });
+    } catch (err) {
+      console.error(err);
+      setToast({
+        message:
+          language === 'ta'
+            ? 'தரவுத்தளத்தில் சேமிப்பதில் பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.'
+            : 'Failed to save route order to database. Please try again.',
+        variant: 'error',
+      });
+    }
   };
 
-  const handleAddPlace = (e: React.FormEvent) => {
+  const handleAddPlace = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPlaceName.trim()) return;
-    addPlace(newPlaceName.trim(), newPlaceSession);
-    setNewPlaceName('');
-    setToastMessage(t('places.savedSuccess'));
+    try {
+      await addPlace(newPlaceName.trim(), newPlaceSession);
+      setNewPlaceName('');
+      setToast({
+        message: t('places.savedSuccess'),
+        variant: 'success',
+      });
+    } catch (err) {
+      console.error(err);
+      setToast({
+        message:
+          language === 'ta'
+            ? 'இடத்தைச் சேர்ப்பதில் பிழை ஏற்பட்டது.'
+            : 'Failed to add place.',
+        variant: 'error',
+      });
+    }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (window.confirm(language === 'ta' ? 'வழித்தட வரிசையை இயல்புநிலைக்கு மீட்டமைக்க வேண்டுமா?' : 'Reset route sequence to default order?')) {
-      resetDefault();
-      setToastMessage(language === 'ta' ? 'இயல்புநிலைக்கு மாற்றப்பட்டது' : 'Reset to default route');
+      try {
+        await resetDefault();
+        setToast({
+          message: language === 'ta' ? 'இயல்புநிலைக்கு மாற்றப்பட்டது' : 'Reset to default route',
+          variant: 'success',
+        });
+      } catch (err) {
+        console.error(err);
+        setToast({
+          message:
+            language === 'ta'
+              ? 'மீட்டமைப்பதில் பிழை ஏற்பட்டது.'
+              : 'Failed to reset route order.',
+          variant: 'error',
+        });
+      }
     }
   };
 
@@ -79,11 +120,11 @@ export function PlacesPage() {
 
   return (
     <PageContainer>
-      {toastMessage && (
+      {toast && (
         <Toast
-          message={toastMessage}
-          variant="success"
-          onClose={() => setToastMessage(null)}
+          message={toast.message}
+          variant={toast.variant}
+          onClose={() => setToast(null)}
         />
       )}
 

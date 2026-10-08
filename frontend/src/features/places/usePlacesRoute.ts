@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useGroups } from '@/features/groups';
 import { placesApi } from './api/placesApi';
@@ -23,19 +23,22 @@ function normalizeId(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, '-');
 }
 
+/** Global debounce timer to prevent drag-reorder rapid-fire network requests */
+let reorderDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
 export function usePlacesRoute() {
   const queryClient = useQueryClient();
   const { data: groups = [], isLoading: isGroupsLoading } = useGroups({ status: 'All' });
 
-  // 1. Fetch canonical places route from database
-  const { data: dbPlaces = [], isLoading: isDbPlacesLoading } = useQuery({
+  // 1. Fetch canonical places route from database (the ONLY authoritative source of truth)
+  const { data: dbPlaces = [], isLoading: isDbPlacesLoading } = useQuery<PlaceRouteConfig[]>({
     queryKey: ['places-route'],
     queryFn: placesApi.getPlacesRoute,
-    staleTime: 60 * 1000,
+    staleTime: 30 * 1000,
   });
 
-  // 2. State initialized from localStorage or defaults
-  const [routeConfig, setRouteConfig] = useState<PlaceRouteConfig[]>(() => {
+  // 2. Read offline localStorage fallback if available
+  const cachedFromStorage = useMemo<PlaceRouteConfig[] | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -47,6 +50,17 @@ export function usePlacesRoute() {
     } catch (e) {
       console.warn('Failed to parse places route config from localStorage', e);
     }
+    return null;
+  }, []);
+
+  // 3. Derive base configured list: Database is authoritative; fallback to localStorage or defaults
+  const baseList: PlaceRouteConfig[] = useMemo(() => {
+    if (dbPlaces && dbPlaces.length > 0) {
+      return [...dbPlaces].sort((a, b) => a.order - b.order);
+    }
+    if (cachedFromStorage && cachedFromStorage.length > 0) {
+      return [...cachedFromStorage].sort((a, b) => a.order - b.order);
+    }
     return DEFAULT_INITIAL_PLACES.map((item, idx) => ({
       id: normalizeId(item.name),
       name: item.name,
@@ -54,17 +68,15 @@ export function usePlacesRoute() {
       order: idx + 1,
       isCustom: false,
     }));
-  });
+  }, [dbPlaces, cachedFromStorage]);
 
-  // 3. Sync database places when loaded (database is single source of truth)
+  // Sync latest authoritative database configuration to localStorage for offline cache
   useEffect(() => {
     if (dbPlaces && dbPlaces.length > 0) {
-      const sortedDb = [...dbPlaces].sort((a, b) => a.order - b.order);
-      setRouteConfig(sortedDb);
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(sortedDb));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dbPlaces));
       } catch (e) {
-        console.error(e);
+        console.error('Failed to sync dbPlaces to localStorage', e);
       }
     }
   }, [dbPlaces]);
@@ -74,74 +86,56 @@ export function usePlacesRoute() {
     mutationFn: placesApi.updatePlacesRoute,
     onSuccess: (savedData) => {
       queryClient.setQueryData(['places-route'], savedData);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedData));
+      } catch (e) {
+        console.error(e);
+      }
     },
   });
 
-  // Helper to persist locally and to database
+  // Helper to persist strictly ordered list locally and to database
   const saveConfig = useCallback(
     async (newConfig: PlaceRouteConfig[]) => {
-      // Re-index order 1..N strictly
-      const sorted = [...newConfig].map((p, idx) => ({
-        ...p,
+      if (reorderDebounceTimer) {
+        clearTimeout(reorderDebounceTimer);
+        reorderDebounceTimer = null;
+      }
+
+      // Group morning then evening, strictly re-index order 1..N
+      const morningItems = newConfig.filter((p) => p.session === 'morning');
+      const eveningItems = newConfig.filter((p) => p.session === 'evening');
+      const sorted: PlaceRouteConfig[] = [...morningItems, ...eveningItems].map((p, idx) => ({
+        id: p.id,
+        name: p.name,
+        session: p.session,
         order: idx + 1,
+        isCustom: p.isCustom,
       }));
-      setRouteConfig(sorted);
+
+      // Immediate cache & storage update
+      queryClient.setQueryData(['places-route'], sorted);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
       } catch (e) {
         console.error('Failed to save places route config to localStorage', e);
       }
+
+      // Persist to database
       try {
         await persistToDb(sorted);
       } catch (e) {
         console.error('Failed to persist places route to database', e);
+        throw e;
       }
     },
-    [persistToDb]
+    [queryClient, persistToDb]
   );
 
-  // 5. Synchronize any newly added locations from active groups without altering existing order
-  useEffect(() => {
-    if (!groups.length) return;
-
-    setRouteConfig((prevConfig) => {
-      const existingNames = new Set(
-        prevConfig.map((p) => p.name.trim().toLowerCase())
-      );
-      const newItems: PlaceRouteConfig[] = [];
-      let maxOrder = prevConfig.reduce((max, p) => Math.max(max, p.order || 0), 0);
-
-      for (const g of groups) {
-        const loc = (g.location || '').trim();
-        if (loc && !existingNames.has(loc.toLowerCase())) {
-          existingNames.add(loc.toLowerCase());
-          maxOrder += 1;
-          newItems.push({
-            id: normalizeId(loc),
-            name: loc,
-            session: 'morning',
-            order: maxOrder,
-            isCustom: false,
-          });
-        }
-      }
-
-      if (newItems.length > 0) {
-        const updated = [...prevConfig, ...newItems];
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        } catch (e) {
-          console.error(e);
-        }
-        // Save to DB in background
-        placesApi.updatePlacesRoute(updated).catch(console.error);
-        return updated;
-      }
-      return prevConfig;
-    });
-  }, [groups]);
-
-  // Compute stats per place based on groups
+  // 5. Dynamic computation of stats and graceful in-memory inclusion of any new group locations
+  // CRITICAL ARCHITECTURE NOTE:
+  // We NEVER auto-save to the database in background on page mount or groups load!
+  // Any newly detected location is displayed in-memory only until explicitly saved by the user on /places.
   const placesWithStats: PlaceWithGroupStats[] = useMemo(() => {
     const statsMap = new Map<
       string,
@@ -164,143 +158,194 @@ export function usePlacesRoute() {
       statsMap.set(normLoc, curr);
     }
 
-    return [...routeConfig]
-      .sort((a, b) => a.order - b.order)
-      .map((place) => {
-        const stats =
-          statsMap.get(place.id) ||
-          statsMap.get(normalizeId(place.name)) || {
-            groupCount: 0,
-            memberCount: 0,
-            target: 0,
-          };
-        return {
-          ...place,
-          groupCount: stats.groupCount,
-          memberCount: stats.memberCount,
-          totalWeeklyTarget: stats.target,
+    // Merge any locations in active groups that are not yet in the base configured list
+    const existingNames = new Set(
+      baseList.map((p) => p.name.trim().toLowerCase())
+    );
+    const unconfiguredPlaces: PlaceRouteConfig[] = [];
+    let maxOrder = baseList.reduce((max, p) => Math.max(max, p.order || 0), 0);
+
+    for (const g of groups) {
+      const loc = (g.location || '').trim();
+      if (loc && !existingNames.has(loc.toLowerCase())) {
+        existingNames.add(loc.toLowerCase());
+        maxOrder += 1;
+        unconfiguredPlaces.push({
+          id: normalizeId(loc),
+          name: loc,
+          session: 'morning',
+          order: maxOrder,
+          isCustom: false,
+        });
+      }
+    }
+
+    const merged = [...baseList, ...unconfiguredPlaces];
+
+    return merged.map((place) => {
+      const stats =
+        statsMap.get(place.id) ||
+        statsMap.get(normalizeId(place.name)) || {
+          groupCount: 0,
+          memberCount: 0,
+          target: 0,
         };
-      });
-  }, [groups, routeConfig]);
+      return {
+        ...place,
+        groupCount: stats.groupCount,
+        memberCount: stats.memberCount,
+        totalWeeklyTarget: stats.target,
+      };
+    });
+  }, [baseList, groups]);
 
   const morningPlaces = useMemo(
-    () => placesWithStats.filter((p) => p.session === 'morning'),
+    () => placesWithStats.filter((p) => p.session === 'morning').sort((a, b) => a.order - b.order),
     [placesWithStats]
   );
 
   const eveningPlaces = useMemo(
-    () => placesWithStats.filter((p) => p.session === 'evening'),
+    () => placesWithStats.filter((p) => p.session === 'evening').sort((a, b) => a.order - b.order),
     [placesWithStats]
   );
 
   const reorderSessionPlaces = useCallback(
     (session: CollectionSession, reorderedList: PlaceWithGroupStats[]) => {
-      const reorderedIds = reorderedList.map((p) => p.id);
+      const morningItems =
+        session === 'morning'
+          ? reorderedList
+          : placesWithStats.filter((p) => p.session === 'morning');
+      const eveningItems =
+        session === 'evening'
+          ? reorderedList
+          : placesWithStats.filter((p) => p.session === 'evening');
 
-      setRouteConfig((prevConfig) => {
-        let updated: PlaceRouteConfig[];
-        if (session === 'morning') {
-          const morningConfigs = reorderedIds
-            .map((id) => prevConfig.find((p) => p.id === id))
-            .filter((p): p is PlaceRouteConfig => Boolean(p));
-          const eveningConfigs = prevConfig.filter((p) => p.session === 'evening');
-          updated = [...morningConfigs, ...eveningConfigs];
-        } else {
-          const morningConfigs = prevConfig.filter((p) => p.session === 'morning');
-          const eveningConfigs = reorderedIds
-            .map((id) => prevConfig.find((p) => p.id === id))
-            .filter((p): p is PlaceRouteConfig => Boolean(p));
-          updated = [...morningConfigs, ...eveningConfigs];
-        }
+      const sorted: PlaceRouteConfig[] = [...morningItems, ...eveningItems].map((p, idx) => ({
+        id: p.id,
+        name: p.name,
+        session: p.session,
+        order: idx + 1,
+        isCustom: p.isCustom,
+      }));
 
-        const sorted = updated.map((p, idx) => ({
-          ...p,
-          order: idx + 1,
-        }));
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
-        } catch (e) {
-          console.error('Failed to save places route config', e);
-        }
-        // Save to DB in background
-        placesApi.updatePlacesRoute(sorted).catch(console.error);
-        return sorted;
-      });
+      // 1. Immediately update React Query cache for zero-latency interactive dragging
+      queryClient.setQueryData(['places-route'], sorted);
+
+      // 2. Sync to localStorage for offline cache
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
+      } catch (e) {
+        console.error('Failed to save places route config', e);
+      }
+
+      // 3. Debounce database persistence so dragging does NOT spam parallel HTTP requests
+      if (reorderDebounceTimer) {
+        clearTimeout(reorderDebounceTimer);
+      }
+      reorderDebounceTimer = setTimeout(() => {
+        persistToDb(sorted).catch((err) => {
+          console.error('Failed to auto-persist places route order to DB', err);
+        });
+      }, 800);
     },
-    []
+    [placesWithStats, queryClient, persistToDb]
   );
 
   const moveUp = useCallback(
     (placeId: string) => {
-      const target = routeConfig.find((p) => p.id === placeId);
+      const target = placesWithStats.find((p) => p.id === placeId);
       if (!target) return;
-      const sessionList = [...routeConfig.filter((p) => p.session === target.session)];
+      const sessionList = placesWithStats
+        .filter((p) => p.session === target.session)
+        .sort((a, b) => a.order - b.order);
       const idxInSession = sessionList.findIndex((p) => p.id === placeId);
       if (idxInSession <= 0) return;
-      const temp = sessionList[idxInSession - 1];
-      sessionList[idxInSession - 1] = sessionList[idxInSession];
-      sessionList[idxInSession] = temp;
-      reorderSessionPlaces(target.session, sessionList as any);
+      const nextList = [...sessionList];
+      const temp = nextList[idxInSession - 1];
+      nextList[idxInSession - 1] = nextList[idxInSession];
+      nextList[idxInSession] = temp;
+      reorderSessionPlaces(target.session, nextList);
     },
-    [routeConfig, reorderSessionPlaces]
+    [placesWithStats, reorderSessionPlaces]
   );
 
   const moveDown = useCallback(
     (placeId: string) => {
-      const target = routeConfig.find((p) => p.id === placeId);
+      const target = placesWithStats.find((p) => p.id === placeId);
       if (!target) return;
-      const sessionList = [...routeConfig.filter((p) => p.session === target.session)];
+      const sessionList = placesWithStats
+        .filter((p) => p.session === target.session)
+        .sort((a, b) => a.order - b.order);
       const idxInSession = sessionList.findIndex((p) => p.id === placeId);
       if (idxInSession === -1 || idxInSession >= sessionList.length - 1) return;
-      const temp = sessionList[idxInSession + 1];
-      sessionList[idxInSession + 1] = sessionList[idxInSession];
-      sessionList[idxInSession] = temp;
-      reorderSessionPlaces(target.session, sessionList as any);
+      const nextList = [...sessionList];
+      const temp = nextList[idxInSession + 1];
+      nextList[idxInSession + 1] = nextList[idxInSession];
+      nextList[idxInSession] = temp;
+      reorderSessionPlaces(target.session, nextList);
     },
-    [routeConfig, reorderSessionPlaces]
+    [placesWithStats, reorderSessionPlaces]
   );
 
   const toggleSession = useCallback(
-    (placeId: string) => {
-      const target = routeConfig.find((p) => p.id === placeId);
+    async (placeId: string) => {
+      const target = placesWithStats.find((p) => p.id === placeId);
       if (!target) return;
       const newSession: CollectionSession =
         target.session === 'morning' ? 'evening' : 'morning';
 
-      const remaining = routeConfig.filter((p) => p.id !== placeId);
-      const updatedTarget: PlaceRouteConfig = { ...target, session: newSession };
+      const remaining = placesWithStats.filter((p) => p.id !== placeId);
+      const updatedTarget: PlaceRouteConfig = {
+        id: target.id,
+        name: target.name,
+        session: newSession,
+        order: target.order,
+        isCustom: target.isCustom,
+      };
 
       if (newSession === 'morning') {
         const morningItems = remaining.filter((p) => p.session === 'morning');
         const eveningItems = remaining.filter((p) => p.session === 'evening');
-        saveConfig([...morningItems, updatedTarget, ...eveningItems]);
+        await saveConfig([...morningItems, updatedTarget, ...eveningItems]);
       } else {
-        saveConfig([...remaining, updatedTarget]);
+        await saveConfig([...remaining, updatedTarget]);
       }
     },
-    [routeConfig, saveConfig]
+    [placesWithStats, saveConfig]
   );
 
   const setSession = useCallback(
-    (placeId: string, session: CollectionSession) => {
-      const updated = routeConfig.map((p) => {
+    async (placeId: string, session: CollectionSession) => {
+      const updated = placesWithStats.map((p) => {
         if (p.id === placeId) {
-          return { ...p, session };
+          return {
+            id: p.id,
+            name: p.name,
+            session,
+            order: p.order,
+            isCustom: p.isCustom,
+          };
         }
-        return p;
+        return {
+          id: p.id,
+          name: p.name,
+          session: p.session,
+          order: p.order,
+          isCustom: p.isCustom,
+        };
       });
-      saveConfig(updated);
+      await saveConfig(updated);
     },
-    [routeConfig, saveConfig]
+    [placesWithStats, saveConfig]
   );
 
   const addPlace = useCallback(
-    (name: string, session: CollectionSession = 'morning') => {
+    async (name: string, session: CollectionSession = 'morning') => {
       const trimmed = name.trim();
       if (!trimmed) return;
       const id = normalizeId(trimmed);
       if (
-        routeConfig.some(
+        placesWithStats.some(
           (p) => p.id === id || p.name.toLowerCase() === trimmed.toLowerCase()
         )
       ) {
@@ -310,23 +355,38 @@ export function usePlacesRoute() {
         id,
         name: trimmed,
         session,
-        order: routeConfig.length + 1,
+        order: placesWithStats.length + 1,
         isCustom: true,
       };
-      saveConfig([...routeConfig, newPlace]);
+      const cleanList: PlaceRouteConfig[] = placesWithStats.map((p) => ({
+        id: p.id,
+        name: p.name,
+        session: p.session,
+        order: p.order,
+        isCustom: p.isCustom,
+      }));
+      await saveConfig([...cleanList, newPlace]);
     },
-    [routeConfig, saveConfig]
+    [placesWithStats, saveConfig]
   );
 
   const removePlace = useCallback(
-    (placeId: string) => {
-      const updated = routeConfig.filter((p) => p.id !== placeId);
-      saveConfig(updated);
+    async (placeId: string) => {
+      const updated = placesWithStats
+        .filter((p) => p.id !== placeId)
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          session: p.session,
+          order: p.order,
+          isCustom: p.isCustom,
+        }));
+      await saveConfig(updated);
     },
-    [routeConfig, saveConfig]
+    [placesWithStats, saveConfig]
   );
 
-  const resetDefault = useCallback(() => {
+  const resetDefault = useCallback(async () => {
     const knownNames = new Set(
       DEFAULT_INITIAL_PLACES.map((d) => d.name.toLowerCase())
     );
@@ -355,8 +415,25 @@ export function usePlacesRoute() {
         });
       }
     }
-    saveConfig(initialList);
+    await saveConfig(initialList);
   }, [groups, saveConfig]);
+
+  const saveCurrentOrder = useCallback(async () => {
+    if (reorderDebounceTimer) {
+      clearTimeout(reorderDebounceTimer);
+      reorderDebounceTimer = null;
+    }
+    const morningList = placesWithStats.filter((p) => p.session === 'morning').sort((a, b) => a.order - b.order);
+    const eveningList = placesWithStats.filter((p) => p.session === 'evening').sort((a, b) => a.order - b.order);
+    const cleanList: PlaceRouteConfig[] = [...morningList, ...eveningList].map((p, idx) => ({
+      id: p.id,
+      name: p.name,
+      session: p.session,
+      order: idx + 1,
+      isCustom: p.isCustom,
+    }));
+    await saveConfig(cleanList);
+  }, [placesWithStats, saveConfig]);
 
   return {
     places: placesWithStats,
@@ -372,6 +449,6 @@ export function usePlacesRoute() {
     addPlace,
     removePlace,
     resetDefault,
-    saveCurrentOrder: () => saveConfig(routeConfig),
+    saveCurrentOrder,
   };
 }
