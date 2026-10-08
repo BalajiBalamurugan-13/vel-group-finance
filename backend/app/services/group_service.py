@@ -20,6 +20,7 @@ from app.schemas.group import (
     GroupStatusUpdate,
     GroupUpdate,
 )
+from app.services.dashboard_service import invalidate_dashboard_cache
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +257,7 @@ class GroupService:
             start_date_val=data.start_date,
         )
 
+        invalidate_dashboard_cache()
         return new_group
 
     def _sync_group_investment(
@@ -492,6 +494,7 @@ class GroupService:
         )
         self._ensure_active_members_have_cycles(str(group_id), updated_group)
 
+        invalidate_dashboard_cache()
         return updated_group
 
     def update_group_status(self, group_id: UUID, data: GroupStatusUpdate) -> dict:
@@ -537,6 +540,7 @@ class GroupService:
             self._disburse_loans_for_draft_members(group_id, current_group)
 
         self._enrich_dynamic_fields(updated_group)
+        invalidate_dashboard_cache()
         return updated_group
 
     def _disburse_loans_for_draft_members(

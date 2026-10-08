@@ -13,7 +13,7 @@ No float arithmetic anywhere in this service.
 import concurrent.futures
 import logging
 import time
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional
 from uuid import uuid4
@@ -110,15 +110,19 @@ class DashboardService:
         try:
             # ── High-Performance Concurrent Sub-Queries ────────────────────────
             # Execute database operations in parallel across connection pool
-            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=7) as executor:
                 f_coll = executor.submit(self._get_collection_aggregates, today)
                 f_loan = executor.submit(self._get_loan_transaction_totals)
+                f_inv = executor.submit(self._get_investment_totals)
+                f_mig = executor.submit(self._get_migration_status)
                 f_grp = executor.submit(self._get_group_and_member_aggregates)
                 f_out = executor.submit(self._get_total_outstanding)
                 f_rec = executor.submit(self._get_recent_collections)
 
-                total_cash_in, todays_collection, todays_collection_count, weekly_collected = f_coll.result()
+                total_collections, todays_collection, todays_collection_count, weekly_collected = f_coll.result()
                 total_cash_out, total_loan_amount, total_note_cost = f_loan.result()
+                total_investments = f_inv.result()
+                is_migration_completed, migration_completed_at, migration_offset = f_mig.result()
                 (
                     active_groups,
                     total_groups,
@@ -137,13 +141,21 @@ class DashboardService:
                 else 0.0
             )
 
-            available_cash = total_cash_in - total_cash_out
+            # Cash In = Paid Collections + Owner Investments (Formula 11)
+            total_cash_in = total_collections + total_investments
             total_disbursement = total_cash_out
+
+            # Available Cash = (Cash In − Cash Out) + migration_offset
+            available_cash = (total_cash_in - total_cash_out) + migration_offset
 
             response = DashboardResponse(
                 available_cash=available_cash,
                 total_cash_in=total_cash_in,
                 total_cash_out=total_cash_out,
+                total_investment=total_investments,
+                total_collection=total_collections,
+                migration_offset=migration_offset,
+                is_migration_completed=is_migration_completed,
                 todays_collection=todays_collection,
                 todays_collection_count=todays_collection_count,
                 total_disbursement=total_disbursement,
@@ -248,6 +260,133 @@ class DashboardService:
         except Exception as e:
             logger.exception("Failed to compute loan transaction totals: %s", e)
             return Decimal("0.00"), Decimal("0.00"), Decimal("0.00")
+
+    def _get_investment_totals(self) -> Decimal:
+        """
+        Calculates total owner investments from the investments table.
+        Adds to cash in and available cash on the dashboard.
+        """
+        try:
+            res = self._execute(
+                self.db.table("investments").select("amount")
+            )
+            total_inv = Decimal("0.00")
+            for row in (res.data or []):
+                amt_raw = row.get("amount")
+                if amt_raw is not None:
+                    total_inv += Decimal(str(amt_raw))
+            return total_inv
+        except Exception as e:
+            logger.debug("No investments table or query issue: %s", e)
+            return Decimal("0.00")
+
+    def _get_migration_status(self) -> tuple[bool, Optional[str], Decimal]:
+        """
+        Returns (is_completed, completed_at, offset_amount).
+        Reads from settings table keys 'migration_completed' and 'migration_offset_amount'.
+        """
+        try:
+            res = self._execute(
+                self.db.table("settings")
+                .select("key, value")
+                .in_("key", ["migration_completed", "migration_offset_amount"])
+            )
+            rows = res.data or []
+            data_map = {r["key"]: r["value"] for r in rows if "key" in r}
+            completed_at = data_map.get("migration_completed")
+            is_completed = bool(completed_at)
+            offset_val = data_map.get("migration_offset_amount")
+            offset_amount = Decimal(str(offset_val or "0.00"))
+            return is_completed, completed_at, offset_amount
+        except Exception as e:
+            logger.debug("Settings table migration query issue: %s", e)
+            return False, None, Decimal("0.00")
+
+    def _save_setting(self, key: str, value: str, description: Optional[str] = None) -> None:
+        """
+        Upserts a key-value record in the settings table.
+        """
+        now_iso = datetime.now(timezone.utc).isoformat()
+        try:
+            existing = (
+                self.db.table("settings")
+                .select("id")
+                .eq("key", key)
+                .limit(1)
+                .execute()
+            )
+            if existing.data:
+                self.db.table("settings").update({
+                    "value": value,
+                    "updated_at": now_iso,
+                }).eq("key", key).execute()
+            else:
+                self.db.table("settings").insert({
+                    "key": key,
+                    "value": value,
+                    "description": description or f"Setting {key}",
+                    "created_at": now_iso,
+                    "updated_at": now_iso,
+                }).execute()
+        except Exception as e:
+            logger.error("Failed to save setting %s: %s", key, e)
+            raise
+
+    def get_migration_status_data(self) -> dict:
+        """
+        Returns migration status and current Available Cash.
+        """
+        is_completed, completed_at, offset_amount = self._get_migration_status()
+        summary = self.get_summary(force_refresh=True)
+        return {
+            "completed": is_completed,
+            "completed_at": completed_at,
+            "offset_amount": offset_amount,
+            "current_balance": summary.available_cash,
+        }
+
+    def complete_migration(self) -> dict:
+        """
+        Calibrates Available Cash to exactly 0.00 by recording a migration offset.
+        Can be run initially or recalibrated when data entry finishes.
+        """
+        today = date.today()
+        # Compute raw operational cash balance without existing migration offset
+        total_collections, _, _, _ = self._get_collection_aggregates(today)
+        total_investments = self._get_investment_totals()
+        total_cash_out, _, _ = self._get_loan_transaction_totals()
+
+        raw_balance = (total_collections + total_investments) - total_cash_out
+        offset_amount = -raw_balance
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        self._save_setting(
+            "migration_offset_amount",
+            str(offset_amount),
+            "Calibration offset to bring pre-migration historical Available Cash to zero",
+        )
+        self._save_setting(
+            "migration_completed",
+            now_iso,
+            "Timestamp when initial migration was finalized",
+        )
+
+        # Clear in-memory cache
+        global _DASHBOARD_CACHE, _DASHBOARD_CACHE_EXPIRY
+        _DASHBOARD_CACHE = None
+        _DASHBOARD_CACHE_EXPIRY = 0
+
+        logger.info(
+            "Completed initial migration: raw_balance=%s, offset=%s",
+            raw_balance,
+            offset_amount,
+        )
+
+        return {
+            "message": "Initial migration completed successfully. Available Cash is now ₹0.00.",
+            "offset_amount": offset_amount,
+            "completed_at": now_iso,
+        }
 
     def _get_total_outstanding(self) -> Decimal:
         """

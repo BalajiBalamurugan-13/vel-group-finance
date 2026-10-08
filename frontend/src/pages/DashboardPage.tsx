@@ -19,9 +19,11 @@ import { TOAST_DURATION_MS } from '@/constants/app';
 import { formatCurrency } from '@/utils/format';
 import {
   useDashboard,
+  useCompleteMigration,
   DashboardSkeleton,
   StatCard,
   GroupLocationList,
+  MigrationBanner,
 } from '@/features/dashboard';
 import { RecordPaymentModal } from '@/features/collections';
 import { useLanguage } from '@/i18n';
@@ -59,6 +61,25 @@ export function DashboardPage() {
     refetch: refetchDashboard,
     isFetching: isFetchingDashboard,
   } = useDashboard();
+
+  // Migration calibration mutation
+  const { mutateAsync: completeMigration, isPending: isCalibrating } = useCompleteMigration();
+
+  const handleCalibrateMigration = async () => {
+    try {
+      const res = await completeMigration();
+      setSuccessToast({
+        message: t('dashboard.calibrationSuccess') || 'Available Cash Calibrated',
+        description: res.message,
+      });
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message || 'Failed to calibrate Available Cash';
+      setSuccessToast({
+        message: 'Calibration Error',
+        description: msg,
+      });
+    }
+  };
 
   // Operational KPI calculations from server-provided Decimal fields
   const todayTotal = Number(dashboardData?.todays_collection ?? 0);
@@ -151,6 +172,13 @@ export function DashboardPage() {
       </div>
 
       <div className="space-y-6">
+        {/* ── Migration Baseline Calibration Banner ──────────────────────────── */}
+        <MigrationBanner
+          summary={dashboardData}
+          onCalibrate={handleCalibrateMigration}
+          isCalibrating={isCalibrating}
+        />
+
         {/* ── Section 1: Core Operational Pulse ──────────────────────────────── */}
         <section aria-label="Key operational metrics">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -159,7 +187,11 @@ export function DashboardPage() {
               id="stat-available-cash"
               label={t('dashboard.availableCash')}
               value={dashboardData?.available_cash ?? 0}
-              sublabel={t('dashboard.availableCashSub')}
+              sublabel={
+                dashboardData?.is_migration_completed && Number(dashboardData.migration_offset || 0) !== 0
+                  ? `${t('dashboard.availableCashSub')} (Offset: +${formatCurrency(Number(dashboardData.migration_offset))})`
+                  : t('dashboard.availableCashSub')
+              }
               icon={<Wallet className="h-5 w-5" aria-hidden="true" />}
               variant="primary"
               isCurrency

@@ -14,6 +14,7 @@ from app.schemas.member import (
     MemberStatusUpdate,
     MemberUpdate,
 )
+from app.services.dashboard_service import invalidate_dashboard_cache
 
 logger = logging.getLogger(__name__)
 
@@ -363,6 +364,7 @@ class MemberService:
             new_member["current_cycle"] = cycle
 
         self._enrich_member_calculations(new_member)
+        invalidate_dashboard_cache()
         return new_member
 
     def update_member(self, member_id: UUID, data: MemberUpdate) -> dict:
@@ -480,6 +482,7 @@ class MemberService:
         updated["group"] = current_member.get("group")
         updated["current_cycle"] = current_member.get("current_cycle")
         self._enrich_member_calculations(updated)
+        invalidate_dashboard_cache()
         return updated
 
     def _enrich_member_calculations(self, member: dict) -> None:

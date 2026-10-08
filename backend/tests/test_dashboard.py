@@ -768,3 +768,120 @@ class TestClosedCycleExcludedFromOutstanding:
         result = svc.get_summary()
         # 18 remaining * 760 = 13,680
         assert result.total_outstanding == Decimal("13680.00")
+
+
+# ── TC-DASH-018  Investment Totals & Migration Calibration ────────────────────
+
+class TestInvestmentAndMigration:
+    def test_investments_added_to_cash_in_and_available_cash(self):
+        """
+        Owner investments must increase total_investment, total_cash_in,
+        and available_cash (Formula 11).
+        """
+        db = _mock_db({
+            "investments": [
+                {"amount": 50000.0},
+                {"amount": 10000.0},
+            ],
+            "collections": [
+                {"amount_paid": 5000.0, "payment_date": date.today().isoformat(), "payment_status": "Paid"},
+            ],
+            "loan_transactions": [
+                {"loan_amount": 20000.0, "note_cost": 200.0, "cash_given": 19800.0},
+            ],
+            "loan_cycles": [],
+            "groups": [],
+            "members": [],
+        })
+        svc = DashboardService(db)
+        result = svc.get_summary()
+
+        assert result.total_investment == Decimal("60000.00")
+        assert result.total_collection == Decimal("5000.00")
+        assert result.total_cash_in == Decimal("65000.00")
+        assert result.total_cash_out == Decimal("19800.00")
+        # (65,000 in - 19,800 out) = 45,200
+        assert result.available_cash == Decimal("45200.00")
+
+    def test_migration_offset_calibrates_available_cash_to_zero(self):
+        """
+        When migration_offset_amount is present in settings,
+        it offsets historical negative/positive imbalance to zero.
+        """
+        # Cash In = 50,000, Cash Out = 80,000 -> raw = -30,000
+        # With offset = +30,000 -> available_cash = 0.00
+        db = _mock_db({
+            "investments": [
+                {"amount": 50000.0},
+            ],
+            "collections": [],
+            "loan_transactions": [
+                {"loan_amount": 80000.0, "note_cost": 800.0, "cash_given": 80000.0},
+            ],
+            "settings": [
+                {"key": "migration_completed", "value": "2026-10-08T12:00:00Z"},
+                {"key": "migration_offset_amount", "value": "30000.00"},
+            ],
+            "loan_cycles": [],
+            "groups": [],
+            "members": [],
+        })
+        svc = DashboardService(db)
+        result = svc.get_summary()
+
+        assert result.total_cash_in == Decimal("50000.00")
+        assert result.total_cash_out == Decimal("80000.00")
+        assert result.migration_offset == Decimal("30000.00")
+        assert result.is_migration_completed is True
+        assert result.available_cash == Decimal("0.00")
+
+    def test_complete_migration_computes_exact_offset(self):
+        """
+        complete_migration calculates raw_balance = (collections + investments) - cash_out,
+        and saves offset = -raw_balance.
+        """
+        db = MagicMock()
+
+        # Mock collections, investments, loan_transactions queries
+        mock_collections = MagicMock()
+        mock_collections.data = [{"amount_paid": 20000.0, "payment_date": date.today().isoformat(), "payment_status": "Paid"}]
+
+        mock_investments = MagicMock()
+        mock_investments.data = [{"amount": 30000.0}]
+
+        mock_loans = MagicMock()
+        mock_loans.data = [{"loan_amount": 100000.0, "note_cost": 1000.0, "cash_given": 100000.0}]
+
+        mock_settings = MagicMock()
+        mock_settings.data = []
+
+        def table_router(name):
+            t = MagicMock()
+            q = MagicMock()
+            t.select.return_value = q
+            t.insert.return_value = q
+            t.update.return_value = q
+            q.select.return_value = q
+            q.eq.return_value = q
+            q.in_.return_value = q
+            q.limit.return_value = q
+
+            if name == "collections":
+                q.execute.return_value = mock_collections
+            elif name == "investments":
+                q.execute.return_value = mock_investments
+            elif name == "loan_transactions":
+                q.execute.return_value = mock_loans
+            elif name == "settings":
+                q.execute.return_value = mock_settings
+            else:
+                q.execute.return_value = MagicMock(data=[])
+            return t
+
+        db.table.side_effect = table_router
+        svc = DashboardService(db)
+
+        # raw_balance = (20,000 + 30,000) - 100,000 = -50,000
+        # offset should be +50,000
+        result = svc.complete_migration()
+        assert result["offset_amount"] == Decimal("50000.00")

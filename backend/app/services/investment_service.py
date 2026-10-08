@@ -15,6 +15,7 @@ from supabase import Client
 
 from app.core.business_week import get_business_week
 from app.schemas.investment import InvestmentCreate
+from app.services.dashboard_service import invalidate_dashboard_cache
 
 logger = logging.getLogger(__name__)
 
@@ -382,6 +383,7 @@ class InvestmentService:
         record = response.data[0]
         record["business_week"] = get_business_week(data.investment_date)
         record["amount"] = Decimal(str(record.get("amount") or "0.00"))
+        invalidate_dashboard_cache()
         return record
 
     def get_summary(self) -> dict:

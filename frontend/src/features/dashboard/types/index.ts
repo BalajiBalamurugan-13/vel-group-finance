@@ -57,4 +57,25 @@ export interface DashboardSummary {
   total_members: number;
   groups_by_location: GroupLocationSummary[];
   recent_collections: RecentCollection[];
+  /** Owner investments sum added to cash in */
+  total_investment?: string;
+  /** Total collections sum */
+  total_collection?: string;
+  /** Calibration offset applied during data migration */
+  migration_offset?: string;
+  /** Whether initial migration calibration has been performed */
+  is_migration_completed?: boolean;
+}
+
+export interface MigrationStatusResponse {
+  completed: boolean;
+  completed_at: string | null;
+  offset_amount: string;
+  current_balance: string;
+}
+
+export interface CompleteMigrationResponse {
+  message: string;
+  offset_amount: string;
+  completed_at: string;
 }

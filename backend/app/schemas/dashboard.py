@@ -65,15 +65,34 @@ class DashboardResponse(BaseModel):
     # ── Cash Position ─────────────────────────────────────────────────────────
     available_cash: Decimal = Field(
         decimal_places=2,
-        description="Total Paid Collections − Total Loan Cash Given (Formula 11)",
+        description="Total Cash In − Total Loan Cash Given + Migration Offset (Formula 11)",
     )
     total_cash_in: Decimal = Field(
         decimal_places=2,
-        description="SUM of all Paid collection amounts",
+        description="SUM of all Paid collections + Owner Investments",
     )
     total_cash_out: Decimal = Field(
         decimal_places=2,
         description="SUM of all loan_transactions.cash_given",
+    )
+    total_investment: Decimal = Field(
+        default=Decimal("0.00"),
+        decimal_places=2,
+        description="SUM of all owner capital investments added",
+    )
+    total_collection: Decimal = Field(
+        default=Decimal("0.00"),
+        decimal_places=2,
+        description="SUM of all Paid collections",
+    )
+    migration_offset: Decimal = Field(
+        default=Decimal("0.00"),
+        decimal_places=2,
+        description="Migration calibration offset applied to zero historical balance",
+    )
+    is_migration_completed: bool = Field(
+        default=False,
+        description="Whether initial customer/group migration has been completed",
     )
 
     # ── Today's Activity ──────────────────────────────────────────────────────
@@ -144,3 +163,18 @@ class DashboardResponse(BaseModel):
     )
 
     model_config = {}
+
+
+class MigrationStatusResponse(BaseModel):
+    """Status of the pre-migration calibration offset."""
+    completed: bool = Field(description="Whether initial migration calibration has been completed")
+    completed_at: Optional[str] = Field(default=None, description="Timestamp when migration was completed")
+    offset_amount: Decimal = Field(default=Decimal("0.00"), description="Applied migration offset amount")
+    current_balance: Decimal = Field(default=Decimal("0.00"), description="Current Available Cash balance")
+
+
+class CompleteMigrationResponse(BaseModel):
+    """Response returned upon completing or recalibrating initial migration."""
+    message: str = Field(description="Confirmation message")
+    offset_amount: Decimal = Field(description="Calculated migration offset amount to zero balance")
+    completed_at: str = Field(description="Timestamp of completion")

@@ -43,3 +43,34 @@ def get_dashboard(
         data=summary,
         message="Dashboard summary retrieved successfully.",
     )
+
+
+@router.get("/migration-status", response_model=SuccessResponse)
+def get_migration_status(
+    service: DashboardService = Depends(get_service),
+):
+    """
+    Check whether initial customer/group migration has been completed
+    and retrieve the current calibration offset.
+    """
+    status_data = service.get_migration_status_data()
+    return SuccessResponse(
+        data=status_data,
+        message="Migration status retrieved successfully.",
+    )
+
+
+@router.post("/complete-migration", response_model=SuccessResponse)
+def complete_migration(
+    service: DashboardService = Depends(get_service),
+):
+    """
+    Calibrate Available Cash to exactly ₹0.00 by recording a migration offset
+    in settings. Safe, non-destructive, and can be recalibrated.
+    """
+    result = service.complete_migration()
+    return SuccessResponse(
+        data=result,
+        message=result["message"],
+    )
+

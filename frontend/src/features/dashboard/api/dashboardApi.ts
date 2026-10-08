@@ -6,11 +6,25 @@
  */
 import { httpClient } from '@/lib/axios';
 import type { ApiResponse } from '@/types/common';
-import type { DashboardSummary } from '../types';
+import type {
+  DashboardSummary,
+  MigrationStatusResponse,
+  CompleteMigrationResponse,
+} from '../types';
 
 export const dashboardApi = {
   getSummary: async (): Promise<DashboardSummary> => {
     const { data } = await httpClient.get<ApiResponse<DashboardSummary>>('/dashboard');
+    return data.data;
+  },
+
+  getMigrationStatus: async (): Promise<MigrationStatusResponse> => {
+    const { data } = await httpClient.get<ApiResponse<MigrationStatusResponse>>('/dashboard/migration-status');
+    return data.data;
+  },
+
+  completeMigration: async (): Promise<CompleteMigrationResponse> => {
+    const { data } = await httpClient.post<ApiResponse<CompleteMigrationResponse>>('/dashboard/complete-migration');
     return data.data;
   },
 };
