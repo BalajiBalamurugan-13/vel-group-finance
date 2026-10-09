@@ -10,57 +10,24 @@
  * - Suspense fallback uses LoadingState for skeleton-ready loading UX.
  * - Root redirect: / → /dashboard.
  */
-import { lazy, Suspense } from 'react';
 import { Navigate, type RouteObject } from 'react-router-dom';
 import { ROUTES } from '@/constants';
 import { AppLayout } from '@/layouts';
-import { LoadingState } from '@/components/common/LoadingState';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
-// ── Lazy Page Imports ─────────────────────────────────────────────────────────
-// Each page is a separate JS chunk for optimal loading performance.
-
-const DashboardPage = lazy(() =>
-  import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
-);
-const GroupsPage = lazy(() =>
-  import('@/pages/GroupsPage').then((m) => ({ default: m.GroupsPage })),
-);
-const MembersPage = lazy(() =>
-  import('@/pages/MembersPage').then((m) => ({ default: m.MembersPage })),
-);
-const ProfitPage = lazy(() =>
-  import('@/pages/ProfitPage').then((m) => ({ default: m.ProfitPage })),
-);
-const LoanRiskPage = lazy(() =>
-  import('@/pages/LoanRiskPage').then((m) => ({ default: m.LoanRiskPage })),
-);
-const PlacesPage = lazy(() =>
-  import('@/pages/PlacesPage').then((m) => ({ default: m.PlacesPage })),
-);
-const CollectionSheetPage = lazy(() =>
-  import('@/pages/CollectionSheetPage').then((m) => ({ default: m.CollectionSheetPage })),
-);
-const CollectionsPage = lazy(() =>
-  import('@/pages/CollectionsPage').then((m) => ({ default: m.CollectionsPage })),
-);
-const SchemesPage = lazy(() =>
-  import('@/pages/SchemesPage').then((m) => ({ default: m.SchemesPage })),
-);
-const NotFoundPage = lazy(() =>
-  import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
-);
-
-// ── Suspense Wrapper ──────────────────────────────────────────────────────────
-
-// eslint-disable-next-line react-refresh/only-export-components
-function LazyPage({ children }: { children: React.ReactNode }) {
-  return (
-    <Suspense fallback={<LoadingState fullPage />}>
-      {children}
-    </Suspense>
-  );
-}
+// ── Eager Page Imports for Instant, Native-Speed Navigation ──────────────────
+// Eagerly importing primary pages eliminates the jarring fullPage loading screen
+// and ensures instantaneous 0ms tab switching matching the DL application.
+import { DashboardPage } from '@/pages/DashboardPage';
+import { GroupsPage } from '@/pages/GroupsPage';
+import { MembersPage } from '@/pages/MembersPage';
+import { CollectionsPage } from '@/pages/CollectionsPage';
+import { ProfitPage } from '@/pages/ProfitPage';
+import { LoanRiskPage } from '@/pages/LoanRiskPage';
+import { PlacesPage } from '@/pages/PlacesPage';
+import { CollectionSheetPage } from '@/pages/CollectionSheetPage';
+import { SchemesPage } from '@/pages/SchemesPage';
+import { NotFoundPage } from '@/pages/NotFoundPage';
 
 // ── Route Definitions ─────────────────────────────────────────────────────────
 
@@ -80,67 +47,35 @@ export const routes: RouteObject[] = [
     children: [
       {
         path: ROUTES.DASHBOARD,
-        element: (
-          <LazyPage>
-            <DashboardPage />
-          </LazyPage>
-        ),
+        element: <DashboardPage />,
       },
       {
         path: ROUTES.GROUPS,
-        element: (
-          <LazyPage>
-            <GroupsPage />
-          </LazyPage>
-        ),
+        element: <GroupsPage />,
       },
       {
         path: ROUTES.MEMBERS,
-        element: (
-          <LazyPage>
-            <MembersPage />
-          </LazyPage>
-        ),
+        element: <MembersPage />,
       },
       {
         path: ROUTES.COLLECTIONS,
-        element: (
-          <LazyPage>
-            <CollectionsPage />
-          </LazyPage>
-        ),
+        element: <CollectionsPage />,
       },
       {
         path: ROUTES.PROFIT,
-        element: (
-          <LazyPage>
-            <ProfitPage />
-          </LazyPage>
-        ),
+        element: <ProfitPage />,
       },
       {
         path: ROUTES.LOAN_RISK,
-        element: (
-          <LazyPage>
-            <LoanRiskPage />
-          </LazyPage>
-        ),
+        element: <LoanRiskPage />,
       },
       {
         path: ROUTES.PLACES,
-        element: (
-          <LazyPage>
-            <PlacesPage />
-          </LazyPage>
-        ),
+        element: <PlacesPage />,
       },
       {
         path: ROUTES.COLLECTION_SHEET,
-        element: (
-          <LazyPage>
-            <CollectionSheetPage />
-          </LazyPage>
-        ),
+        element: <CollectionSheetPage />,
       },
       {
         path: ROUTES.REPORTS,
@@ -152,21 +87,13 @@ export const routes: RouteObject[] = [
       },
       {
         path: ROUTES.SCHEMES,
-        element: (
-          <LazyPage>
-            <SchemesPage />
-          </LazyPage>
-        ),
+        element: <SchemesPage />,
       },
     ],
   },
   {
     // 404 — outside the app layout so it can be full-screen
     path: ROUTES.NOT_FOUND,
-    element: (
-      <LazyPage>
-        <NotFoundPage />
-      </LazyPage>
-    ),
+    element: <NotFoundPage />,
   },
 ];

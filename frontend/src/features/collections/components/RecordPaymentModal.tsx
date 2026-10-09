@@ -52,7 +52,7 @@ export function RecordPaymentModal({
   initialMemberId,
   onSuccess,
 }: RecordPaymentModalProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // Mode: 'batch' (Group collection) by default, or 'single' if opened with initialMemberId
   const [entryMode, setEntryMode] = useState<'batch' | 'single'>(
@@ -89,12 +89,12 @@ export function RecordPaymentModal({
     status: 'Active',
   });
 
-  // Automatically select the first group in batch mode if none selected
+  // Automatically select the first group if none selected
   useEffect(() => {
-    if (!selectedGroupId && groups.length > 0 && entryMode === 'batch') {
+    if (!selectedGroupId && groups.length > 0) {
       setSelectedGroupId(groups[0].id);
     }
-  }, [selectedGroupId, groups, entryMode]);
+  }, [selectedGroupId, groups]);
 
   // Selected group object & scheme details
   const selectedGroup = useMemo(
@@ -108,18 +108,13 @@ export function RecordPaymentModal({
   const {
     data: groupMembers = [],
     isLoading: isLoadingMembers,
-    refetch: refetchMembers,
   } = useMembers(
     selectedGroupId ? { group_id: selectedGroupId, status: 'Active' } : undefined,
     { enabled: Boolean(selectedGroupId) && isOpen }
   );
 
-  // Automatically refetch members whenever modal opens with a selected group
-  useEffect(() => {
-    if (isOpen && selectedGroupId) {
-      refetchMembers();
-    }
-  }, [isOpen, selectedGroupId, refetchMembers]);
+  // Members are fetched automatically when selectedGroupId is set and modal is open.
+  // React Query handles staleness via staleTime in useMembers — no manual refetch needed.
 
   // Display members in creation order (M-0001, M-0002...)
   const sortedMembers = useMemo(() => {
@@ -334,7 +329,11 @@ export function RecordPaymentModal({
     setWarningMessage(null);
 
     if (checkedMembers.length === 0) {
-      setErrorMessage('Please check at least one member to record payment.');
+      setErrorMessage(
+        language === 'ta'
+          ? 'வசூல் பதிவு செய்ய குறைந்தது ஒரு உறுப்பினரையாவது தேர்ந்தெடுக்கவும்.'
+          : 'Please check at least one member to record payment.'
+      );
       return;
     }
 
@@ -342,7 +341,11 @@ export function RecordPaymentModal({
     for (const m of checkedMembers) {
       const amount = Number(memberAmounts[m.id]);
       if (isNaN(amount) || amount <= 0) {
-        setErrorMessage(`Invalid installment amount for member ${m.member_name}.`);
+        setErrorMessage(
+          language === 'ta'
+            ? `${m.member_name} உறுப்பினருக்கான தவணைத் தொகை தவறானது.`
+            : `Invalid installment amount for member ${m.member_name}.`
+        );
         return;
       }
       const week = Number(memberWeeks[m.id]) || (m.weeks_paid || 0) + 1;
@@ -360,7 +363,9 @@ export function RecordPaymentModal({
 
       if (result.errors && result.errors.length > 0) {
         setWarningMessage(
-          `Recorded ${result.total_recorded} payments. Skipped: ${result.errors.join(', ')}`
+          language === 'ta'
+            ? `${result.total_recorded} வசூல்கள் பதிவு செய்யப்பட்டன. விடுபட்டவை: ${result.errors.join(', ')}`
+            : `Recorded ${result.total_recorded} payments. Skipped: ${result.errors.join(', ')}`
         );
       }
 
@@ -392,7 +397,7 @@ export function RecordPaymentModal({
         error.response?.data?.message ||
         error.response?.data?.detail ||
         error.message ||
-        'Failed to record batch payments.';
+        (language === 'ta' ? 'குழு வசூலைப் பதிவு செய்வதில் தோல்வி.' : 'Failed to record batch payments.');
       setErrorMessage(msg);
     }
   };
@@ -428,7 +433,7 @@ export function RecordPaymentModal({
         error.response?.data?.message ||
         error.response?.data?.detail ||
         error.message ||
-        'Failed to record weekly collection payment.';
+        (language === 'ta' ? 'வார வசூலைப் பதிவு செய்வதில் தோல்வி.' : 'Failed to record weekly collection payment.');
       setErrorMessage(msg);
     }
   };
@@ -463,12 +468,12 @@ export function RecordPaymentModal({
                   id="record-payment-title"
                   className="text-base sm:text-lg font-bold text-secondary-900 leading-tight"
                 >
-                  {entryMode === 'batch' ? 'Group Collection Entry' : t('modal.recordPaymentTitle')}
+                  {entryMode === 'batch' ? t('recordPayment.batchTitle') : t('recordPayment.singleTitle')}
                 </h2>
                 <p className="text-xs text-secondary-500 mt-0.5">
                   {entryMode === 'batch'
-                    ? 'Fast batch entry — select group & record all active members in one click'
-                    : t('modal.recordPaymentSubtitle')}
+                    ? t('recordPayment.batchSubtitle')
+                    : t('recordPayment.singleSubtitle')}
                 </p>
               </div>
             </div>
@@ -498,7 +503,7 @@ export function RecordPaymentModal({
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Group Batch (Fast)</span>
+              <span>{t('recordPayment.batchTab')}</span>
             </button>
             <button
               type="button"
@@ -513,7 +518,7 @@ export function RecordPaymentModal({
               }`}
             >
               <UserCheck className="w-3.5 h-3.5" />
-              <span>Single Member</span>
+              <span>{t('recordPayment.singleTab')}</span>
             </button>
           </div>
         </div>
@@ -523,7 +528,7 @@ export function RecordPaymentModal({
           <div className="mx-4 sm:mx-6 mt-3 flex items-start gap-3 rounded-lg bg-error-50 p-3 text-sm border border-error-200">
             <AlertCircle className="w-5 h-5 text-error-600 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <div className="font-semibold text-error-900">Payment Error</div>
+              <div className="font-semibold text-error-900">{t('recordPayment.errorTitle')}</div>
               <div className="text-xs text-error-700 mt-0.5">{errorMessage}</div>
             </div>
           </div>
@@ -533,7 +538,7 @@ export function RecordPaymentModal({
           <div className="mx-4 sm:mx-6 mt-3 flex items-start gap-3 rounded-lg bg-warning-50 p-3 text-sm border border-warning-200">
             <Info className="w-5 h-5 text-warning-600 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <div className="font-semibold text-warning-900">Notice</div>
+              <div className="font-semibold text-warning-900">{t('recordPayment.noticeTitle')}</div>
               <div className="text-xs text-warning-700 mt-0.5">{warningMessage}</div>
             </div>
           </div>
@@ -555,7 +560,7 @@ export function RecordPaymentModal({
                     htmlFor="batch_group_select"
                     className="block text-xs font-semibold uppercase tracking-wider text-secondary-600 mb-1"
                   >
-                    Select Group <span className="text-error-500">*</span>
+                    {t('recordPayment.selectGroup')} <span className="text-error-500">*</span>
                   </label>
                   <div className="relative">
                     <select
@@ -566,14 +571,14 @@ export function RecordPaymentModal({
                       disabled={isLoadingGroups}
                     >
                       <option value="">
-                        {isLoadingGroups ? 'Loading groups...' : 'Choose a group...'}
+                        {isLoadingGroups ? t('recordPayment.loadingGroups') : t('recordPayment.chooseGroup')}
                       </option>
                       {groups
                         .filter((g) => g.status === 'Active')
                         .map((g) => (
                           <option key={g.id} value={g.id}>
                             {g.group_name} {g.location ? `(${g.location})` : ''} ·{' '}
-                            {g.member_count} members
+                            {g.member_count} {language === 'ta' ? 'உறுப்பினர்கள்' : 'members'}
                           </option>
                         ))}
                     </select>
@@ -589,7 +594,7 @@ export function RecordPaymentModal({
                     htmlFor="batch_payment_date"
                     className="block text-xs font-semibold uppercase tracking-wider text-secondary-600 mb-1"
                   >
-                    Collection Date <span className="text-error-500">*</span>
+                    {t('recordPayment.collectionDate')} <span className="text-error-500">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -609,15 +614,15 @@ export function RecordPaymentModal({
                 <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-primary-50/60 border border-primary-100 text-xs text-primary-900">
                   <div className="flex items-center gap-3">
                     <span className="font-semibold">
-                      Scheme: {selectedGroup.scheme?.scheme_name || 'Standard'}
+                      {t('recordPayment.scheme')}: {selectedGroup.scheme?.scheme_name || t('recordPayment.standard')}
                     </span>
                     <span>•</span>
-                    <span>Installment: {formatCurrency(groupDefaultWeekly)}</span>
+                    <span>{t('recordPayment.installment')}: {formatCurrency(groupDefaultWeekly)}</span>
                     <span>•</span>
-                    <span>Total: {groupTotalWeeks} Weeks</span>
+                    <span>{t('recordPayment.total')}: {groupTotalWeeks} {t('recordPayment.weeks')}</span>
                   </div>
                   <div className="text-secondary-600">
-                    Active Members: <span className="font-bold">{sortedMembers.length}</span>
+                    {t('recordPayment.activeMembers')}: <span className="font-bold">{sortedMembers.length}</span>
                   </div>
                 </div>
               )}
@@ -637,13 +642,13 @@ export function RecordPaymentModal({
                       <Square className="w-4 h-4 text-secondary-400" />
                     )}
                     <span>
-                      Select All Members ({checkedMembers.length}/{sortedMembers.length} checked)
+                      {t('recordPayment.selectAllMembers')} ({checkedMembers.length}/{sortedMembers.length} {t('recordPayment.checked')})
                     </span>
                   </button>
 
                   {/* Fast Amount Fill Presets */}
                   <div className="flex items-center gap-1.5 self-end sm:self-auto text-xs">
-                    <span className="text-secondary-500 hidden sm:inline">Set all to:</span>
+                    <span className="text-secondary-500 hidden sm:inline">{t('recordPayment.setAllTo')}</span>
                     <button
                       type="button"
                       onClick={() => applyQuickAmount(groupDefaultWeekly || 760)}
@@ -673,7 +678,7 @@ export function RecordPaymentModal({
                         onClick={() => applyQuickAmount(quickAmountInput)}
                         className="px-2 py-1 rounded bg-primary-100 hover:bg-primary-200 text-primary-800 font-semibold text-[11px] transition-colors"
                       >
-                        Apply
+                        {t('recordPayment.apply')}
                       </button>
                     </div>
                   </div>
@@ -684,15 +689,15 @@ export function RecordPaymentModal({
               <div className="space-y-2">
                 {isLoadingMembers ? (
                   <div className="text-center py-10 text-sm text-secondary-500">
-                    Loading group members...
+                    {t('recordPayment.loadingMembers')}
                   </div>
                 ) : !selectedGroupId ? (
                   <div className="text-center py-10 text-sm text-secondary-500">
-                    Select a group above to load members
+                    {t('recordPayment.selectGroupFirst')}
                   </div>
                 ) : sortedMembers.length === 0 ? (
                   <div className="text-center py-10 text-sm text-secondary-500">
-                    No active members found in this group
+                    {t('recordPayment.noActiveMembers')}
                   </div>
                 ) : (
                   sortedMembers.map((member: Member) => {
@@ -752,13 +757,13 @@ export function RecordPaymentModal({
                               </span>
                               {isCompleted && (
                                 <Badge variant="success" className="text-[10px] py-0 px-1.5">
-                                  Completed ({weeksPaid}/{groupTotalWeeks})
+                                  {t('recordPayment.completed')} ({weeksPaid}/{groupTotalWeeks})
                                 </Badge>
                               )}
                             </div>
                             <div className="text-xs text-secondary-400 mt-0.5 flex items-center gap-2">
                               <span>
-                                Paid: {weeksPaid}/{groupTotalWeeks} wks
+                                {t('recordPayment.paid')}: {weeksPaid}/{groupTotalWeeks} {t('recordPayment.weeks')}
                               </span>
                               {member.phone_number && (
                                 <span className="hidden sm:inline text-secondary-300">
@@ -773,7 +778,7 @@ export function RecordPaymentModal({
                         <div className="mt-2.5 sm:mt-0 flex items-center gap-3 pl-8 sm:pl-0 flex-shrink-0">
                           {/* Week Number */}
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-secondary-500 font-medium">Wk:</span>
+                            <span className="text-xs text-secondary-500 font-medium">{t('recordPayment.wk')}</span>
                             <input
                               type="number"
                               min={1}
@@ -814,14 +819,14 @@ export function RecordPaymentModal({
                     htmlFor="batch_remarks_input"
                     className="block text-xs font-semibold text-secondary-600 mb-1"
                   >
-                    Notes / Remarks (Optional)
+                    {t('recordPayment.notesRemarks')}
                   </label>
                   <input
                     id="batch_remarks_input"
                     type="text"
                     value={batchRemarks}
                     onChange={(e) => setBatchRemarks(e.target.value)}
-                    placeholder="e.g. Sunday group collection"
+                    placeholder={t('recordPayment.notesPlaceholder')}
                     className="w-full h-9 px-3 text-xs bg-surface border border-border rounded-lg text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder:text-secondary-400"
                   />
                 </div>
@@ -832,12 +837,12 @@ export function RecordPaymentModal({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-3.5 border-t border-border bg-surface flex-shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] shadow-md">
               <div className="flex items-center justify-between sm:justify-start sm:gap-4">
                 <div className="text-xs text-secondary-600">
-                  Selected:{' '}
-                  <span className="font-bold text-secondary-900">{checkedMembers.length}</span> of{' '}
+                  {t('recordPayment.selected')}{' '}
+                  <span className="font-bold text-secondary-900">{checkedMembers.length}</span> {t('recordPayment.of')}{' '}
                   {sortedMembers.length}
                 </div>
                 <div className="text-sm font-semibold text-secondary-800">
-                  Total:{' '}
+                  {t('recordPayment.totalAmount')}{' '}
                   <span className="text-base font-extrabold font-mono text-primary-700 ml-1">
                     {formatCurrency(totalBatchAmount)}
                   </span>
@@ -864,7 +869,9 @@ export function RecordPaymentModal({
                   className="min-h-[42px] flex-1 sm:flex-initial px-5 font-semibold text-sm shadow-sm"
                 >
                   {isSubmitting
-                    ? 'Recording...'
+                    ? t('recordPayment.recording')
+                    : language === 'ta'
+                    ? `${checkedMembers.length} வசூல்களைப் பதிவு செய் (${formatCurrency(totalBatchAmount)})`
                     : `Record ${checkedMembers.length} Payments (${formatCurrency(totalBatchAmount)})`}
                 </Button>
               </div>
@@ -885,7 +892,7 @@ export function RecordPaymentModal({
                   htmlFor="single_group_select"
                   className="block text-sm font-medium text-secondary-700 mb-1.5"
                 >
-                  Select Group <span className="text-error-500">*</span>
+                  {t('recordPayment.selectGroup')} <span className="text-error-500">*</span>
                 </label>
                 <div className="relative">
                   <select
@@ -899,7 +906,7 @@ export function RecordPaymentModal({
                     disabled={isLoadingGroups}
                   >
                     <option value="">
-                      {isLoadingGroups ? 'Loading active groups...' : 'Choose an active group...'}
+                      {isLoadingGroups ? t('recordPayment.loadingGroups') : t('recordPayment.chooseActiveGroup')}
                     </option>
                     {groups
                       .filter((g) => g.status === 'Active')
@@ -921,23 +928,23 @@ export function RecordPaymentModal({
                   htmlFor="single_member_select"
                   className="block text-sm font-medium text-secondary-700 mb-1.5"
                 >
-                  Select Member <span className="text-error-500">*</span>
+                  {t('recordPayment.selectMember')} <span className="text-error-500">*</span>
                 </label>
                 <div className="relative">
                   <select
                     id="single_member_select"
-                    {...register('member_id', { required: 'Please select a member' })}
+                    {...register('member_id', { required: language === 'ta' ? 'உறுப்பினரைத் தேர்ந்தெடுக்கவும்' : 'Please select a member' })}
                     className="w-full h-11 min-h-[44px] px-3 py-2 bg-surface border border-border rounded-lg text-base sm:text-sm text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none truncate font-sans cursor-pointer pr-8 disabled:bg-secondary-50 disabled:text-secondary-400 disabled:cursor-not-allowed"
                     disabled={!selectedGroupId || isLoadingMembers}
                   >
                     <option value="">
                       {!selectedGroupId
-                        ? 'Choose a group above first...'
+                        ? t('recordPayment.chooseGroupFirst')
                         : isLoadingMembers
-                        ? 'Loading group members...'
+                        ? t('recordPayment.loadingMembers')
                         : sortedMembers.length === 0
-                        ? 'No active members in this group'
-                        : 'Choose a member from this group...'}
+                        ? t('recordPayment.noActiveMembers')
+                        : t('recordPayment.chooseMember')}
                     </option>
                     {sortedMembers.map((m: Member) => (
                       <option key={m.id} value={m.id}>
@@ -959,7 +966,7 @@ export function RecordPaymentModal({
               {selectedSingleMember && (
                 <div className="rounded-xl bg-secondary-50/80 p-3.5 border border-secondary-200/80 text-xs space-y-1.5 shadow-xs">
                   <div className="flex justify-between items-start gap-2 text-secondary-700">
-                    <span className="font-medium flex-shrink-0">Member:</span>
+                    <span className="font-medium flex-shrink-0">{t('recordPayment.memberLabel')}</span>
                     <span className="font-semibold text-secondary-900 break-words text-right flex-1">
                       {selectedSingleMember.member_name}{' '}
                       {selectedSingleMember.member_code
@@ -968,14 +975,14 @@ export function RecordPaymentModal({
                     </span>
                   </div>
                   <div className="flex justify-between items-start gap-2 text-secondary-700">
-                    <span className="font-medium flex-shrink-0">Group:</span>
+                    <span className="font-medium flex-shrink-0">{t('recordPayment.groupLabel')}</span>
                     <span className="font-semibold text-secondary-900 break-words text-right flex-1">
                       {selectedSingleMember.group_name}{' '}
                       {selectedSingleMember.location ? `(${selectedSingleMember.location})` : ''}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-secondary-700 pt-1 border-t border-secondary-200/60">
-                    <span className="font-medium">Standard Installment:</span>
+                    <span className="font-medium">{t('recordPayment.standardInstallment')}</span>
                     <span className="font-bold text-primary-700 text-sm font-mono">
                       {formatCurrency(
                         Number(selectedSingleMember.weekly_installment || groupDefaultWeekly)
@@ -983,7 +990,7 @@ export function RecordPaymentModal({
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-secondary-700">
-                    <span className="font-medium">Weeks Paid:</span>
+                    <span className="font-medium">{t('recordPayment.weeksPaid')}</span>
                     <span className="font-semibold text-secondary-900 font-mono">
                       {singlePaidWeeksCount}
                     </span>
@@ -996,7 +1003,7 @@ export function RecordPaymentModal({
                 <div>
                   <Input
                     id="single-collection-week-number"
-                    label="Week *"
+                    label={`${t('recordPayment.week')} *`}
                     type="number"
                     value={singleNextPayableWeek}
                     readOnly
@@ -1007,17 +1014,17 @@ export function RecordPaymentModal({
                 <div>
                   <Input
                     id="single-collection-amount-paid"
-                    label="Amount (₹) *"
+                    label={`${t('recordPayment.amount')} *`}
                     type="number"
                     step="0.01"
                     min={1}
                     {...register('amount_paid', {
-                      required: 'Amount is required',
-                      min: { value: 1, message: 'Must be > 0' },
+                      required: language === 'ta' ? 'தொகை தேவை' : 'Amount is required',
+                      min: { value: 1, message: language === 'ta' ? '0-ஐ விட அதிகமாக இருக்க வேண்டும்' : 'Must be > 0' },
                       valueAsNumber: true,
                     })}
                     errorMessage={singleErrors.amount_paid?.message}
-                    placeholder="₹ Amount"
+                    placeholder="₹"
                   />
                 </div>
               </div>
@@ -1026,12 +1033,12 @@ export function RecordPaymentModal({
               <div>
                 <Input
                   id="single-collection-payment-date"
-                  label="Payment Date *"
+                  label={`${t('recordPayment.collectionDate')} *`}
                   type="date"
                   required
                   max={new Date().toISOString().split('T')[0]}
                   {...register('payment_date', {
-                    required: 'Payment date is required',
+                    required: language === 'ta' ? 'செலுத்திய தேதி தேவை' : 'Payment date is required',
                   })}
                   errorMessage={singleErrors.payment_date?.message}
                 />
@@ -1043,14 +1050,14 @@ export function RecordPaymentModal({
                   htmlFor="single-collection-remarks"
                   className="block text-sm font-medium text-secondary-700 mb-1.5"
                 >
-                  Remarks (Optional)
+                  {t('recordPayment.notesRemarks')}
                 </label>
                 <textarea
                   id="single-collection-remarks"
                   rows={2}
                   {...register('remarks')}
                   className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-base sm:text-sm text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder:text-secondary-400"
-                  placeholder="Optional collection notes..."
+                  placeholder={t('recordPayment.singleNotesPlaceholder')}
                 />
               </div>
             </div>
@@ -1074,7 +1081,7 @@ export function RecordPaymentModal({
                 className="min-h-[44px] flex-1 sm:flex-initial px-5 font-semibold text-sm shadow-sm"
               >
                 {selectedSingleMember
-                  ? `${t('modal.submitPayment')} (Week ${singleNextPayableWeek})`
+                  ? `${t('modal.submitPayment')} (${language === 'ta' ? `வாரம் ${singleNextPayableWeek}` : `Week ${singleNextPayableWeek}`})`
                   : t('modal.submitPayment')}
               </Button>
             </div>

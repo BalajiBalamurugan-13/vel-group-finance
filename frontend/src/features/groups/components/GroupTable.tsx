@@ -1,11 +1,9 @@
-import { useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Edit2, Play, CheckCircle2 } from 'lucide-react';
 import { GroupStatusBadge } from './GroupStatusBadge';
 import {
-  usePlacesRoute,
-  buildPlaceLookupMap,
+  type PlaceRouteConfig,
   resolvePlaceRouteInfo,
 } from '@/features/places';
 import type { Group, GroupStatus } from '../types';
@@ -15,6 +13,8 @@ interface GroupTableProps {
   onEdit: (group: Group) => void;
   onRequestStatusChange: (group: Group, targetStatus: GroupStatus) => void;
   formatMoney: (val: number) => string;
+  places?: PlaceRouteConfig[];
+  placeLookup?: Map<string, PlaceRouteConfig>;
 }
 
 export function GroupTable({
@@ -22,9 +22,9 @@ export function GroupTable({
   onEdit,
   onRequestStatusChange,
   formatMoney,
+  places = [],
+  placeLookup = new Map(),
 }: GroupTableProps) {
-  const { places } = usePlacesRoute();
-  const placeLookup = useMemo(() => buildPlaceLookupMap(places), [places]);
   return (
     <Card noPadding className="overflow-hidden">
       <div className="overflow-x-auto">

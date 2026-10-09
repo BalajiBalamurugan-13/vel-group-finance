@@ -1,6 +1,7 @@
 import { Search, MapPin, Sun, Moon } from 'lucide-react';
 import { Input, Select } from '@/components/ui';
 import { cn } from '@/lib/cn';
+import { useLanguage } from '@/i18n';
 import type { GroupFiltersState, GroupStatus } from '../types';
 import type { CollectionSession } from '@/features/places';
 
@@ -21,14 +22,6 @@ export interface GroupFiltersProps {
   sessionCounts?: { all: number; morning: number; evening: number };
 }
 
-// "Closed" is intentionally excluded — it is not a user-facing lifecycle filter.
-const STATUS_TABS: Array<{ label: string; value: GroupStatus | 'All' }> = [
-  { label: 'All', value: 'All' },
-  { label: 'Draft', value: 'Draft' },
-  { label: 'Active', value: 'Active' },
-  { label: 'Completed', value: 'Completed' },
-];
-
 export function GroupFilters({
   filters,
   onFilterChange,
@@ -38,7 +31,15 @@ export function GroupFilters({
   onSessionFilterChange,
   sessionCounts,
 }: GroupFiltersProps) {
+  const { t, language } = useLanguage();
   const hasLocations = (locationOptions && locationOptions.length > 0) || locations.length > 0;
+
+  const statusTabs: Array<{ label: string; value: GroupStatus | 'All' }> = [
+    { label: t('common.all'), value: 'All' },
+    { label: t('groups.statusDraft'), value: 'Draft' },
+    { label: t('groups.statusActive'), value: 'Active' },
+    { label: t('groups.statusCompleted'), value: 'Completed' },
+  ];
 
   return (
     <div className="flex flex-col gap-3">
@@ -47,7 +48,7 @@ export function GroupFilters({
         <div className="flex-1 min-w-0">
           <Input
             id="group-search"
-            placeholder="Search groups..."
+            placeholder={t('groups.searchPlaceholder')}
             value={filters.search || ''}
             onChange={(e) =>
               onFilterChange({ ...filters, search: e.target.value })
@@ -67,7 +68,7 @@ export function GroupFilters({
               leftElement={<MapPin className="h-4 w-4" />}
             >
               <option value="">
-                All Locations ({locationOptions?.length ?? locations.length})
+                {t('groups.allLocations')} ({locationOptions?.length ?? locations.length})
               </option>
               {locationOptions
                 ? locationOptions.map((opt) => (
@@ -89,7 +90,7 @@ export function GroupFilters({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
         {/* Status Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scroll-smooth">
-          {STATUS_TABS.map((tab) => {
+          {statusTabs.map((tab) => {
             const isSelected = (filters.status || 'All') === tab.value;
             return (
               <button
@@ -125,7 +126,7 @@ export function GroupFilters({
                   : 'text-secondary-600 hover:text-secondary-900',
               )}
             >
-              All Routes {sessionCounts ? `(${sessionCounts.all})` : ''}
+              {language === 'ta' ? 'அனைத்து வழித்தடங்கள்' : 'All Routes'} {sessionCounts ? `(${sessionCounts.all})` : ''}
             </button>
             <button
               type="button"
@@ -138,7 +139,7 @@ export function GroupFilters({
               )}
             >
               <Sun className="h-3 w-3" />
-              Morning {sessionCounts ? `(${sessionCounts.morning})` : ''}
+              {language === 'ta' ? 'காலை' : 'Morning'} {sessionCounts ? `(${sessionCounts.morning})` : ''}
             </button>
             <button
               type="button"
@@ -151,7 +152,7 @@ export function GroupFilters({
               )}
             >
               <Moon className="h-3 w-3" />
-              Evening {sessionCounts ? `(${sessionCounts.evening})` : ''}
+              {language === 'ta' ? 'மாலை' : 'Evening'} {sessionCounts ? `(${sessionCounts.evening})` : ''}
             </button>
           </div>
         )}

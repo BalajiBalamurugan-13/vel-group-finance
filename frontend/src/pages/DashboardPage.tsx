@@ -291,20 +291,18 @@ export function DashboardPage() {
         />
       )}
 
-      {/* ── Record Payment Modal (Lazy mounted only when opened) ─────────────── */}
-      {isRecordModalOpen && (
-        <RecordPaymentModal
-          isOpen={isRecordModalOpen}
-          onClose={() => setIsRecordModalOpen(false)}
-          onSuccess={({ week, memberName, amount }) => {
-            setSuccessToast({
-              message: t('dashboard.paymentRecordedToast') || 'Payment Recorded',
-              description: `Week ${week} • ${memberName} • ${formatCurrency(amount)}`,
-            });
-            refetchDashboard();
-          }}
-        />
-      )}
+      {/* ── Record Payment Modal ────────────────────────────────────────────── */}
+      <RecordPaymentModal
+        isOpen={isRecordModalOpen}
+        onClose={() => setIsRecordModalOpen(false)}
+        onSuccess={({ week, memberName, amount }) => {
+          setSuccessToast({
+            message: t('dashboard.paymentRecordedToast') || 'Payment Recorded',
+            description: `Week ${week} • ${memberName} • ${formatCurrency(amount)}`,
+          });
+          refetchDashboard();
+        }}
+      />
     </PageContainer>
   );
 }

@@ -4,6 +4,7 @@ import { X, Calendar, User, Users, Receipt, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { CollectionStatusBadge } from './CollectionStatusBadge';
+import { useLanguage } from '@/i18n';
 import type { Collection } from '../types';
 
 interface CollectionDetailsModalProps {
@@ -17,6 +18,7 @@ export function CollectionDetailsModal({
   isOpen,
   onClose,
 }: CollectionDetailsModalProps) {
+  const { language } = useLanguage();
   // Lock body scroll while modal is open
   useEffect(() => {
     if (isOpen) {
@@ -68,10 +70,10 @@ export function CollectionDetailsModal({
                 id="collection-details-title"
                 className="text-base sm:text-lg font-bold text-secondary-900"
               >
-                Collection Details
+                {language === 'ta' ? 'வசூல் விவரங்கள்' : 'Collection Details'}
               </h2>
               <p className="text-xs text-secondary-500">
-                Week {collection.week_number} • {formatDate(collection.payment_date)}
+                {language === 'ta' ? 'வாரம்' : 'Week'} {collection.week_number} • {formatDate(collection.payment_date)}
               </p>
             </div>
           </div>
@@ -90,7 +92,7 @@ export function CollectionDetailsModal({
           <div className="rounded-xl bg-primary-50/70 p-4 border border-primary-100 flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-primary-800 uppercase tracking-wider">
-                Collected Amount
+                {language === 'ta' ? 'வசூலித்த தொகை' : 'Collected Amount'}
               </span>
               <div className="text-2xl font-black text-primary-900 mt-0.5 font-mono">
                 {formatCurrency(amount)}
@@ -99,8 +101,8 @@ export function CollectionDetailsModal({
             <div className="text-right">
               <CollectionStatusBadge status={collection.payment_status} />
               <div className="text-xs text-primary-700 font-medium mt-1.5 font-mono">
-                Week {collection.week_number}
-                {collection.total_weeks ? ` of ${collection.total_weeks}` : ''}
+                {language === 'ta' ? 'வாரம்' : 'Week'} {collection.week_number}
+                {collection.total_weeks ? ` / ${collection.total_weeks}` : ''}
               </div>
             </div>
           </div>
@@ -110,7 +112,9 @@ export function CollectionDetailsModal({
             <div className="flex items-start gap-3">
               <User className="w-4 h-4 text-secondary-500 shrink-0 mt-0.5" />
               <div className="flex-1">
-                <span className="text-xs text-secondary-500 block">Member</span>
+                <span className="text-xs text-secondary-500 block">
+                  {language === 'ta' ? 'உறுப்பினர்' : 'Member'}
+                </span>
                 <span className="font-semibold text-secondary-900 text-sm">
                   {collection.member_name || '—'}
                 </span>
@@ -125,7 +129,9 @@ export function CollectionDetailsModal({
             <div className="flex items-start gap-3 pt-2 border-t border-border/50">
               <Users className="w-4 h-4 text-secondary-500 shrink-0 mt-0.5" />
               <div className="flex-1">
-                <span className="text-xs text-secondary-500 block">Group / Location</span>
+                <span className="text-xs text-secondary-500 block">
+                  {language === 'ta' ? 'குழு / இடம்' : 'Group / Location'}
+                </span>
                 <span className="font-semibold text-secondary-900 text-sm">
                   {collection.group_name || '—'}
                 </span>
@@ -140,12 +146,14 @@ export function CollectionDetailsModal({
             <div className="flex items-start gap-3 pt-2 border-t border-border/50">
               <Calendar className="w-4 h-4 text-secondary-500 shrink-0 mt-0.5" />
               <div className="flex-1">
-                <span className="text-xs text-secondary-500 block">Payment Date & Collector</span>
+                <span className="text-xs text-secondary-500 block">
+                  {language === 'ta' ? 'தேதி & வசூலிப்பாளர்' : 'Payment Date & Collector'}
+                </span>
                 <span className="font-medium text-secondary-900 text-sm font-mono">
                   {formatDate(collection.payment_date)}
                 </span>
                 <span className="text-xs text-secondary-500 block">
-                  Received by: {collection.collector_name || 'Admin'}
+                  {language === 'ta' ? 'பெற்றவர்:' : 'Received by:'} {collection.collector_name || 'Admin'}
                 </span>
               </div>
             </div>
@@ -156,30 +164,38 @@ export function CollectionDetailsModal({
             <div className="rounded-xl border border-border p-4 bg-surface space-y-2.5">
               <h3 className="text-xs font-bold text-secondary-700 uppercase tracking-wider flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-success-600" />
-                Cycle Financial Status
+                {language === 'ta' ? 'சுழற்சி நிதி நிலை' : 'Cycle Financial Status'}
               </h3>
               <div className="grid grid-cols-2 gap-3 text-xs pt-1">
                 <div>
-                  <span className="text-secondary-500 block">Standard Installment</span>
+                  <span className="text-secondary-500 block">
+                    {language === 'ta' ? 'நிலையான தவணை' : 'Standard Installment'}
+                  </span>
                   <span className="font-semibold text-secondary-900 font-mono">
                     {formatCurrency(weeklyInst)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-secondary-500 block">Weeks Paid</span>
+                  <span className="text-secondary-500 block">
+                    {language === 'ta' ? 'செலுத்திய வாரங்கள்' : 'Weeks Paid'}
+                  </span>
                   <span className="font-semibold text-secondary-900 font-mono">
                     {collection.weeks_paid ?? collection.week_number} /{' '}
                     {collection.total_weeks || 18}
                   </span>
                 </div>
                 <div>
-                  <span className="text-secondary-500 block">Remaining Weeks</span>
+                  <span className="text-secondary-500 block">
+                    {language === 'ta' ? 'மீதமுள்ள வாரங்கள்' : 'Remaining Weeks'}
+                  </span>
                   <span className="font-semibold text-secondary-900 font-mono">
                     {collection.remaining_installments ?? '—'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-secondary-500 block">Current Outstanding</span>
+                  <span className="text-secondary-500 block">
+                    {language === 'ta' ? 'தற்போதைய நிலுவை' : 'Current Outstanding'}
+                  </span>
                   <span className="font-bold text-secondary-900 font-mono">
                     {formatCurrency(outstanding)}
                   </span>
@@ -192,7 +208,7 @@ export function CollectionDetailsModal({
           {collection.remarks && (
             <div className="rounded-xl border border-border p-3.5 bg-secondary-50/30 text-xs">
               <span className="font-semibold text-secondary-700 block mb-1">
-                Remarks
+                {language === 'ta' ? 'குறிப்புகள்' : 'Remarks'}
               </span>
               <p className="text-secondary-600 italic">{collection.remarks}</p>
             </div>
@@ -206,7 +222,7 @@ export function CollectionDetailsModal({
             onClick={onClose}
             className="min-h-[44px] px-6 w-full sm:w-auto"
           >
-            Close
+            {language === 'ta' ? 'மூடு' : 'Close'}
           </Button>
         </div>
       </div>

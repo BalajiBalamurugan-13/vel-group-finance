@@ -1,13 +1,12 @@
-import { useMemo } from 'react';
 import { Edit, Eye, CheckCircle2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/utils/format';
 import { MemberStatusBadge } from './MemberStatusBadge';
 import {
-  usePlacesRoute,
-  buildPlaceLookupMap,
+  type PlaceRouteConfig,
   resolvePlaceRouteInfo,
 } from '@/features/places';
+import { useLanguage } from '@/i18n';
 import type { Member, MemberStatus } from '../types';
 
 interface MemberCardProps {
@@ -15,6 +14,8 @@ interface MemberCardProps {
   onViewDetails: (member: Member) => void;
   onEdit: (member: Member) => void;
   onRequestStatusChange: (member: Member, targetStatus: MemberStatus) => void;
+  places?: PlaceRouteConfig[];
+  placeLookup?: Map<string, PlaceRouteConfig>;
 }
 
 export function MemberCard({
@@ -22,9 +23,10 @@ export function MemberCard({
   onViewDetails,
   onEdit,
   onRequestStatusChange,
+  places = [],
+  placeLookup = new Map(),
 }: MemberCardProps) {
-  const { places } = usePlacesRoute();
-  const placeLookup = useMemo(() => buildPlaceLookupMap(places), [places]);
+  const { language } = useLanguage();
   const loanAmount = Number(member.loan_amount || 0);
   const weeklyInstallment = Number(member.weekly_installment || 0);
   const immediateCollection = Number(member.immediate_collection || 0);
@@ -110,7 +112,7 @@ export function MemberCard({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
-                Balance
+                {language === 'ta' ? 'மீதி தொகை' : 'Balance'}
               </div>
               <div className="mt-0.5 text-xs font-bold text-secondary-900 font-mono tabular-nums">
                 {formatCurrency(balance)}
@@ -118,7 +120,7 @@ export function MemberCard({
             </div>
             <div className="text-right">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
-                Weekly
+                {language === 'ta' ? 'வார தவணை' : 'Weekly'}
               </div>
               <div className="mt-0.5 text-xs font-bold text-secondary-900 font-mono tabular-nums">
                 {weeklyInstallment > 0 ? formatCurrency(weeklyInstallment) : '—'}
@@ -133,10 +135,10 @@ export function MemberCard({
             <div>
               <div className="flex items-center justify-between text-[10px] font-medium mb-1">
                 <span className="text-secondary-400 uppercase tracking-wider font-semibold">
-                  Repayment Progress
+                  {language === 'ta' ? 'திருப்பிச் செலுத்தும் முன்னேற்றம்' : 'Repayment Progress'}
                 </span>
                 <span className="text-secondary-700 tabular-nums font-semibold">
-                  {weeksPaid} / {totalWeeks} wks ({Math.round(progressPct)}%)
+                  {weeksPaid} / {totalWeeks} {language === 'ta' ? 'வாரங்கள்' : 'wks'} ({Math.round(progressPct)}%)
                 </span>
               </div>
               <div className="vel-progress-bar h-1.5">
@@ -148,16 +150,18 @@ export function MemberCard({
             </div>
           ) : (
             <div className="text-xs text-secondary-400 py-0.5">
-              {member.status === 'Completed' ? 'Loan fully settled' : 'No active loan cycle'}
+              {member.status === 'Completed'
+                ? (language === 'ta' ? 'கடன் முழுவதும் செலுத்தப்பட்டது' : 'Loan fully settled')
+                : (language === 'ta' ? 'செயலில் கடன் இல்லை' : 'No active loan cycle')}
             </div>
           )}
 
           {/* Late Joining Notice */}
           {immediateCollection > 0 && member.joined_week > 1 && (
             <div className="mt-1.5 flex items-center justify-between rounded bg-warning-50 border border-warning-200/60 px-2 py-1 text-[11px] font-medium text-warning-800">
-              <span>Joined Week {member.joined_week}</span>
+              <span>{language === 'ta' ? `வாரம் ${member.joined_week} இல் சேர்ந்தார்` : `Joined Week ${member.joined_week}`}</span>
               <span className="tabular-nums font-mono">
-                Due: {formatCurrency(immediateCollection)}
+                {language === 'ta' ? 'நிலுவை:' : 'Due:'} {formatCurrency(immediateCollection)}
               </span>
             </div>
           )}
@@ -173,7 +177,7 @@ export function MemberCard({
           onClick={() => onViewDetails(member)}
           className="flex-1 text-secondary-700"
         >
-          Details
+          {language === 'ta' ? 'விவரங்கள்' : 'Details'}
         </Button>
         <Button
           variant="ghost"

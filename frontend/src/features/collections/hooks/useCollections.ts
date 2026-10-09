@@ -25,6 +25,7 @@ export function useCollections(filters?: CollectionFiltersState) {
         to_date: filters?.to_date,
       }),
     placeholderData: keepPreviousData,
+    staleTime: 30_000, // 30 seconds — prevents redundant refetches during modal open/close cycles
   });
 }
 
@@ -33,6 +34,7 @@ export function useCollection(id: string) {
     queryKey: [...COLLECTIONS_QUERY_KEY, id],
     queryFn: () => collectionApi.getCollection(id),
     enabled: Boolean(id),
+    staleTime: 30_000,
   });
 }
 
@@ -40,6 +42,7 @@ export function useTodayCollections(targetDate?: string) {
   return useQuery({
     queryKey: [...COLLECTIONS_QUERY_KEY, 'today', targetDate || 'today'],
     queryFn: () => collectionApi.getTodayCollections(targetDate),
+    staleTime: 30_000,
   });
 }
 
@@ -48,6 +51,7 @@ export function useWeeklyCollectionSummary(groupId?: string, enabled: boolean = 
     queryKey: [...COLLECTIONS_QUERY_KEY, 'weekly', groupId || 'All'],
     queryFn: () => collectionApi.getWeeklySummary(groupId),
     enabled,
+    staleTime: 30_000,
   });
 }
 

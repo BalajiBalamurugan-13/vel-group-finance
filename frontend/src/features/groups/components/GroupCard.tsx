@@ -1,13 +1,12 @@
-import { useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Edit2, Play, CheckCircle2, Users, Calendar, MapPin } from 'lucide-react';
 import { GroupStatusBadge } from './GroupStatusBadge';
 import {
-  usePlacesRoute,
-  buildPlaceLookupMap,
+  type PlaceRouteConfig,
   resolvePlaceRouteInfo,
 } from '@/features/places';
+import { useLanguage } from '@/i18n';
 import type { Group, GroupStatus } from '../types';
 
 interface GroupCardProps {
@@ -15,6 +14,8 @@ interface GroupCardProps {
   onEdit: (group: Group) => void;
   onRequestStatusChange: (group: Group, targetStatus: GroupStatus) => void;
   formatMoney: (val: number) => string;
+  places?: PlaceRouteConfig[];
+  placeLookup?: Map<string, PlaceRouteConfig>;
 }
 
 export function GroupCard({
@@ -22,9 +23,10 @@ export function GroupCard({
   onEdit,
   onRequestStatusChange,
   formatMoney,
+  places = [],
+  placeLookup = new Map(),
 }: GroupCardProps) {
-  const { places } = usePlacesRoute();
-  const placeLookup = useMemo(() => buildPlaceLookupMap(places), [places]);
+  const { language } = useLanguage();
   const schemeName = group.scheme?.scheme_name || 'N/A';
 
   return (
@@ -64,7 +66,7 @@ export function GroupCard({
                             ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
                             : 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
                         }`}
-                        title={`${isMorning ? 'Morning' : 'Evening'} Route Stop #${info.order}`}
+                        title={`${isMorning ? (language === 'ta' ? 'காலை' : 'Morning') : (language === 'ta' ? 'மாலை' : 'Evening')} ${language === 'ta' ? 'வழித்தட நிறுத்தம்' : 'Route Stop'} #${info.order}`}
                       >
                         {isMorning ? '☀️' : '🌙'} #{info.order}
                       </span>
@@ -92,9 +94,15 @@ export function GroupCard({
                 >
                   {group.funding_source === 'Recycled Collections'
                     ? group.recycled_sub_type === 'Recycled + Owner Investment' && group.owner_investment_amount
-                      ? `Recycled + ${formatMoney(group.owner_investment_amount)} Cash`
-                      : 'Recycled'
-                    : group.funding_source}
+                      ? language === 'ta'
+                        ? `மறுசுழற்சி + ${formatMoney(group.owner_investment_amount)} சொந்த பணம்`
+                        : `Recycled + ${formatMoney(group.owner_investment_amount)} Cash`
+                      : language === 'ta' ? 'மறுசுழற்சி' : 'Recycled'
+                    : group.funding_source === 'Initial Investment'
+                      ? language === 'ta' ? 'ஆரம்ப முதலீடு' : 'Initial Investment'
+                      : group.funding_source === 'Additional Investment'
+                        ? language === 'ta' ? 'கூடுதல் முதலீடு' : 'Additional Investment'
+                        : group.funding_source}
                 </span>
               )}
             </div>
@@ -111,7 +119,7 @@ export function GroupCard({
           {/* Scheme */}
           <div className="min-w-0">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400 truncate">
-              Scheme
+              {language === 'ta' ? 'திட்டம்' : 'Scheme'}
             </div>
             <div className="text-xs font-semibold text-secondary-900 truncate mt-0.5" title={`${schemeName} (₹${group.weekly_installment || group.scheme?.weekly_installment || 760}/wk)`}>
               {schemeName} · ₹{group.weekly_installment || group.scheme?.weekly_installment || 760}
@@ -121,7 +129,7 @@ export function GroupCard({
           {/* Members */}
           <div className="text-center">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
-              Members
+              {language === 'ta' ? 'உறுப்பினர்கள்' : 'Members'}
             </div>
             <div className="text-xs font-bold text-secondary-900 mt-0.5 flex items-center justify-center gap-1">
               <Users className="h-3 w-3 text-secondary-400" />
@@ -132,7 +140,7 @@ export function GroupCard({
           {/* Total Amount */}
           <div className="text-right min-w-0">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400 truncate">
-              Total Amount
+              {language === 'ta' ? 'மொத்த தொகை' : 'Total Amount'}
             </div>
             <div className="text-xs font-bold text-secondary-900 tabular-nums font-mono mt-0.5 truncate">
               {formatMoney(group.total_group_amount)}
@@ -161,7 +169,7 @@ export function GroupCard({
               onClick={() => onEdit(group)}
               className="text-secondary-600 hover:text-secondary-900"
             >
-              Edit
+              {language === 'ta' ? 'திருத்து' : 'Edit'}
             </Button>
             <Button
               variant="primary"
@@ -169,7 +177,7 @@ export function GroupCard({
               leftIcon={<Play className="h-3.5 w-3.5" />}
               onClick={() => onRequestStatusChange(group, 'Active')}
             >
-              Activate Group
+              {language === 'ta' ? 'குழுவை இயக்கு' : 'Activate Group'}
             </Button>
           </>
         )}
@@ -183,7 +191,7 @@ export function GroupCard({
               onClick={() => onEdit(group)}
               className="text-secondary-600 hover:text-secondary-900"
             >
-              Edit
+              {language === 'ta' ? 'திருத்து' : 'Edit'}
             </Button>
             <Button
               variant="outline"
@@ -192,7 +200,7 @@ export function GroupCard({
               onClick={() => onRequestStatusChange(group, 'Completed')}
               className="text-primary-700 hover:bg-primary-50 border-primary-200"
             >
-              Complete
+              {language === 'ta' ? 'முடிக்க' : 'Complete'}
             </Button>
           </>
         )}
@@ -200,7 +208,7 @@ export function GroupCard({
         {group.status === 'Completed' && (
           <div className="w-full text-center py-0.5">
             <span className="text-xs text-secondary-400 font-medium">
-              Loan cycle completed
+              {language === 'ta' ? 'கடன் சுழற்சி முடிந்தது' : 'Loan cycle completed'}
             </span>
           </div>
         )}
@@ -208,7 +216,7 @@ export function GroupCard({
         {group.status === 'Closed' && (
           <div className="w-full text-center py-0.5">
             <span className="text-xs text-secondary-400 font-medium">
-              Group closed
+              {language === 'ta' ? 'குழு மூடப்பட்டது' : 'Group closed'}
             </span>
           </div>
         )}

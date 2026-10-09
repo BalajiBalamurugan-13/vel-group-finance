@@ -2,6 +2,7 @@ import { Eye } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { CollectionStatusBadge } from './CollectionStatusBadge';
+import { useLanguage } from '@/i18n';
 import type { Collection } from '../types';
 
 interface CollectionTableProps {
@@ -13,34 +14,36 @@ export function CollectionTable({
   collections,
   onViewDetails,
 }: CollectionTableProps) {
+  const { language } = useLanguage();
+
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
       <table className="w-full text-left text-sm text-secondary-600">
         <thead className="bg-secondary-50 text-xs font-semibold uppercase tracking-wider text-secondary-500 border-b border-border">
           <tr>
             <th scope="col" className="py-2.5 pl-4 pr-3 sm:pl-6">
-              Member
+              {language === 'ta' ? 'உறுப்பினர்' : 'Member'}
             </th>
             <th scope="col" className="px-3 py-2.5">
-              Group / Location
+              {language === 'ta' ? 'குழு / இடம்' : 'Group / Location'}
             </th>
             <th scope="col" className="px-3 py-2.5 text-center">
-              Week
+              {language === 'ta' ? 'வாரம்' : 'Week'}
             </th>
             <th scope="col" className="px-3 py-2.5 text-right">
-              Amount Paid
+              {language === 'ta' ? 'செலுத்திய தொகை' : 'Amount Paid'}
             </th>
             <th scope="col" className="px-3 py-2.5">
-              Payment Date
+              {language === 'ta' ? 'தேதி' : 'Payment Date'}
             </th>
             <th scope="col" className="px-3 py-2.5">
-              Collector
+              {language === 'ta' ? 'வசூலிப்பாளர்' : 'Collector'}
             </th>
             <th scope="col" className="px-3 py-2.5">
-              Status
+              {language === 'ta' ? 'நிலை' : 'Status'}
             </th>
             <th scope="col" className="relative py-2.5 pl-3 pr-4 sm:pr-6 text-right">
-              Actions
+              {language === 'ta' ? 'செயல்கள்' : 'Actions'}
             </th>
           </tr>
         </thead>
@@ -123,7 +126,7 @@ export function CollectionTable({
                     aria-label={`View collection details for ${collection.member_name || 'member'}`}
                   >
                     <Eye className="w-4 h-4 mr-1" />
-                    Details
+                    {language === 'ta' ? 'விவரங்கள்' : 'Details'}
                   </Button>
                 </td>
               </tr>

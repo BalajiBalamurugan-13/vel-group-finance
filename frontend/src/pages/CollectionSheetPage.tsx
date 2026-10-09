@@ -615,7 +615,7 @@ export function CollectionSheetPage() {
                       {targetDayLabel} — {formatDateDisplay(targetDate)}
                     </div>
                     <div className="text-xs font-black text-black border border-black bg-white px-2 py-0.5 rounded-sm print-elder-bold">
-                      PAGE {pageIdx + 1} OF {pages.length}
+                      {language === 'ta' ? `பக்கம் ${pageIdx + 1} / ${pages.length}` : `PAGE ${pageIdx + 1} OF ${pages.length}`}
                     </div>
                   </div>
 
@@ -652,7 +652,9 @@ export function CollectionSheetPage() {
                                 const nameTextSize = isLargeGroup ? 'text-[10px]' : isMediumGroup ? 'text-[11px]' : 'text-[11.5px]';
                                 const amountTextSize = isLargeGroup ? 'text-[10px]' : 'text-[11px]';
                                 const weekNum = (member.weeks_paid ?? 0) + 1;
-                                const weekBadgeText = isLargeGroup ? `W${weekNum}` : `Week ${weekNum}`;
+                                const weekBadgeText = isLargeGroup
+                                  ? (language === 'ta' ? `வா${weekNum}` : `W${weekNum}`)
+                                  : (language === 'ta' ? `வாரம் ${weekNum}` : `Week ${weekNum}`);
 
                                 return (
                                   <div

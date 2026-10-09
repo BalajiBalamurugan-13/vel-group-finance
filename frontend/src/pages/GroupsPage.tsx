@@ -26,13 +26,16 @@ import {
   type GroupStatus,
 } from '@/features/groups';
 
+import { useLanguage } from '@/i18n';
+
 interface ToastState {
   message: string;
   description?: string;
 }
 
 export function GroupsPage() {
-  useDocumentTitle('Groups');
+  const { t, language } = useLanguage();
+  useDocumentTitle(t('groups.title'));
 
   const [searchParams] = useSearchParams();
   const locationParam = searchParams.get('location') || '';
@@ -148,13 +151,13 @@ export function GroupsPage() {
     });
     if (newStatus === 'Active') {
       setSuccessToast({
-        message: 'Group Activated',
-        description: `${group.group_name} is now active. Loans have been disbursed to all members.`,
+        message: t('groups.groupActivated'),
+        description: `${group.group_name} ${language === 'ta' ? 'செயல்படுத்தப்பட்டது. உறுப்பினர்களுக்கு கடன்கள் வழங்கப்பட்டன.' : 'is now active. Loans have been disbursed to all members.'}`,
       });
     } else if (newStatus === 'Completed') {
       setSuccessToast({
-        message: 'Group Completed',
-        description: `${group.group_name} has been marked as completed.`,
+        message: t('groups.completeGroup'),
+        description: `${group.group_name} ${language === 'ta' ? 'முடிவடைந்தது என குறிக்கப்பட்டது.' : 'has been marked as completed.'}`,
       });
     }
   };
@@ -175,7 +178,7 @@ export function GroupsPage() {
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-secondary-900">
-          Groups
+          {t('groups.title')}
         </h1>
         <Button
           variant="primary"
@@ -183,7 +186,7 @@ export function GroupsPage() {
           leftIcon={<Plus className="h-4 w-4" />}
           onClick={() => setIsCreateOpen(true)}
         >
-          New Group
+          {t('groups.newGroup')}
         </Button>
       </div>
 
@@ -217,10 +220,10 @@ export function GroupsPage() {
         onClose={() => setIsCreateOpen(false)}
         onSuccess={(group) => {
           setSuccessToast({
-            message: 'Group Created',
+            message: t('groups.groupCreated'),
             description: group.group_code
-              ? `${group.group_name} (${group.group_code}) was created successfully.`
-              : `${group.group_name} was created successfully.`,
+              ? `${group.group_name} (${group.group_code})`
+              : `${group.group_name}`,
           });
         }}
       />

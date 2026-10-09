@@ -10,6 +10,7 @@ import type { ApiError } from '@/types/common';
 import { cn } from '@/lib/cn';
 import { Sparkles, X, CheckCircle2, MapPin, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
+import { useLanguage } from '@/i18n';
 
 interface GroupFormModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface GroupFormModalProps {
 }
 
 export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalProps) {
+  const { t, language } = useLanguage();
   const { data: schemes = [], isLoading: isLoadingSchemes } = useSchemes();
   const { data: existingLocations = [] } = useLocations();
   const { mutateAsync: createGroup, isPending: isCreating } = useCreateGroup();
@@ -194,10 +196,10 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
         <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 flex-shrink-0 bg-surface">
           <div>
             <h2 id="create-group-title" className="text-base sm:text-lg font-bold text-secondary-900">
-              Create Finance Group
+              {t('groups.createGroupTitle')}
             </h2>
             <p className="text-xs text-secondary-500 mt-0.5">
-              Set up a new borrowing group and financial scheme
+              {t('groups.createGroupSubtitle')}
             </p>
           </div>
           <button
@@ -233,15 +235,15 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-secondary-900">Group Status:</span>
+                  <span className="text-xs font-bold text-secondary-900">{t('groups.toggleStatus')}:</span>
                   <Badge variant={isActive ? 'success' : 'neutral'}>
-                    {isActive ? 'Active (Direct)' : 'Draft (Inactive)'}
+                    {isActive ? (language === 'ta' ? 'செயலில் (நேரடி)' : 'Active (Direct)') : (language === 'ta' ? 'வரைவு (செயலிழந்த)' : 'Draft (Inactive)')}
                   </Badge>
                 </div>
                 <p className="text-[11px] text-secondary-500 mt-0.5">
                   {isActive
-                    ? 'Immediately ready for member enrollment and collections.'
-                    : 'Saved as draft. Requires manual activation before recording collections.'}
+                    ? t('groups.activeDescription')
+                    : t('groups.draftDescription')}
                 </p>
               </div>
             </div>
@@ -271,11 +273,11 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
           <div ref={locationWrapperRef} className="relative z-30">
             <Input
               id="group_location"
-              label="Location *"
-              placeholder="e.g. PTM, TNK, ABC"
+              label={`${t('groups.location')} *`}
+              placeholder={language === 'ta' ? 'எ.கா. PTM, TNK' : 'e.g. PTM, TNK, ABC'}
               autoComplete="off"
               {...register('location', {
-                required: 'Location is required',
+                required: t('groups.locationRequired'),
                 maxLength: 100,
               })}
               onFocus={() => setIsLocationDropdownOpen(true)}
@@ -308,8 +310,8 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
                 {filteredLocations.length > 0 ? (
                   <>
                     <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-secondary-400 border-b border-border/60 flex items-center justify-between">
-                      <span>Existing Locations ({filteredLocations.length})</span>
-                      <span className="text-[10px] lowercase font-normal text-secondary-400">click to pick</span>
+                      <span>{t('groups.existingLocations')} ({filteredLocations.length})</span>
+                      <span className="text-[10px] lowercase font-normal text-secondary-400">{t('groups.clickToPick')}</span>
                     </div>
                     {filteredLocations.map((loc) => (
                       <button
@@ -329,7 +331,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
                   </>
                 ) : (
                   <div className="px-3 py-2.5 text-xs text-secondary-500">
-                    New location: <span className="font-semibold text-secondary-800">"{watchedLocation}"</span> (will be saved with this group)
+                    {language === 'ta' ? 'புதிய இடம்:' : 'New location:'} <span className="font-semibold text-secondary-800">"{watchedLocation}"</span> ({language === 'ta' ? 'இந்த குழுவுடன் சேமிக்கப்படும்' : 'will be saved with this group'})
                   </div>
                 )}
               </div>
@@ -342,11 +344,11 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
               htmlFor="group_scheme_id"
               className="text-sm font-medium text-secondary-700"
             >
-              Scheme <span className="text-error-500">*</span>
+              {t('groups.scheme')} <span className="text-error-500">*</span>
             </label>
             <select
               id="group_scheme_id"
-              {...register('scheme_id', { required: 'Please select an active scheme' })}
+              {...register('scheme_id', { required: t('groups.schemeRequired') })}
               className={cn(
                 'h-11 min-h-[44px] w-full rounded-lg border border-border bg-surface px-3 text-sm text-secondary-900',
                 'hover:border-border-strong focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20',
@@ -355,10 +357,10 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
               )}
               disabled={isLoadingSchemes}
             >
-              <option value="">Select scheme...</option>
+              <option value="">{t('groups.selectScheme')}</option>
               {schemes.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.scheme_name} ({formatMoney(s.loan_amount)} · {s.total_weeks} wks)
+                  {s.scheme_name} ({formatMoney(s.loan_amount)} · {s.total_weeks} {t('groups.weeks')})
                 </option>
               ))}
             </select>
@@ -375,19 +377,31 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
               <div className="rounded-lg bg-secondary-50 p-3 border border-border">
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Loan</span>
+                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">
+                      {language === 'ta' ? 'கடன் தொகை' : 'Loan'}
+                    </span>
                     <span className="font-semibold text-secondary-900">{formatMoney(selectedScheme.loan_amount)}</span>
                   </div>
                   <div>
-                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Scheme Default</span>
-                    <span className="font-semibold text-secondary-900">{formatMoney(selectedScheme.weekly_installment)}/wk</span>
+                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">
+                      {language === 'ta' ? 'திட்ட இயல்புநிலை' : 'Scheme Default'}
+                    </span>
+                    <span className="font-semibold text-secondary-900">
+                      {formatMoney(selectedScheme.weekly_installment)}/{language === 'ta' ? 'வாரம்' : 'wk'}
+                    </span>
                   </div>
                   <div>
-                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Duration</span>
-                    <span className="font-semibold text-secondary-900">{selectedScheme.total_weeks} Weeks</span>
+                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">
+                      {language === 'ta' ? 'கால அளவு' : 'Duration'}
+                    </span>
+                    <span className="font-semibold text-secondary-900">
+                      {selectedScheme.total_weeks} {t('groups.weeks')}
+                    </span>
                   </div>
                   <div>
-                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">Note Cost</span>
+                    <span className="text-secondary-400 block text-[10px] uppercase tracking-wider font-medium">
+                      {language === 'ta' ? 'நோட்டு செலவு' : 'Note Cost'}
+                    </span>
                     <span className="font-semibold text-secondary-900">{formatMoney(selectedScheme.note_cost)}</span>
                   </div>
                 </div>
@@ -399,12 +413,16 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
                 type="number"
                 step="any"
                 min="1"
-                label="Weekly Installment (₹) *"
+                label={language === 'ta' ? 'வார தவணை (₹) *' : 'Weekly Installment (₹) *'}
                 placeholder="760"
-                helperText={`Default is ₹${selectedScheme.weekly_installment}/wk. If members pay ₹1000/wk to close early, enter 1000 here.`}
+                helperText={
+                  language === 'ta'
+                    ? `இயல்புநிலை ₹${selectedScheme.weekly_installment}/வாரம். முன்கூட்டியே முடிக்க உறுப்பினர்கள் ₹1000/வாரம் செலுத்தினால், இங்கே 1000 என உள்ளிடவும்.`
+                    : `Default is ₹${selectedScheme.weekly_installment}/wk. If members pay ₹1000/wk to close early, enter 1000 here.`
+                }
                 {...register('weekly_installment', {
-                  required: 'Weekly installment is required',
-                  min: { value: 1, message: 'Must be greater than 0' },
+                  required: language === 'ta' ? 'வார தவணை தேவை' : 'Weekly installment is required',
+                  min: { value: 1, message: language === 'ta' ? '0 ஐ விட அதிகமாக இருக்க வேண்டும்' : 'Must be greater than 0' },
                 })}
                 errorMessage={errors.weekly_installment?.message}
               />
@@ -415,14 +433,14 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
           <div>
             <Input
               id="group_name"
-              label="Group Name *"
-              placeholder="e.g. PTM 1"
+              label={language === 'ta' ? 'குழு பெயர் *' : 'Group Name *'}
+              placeholder={language === 'ta' ? 'உ.ம். PTM 1' : 'e.g. PTM 1'}
               helperText={
                 isSuggesting
-                  ? 'Generating...'
+                  ? (language === 'ta' ? 'உருவாக்குகிறது...' : 'Generating...')
                   : suggestion?.suggested_name
-                    ? `Suggested: ${suggestion.suggested_name}`
-                    : 'Auto-generated from location'
+                    ? `${language === 'ta' ? 'பரிந்துரைக்கப்பட்டது' : 'Suggested'}: ${suggestion.suggested_name}`
+                    : (language === 'ta' ? 'இடத்திலிருந்து தானாக உருவாக்கப்பட்டது' : 'Auto-generated from location')
               }
               rightElement={
                 isSuggesting ? (
@@ -430,7 +448,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
                 ) : undefined
               }
               {...register('group_name', {
-                required: 'Group name is required',
+                required: language === 'ta' ? 'குழு பெயர் தேவை' : 'Group name is required',
                 maxLength: 255,
               })}
               errorMessage={errors.group_name?.message}
@@ -442,10 +460,10 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
             <Input
               id="group_start_date"
               type="date"
-              label="Start Date *"
+              label={language === 'ta' ? 'தொடக்க தேதி *' : 'Start Date *'}
               required
               {...register('start_date', {
-                required: 'Start date is required',
+                required: language === 'ta' ? 'தொடக்க தேதி தேவை' : 'Start date is required',
               })}
               errorMessage={errors.start_date?.message}
             />
@@ -453,7 +471,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
               <div className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-md border border-primary-200">
                 <span>📅</span>
                 <span>
-                  வசூல் நாள் (Collection Day): {collectionDayInfo.nameTa} ({collectionDayInfo.nameEn})
+                  {language === 'ta' ? 'வசூல் நாள்' : 'Collection Day'}: {collectionDayInfo.nameTa} ({collectionDayInfo.nameEn})
                 </span>
               </div>
             )}
@@ -462,7 +480,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
           {/* Funding Source (Section 8) */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="funding_source" className="text-sm font-medium text-secondary-900">
-              Funding Source
+              {language === 'ta' ? 'நிதி ஆதாரம்' : 'Funding Source'}
             </label>
             <select
               id="funding_source"
@@ -472,12 +490,20 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
                 'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500'
               )}
             >
-              <option value="Recycled Collections">Recycled Collections (Default business cash)</option>
-              <option value="Initial Investment">Initial Investment (Owner starting capital)</option>
-              <option value="Additional Investment">Additional Investment (Owner capital added later)</option>
+              <option value="Recycled Collections">
+                {language === 'ta' ? 'மறுசுழற்சி வசூல் (இயல்புநிலை வணிக பணம்)' : 'Recycled Collections (Default business cash)'}
+              </option>
+              <option value="Initial Investment">
+                {language === 'ta' ? 'ஆரம்ப முதலீடு (உரிமையாளர் தொடக்க மூலதனம்)' : 'Initial Investment (Owner starting capital)'}
+              </option>
+              <option value="Additional Investment">
+                {language === 'ta' ? 'கூடுதல் முதலீடு (பின்னர் சேர்க்கப்பட்ட மூலதனம்)' : 'Additional Investment (Owner capital added later)'}
+              </option>
             </select>
             <p className="text-[11px] text-secondary-600 font-medium">
-              Source of capital used to disburse this group&apos;s loans (Section 8).
+              {language === 'ta'
+                ? 'இக்குழுவின் கடன்களை வழங்க பயன்படுத்தப்பட்ட மூலதன ஆதாரம்.'
+                : "Source of capital used to disburse this group's loans (Section 8)."}
             </p>
           </div>
 
@@ -486,10 +512,10 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
             <div className="rounded-xl border border-primary-200/80 bg-primary-50/40 p-3.5 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-secondary-900 uppercase tracking-wider">
-                  Recycled Funding Breakdown
+                  {language === 'ta' ? 'மறுசுழற்சி நிதி விவரம்' : 'Recycled Funding Breakdown'}
                 </span>
                 <span className="text-[11px] font-medium text-primary-700 bg-primary-100/70 px-2 py-0.5 rounded">
-                  Business Cash
+                  {language === 'ta' ? 'வணிக பணம்' : 'Business Cash'}
                 </span>
               </div>
 
@@ -507,8 +533,10 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
                       : 'border-border bg-surface/60 text-secondary-600 hover:bg-surface'
                   )}
                 >
-                  <span className="font-semibold">Fully Recycled</span>
-                  <span className="text-[10px] text-secondary-500 mt-0.5">100% past collections</span>
+                  <span className="font-semibold">{language === 'ta' ? 'முழு மறுசுழற்சி' : 'Fully Recycled'}</span>
+                  <span className="text-[10px] text-secondary-500 mt-0.5">
+                    {language === 'ta' ? '100% கடந்த கால வசூல்' : '100% past collections'}
+                  </span>
                 </button>
 
                 <button
@@ -521,8 +549,10 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
                       : 'border-border bg-surface/60 text-secondary-600 hover:bg-surface'
                   )}
                 >
-                  <span className="font-semibold">Recycled + Owner Cash</span>
-                  <span className="text-[10px] text-secondary-500 mt-0.5">Collections + cash from hand</span>
+                  <span className="font-semibold">{language === 'ta' ? 'மறுசுழற்சி + சொந்த பணம்' : 'Recycled + Owner Cash'}</span>
+                  <span className="text-[10px] text-secondary-500 mt-0.5">
+                    {language === 'ta' ? 'வசூல் + கையில் உள்ள பணம்' : 'Collections + cash from hand'}
+                  </span>
                 </button>
               </div>
 
@@ -532,15 +562,19 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
                   <Input
                     id="owner_investment_amount"
                     type="number"
-                    label="Owner Cash Added (₹) *"
+                    label={language === 'ta' ? 'சேர்க்கப்பட்ட சொந்த பணம் (₹) *' : 'Owner Cash Added (₹) *'}
                     placeholder="e.g. 90,000"
-                    helperText="Will automatically be credited to Owner Investments on the Profit page based on group start date."
+                    helperText={
+                      language === 'ta'
+                        ? 'குழு தொடக்க தேதியின் அடிப்படையில் லாபப் பக்கத்தில் உரிமையாளர் முதலீடுகளுக்கு தானாக வரவு வைக்கப்படும்.'
+                        : 'Will automatically be credited to Owner Investments on the Profit page based on group start date.'
+                    }
                     {...register('owner_investment_amount', {
                       required:
                         watchedRecycledSubType === 'Recycled + Owner Investment'
-                          ? 'Please enter the owner cash amount added'
+                          ? (language === 'ta' ? 'சேர்க்கப்பட்ட உரிமையாளர் பணத்தை உள்ளிடவும்' : 'Please enter the owner cash amount added')
                           : false,
-                      min: { value: 1, message: 'Amount must be greater than 0' },
+                      min: { value: 1, message: language === 'ta' ? 'தொகை 0 ஐ விட அதிகமாக இருக்க வேண்டும்' : 'Amount must be greater than 0' },
                       valueAsNumber: true,
                     })}
                     errorMessage={errors.owner_investment_amount?.message}
@@ -553,8 +587,8 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
           {/* Remarks */}
           <Input
             id="group_remarks"
-            label="Remarks (Optional)"
-            placeholder="Operational notes..."
+            label={language === 'ta' ? 'குறிப்புகள் (விருப்பத்தேர்வு)' : 'Remarks (Optional)'}
+            placeholder={language === 'ta' ? 'குறிப்புகள்...' : 'Operational notes...'}
             {...register('remarks')}
             errorMessage={errors.remarks?.message}
           />
@@ -570,7 +604,7 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
               disabled={isCreating}
               className="min-h-[44px] px-4"
             >
-              Cancel
+              {language === 'ta' ? 'ரத்து' : 'Cancel'}
             </Button>
             <Button
               type="submit"
@@ -578,7 +612,9 @@ export function GroupFormModal({ isOpen, onClose, onSuccess }: GroupFormModalPro
               isLoading={isCreating}
               className="min-h-[44px] flex-1 sm:flex-initial px-6 font-semibold"
             >
-              {isActive ? 'Create Active Group' : 'Save as Draft'}
+              {isActive
+                ? (language === 'ta' ? 'குழுவை உருவாக்கு' : 'Create Active Group')
+                : (language === 'ta' ? 'வரைவாக சேமி' : 'Save as Draft')}
             </Button>
           </div>
         </form>

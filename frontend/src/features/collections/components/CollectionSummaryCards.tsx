@@ -15,7 +15,7 @@ export function CollectionSummaryCards({
   isLoading,
   selectedGroupName,
 }: CollectionSummaryCardsProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const weeklyExpected = Number(weeklySummary?.total_expected || 0);
   const weeklyCollected = Number(weeklySummary?.total_collected || 0);
@@ -38,7 +38,7 @@ export function CollectionSummaryCards({
               {t('dashboard.weeklyExpected')}
             </span>
             <span className="text-[10px] text-blue-700 font-semibold block truncate">
-              {selectedGroupName || `All ${weeklySummary?.groups_summary?.length || 33} Groups`}
+              {selectedGroupName || (language === 'ta' ? `அனைத்து ${weeklySummary?.groups_summary?.length || 33} குழுக்கள்` : `All ${weeklySummary?.groups_summary?.length || 33} Groups`)}
             </span>
           </div>
           <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
@@ -70,7 +70,9 @@ export function CollectionSummaryCards({
             {isLoading ? '—' : formatCurrency(weeklyPending)}
           </div>
           <p className="text-xs text-secondary-500 mt-0.5 truncate">
-            {selectedGroupName ? `For ${selectedGroupName}` : `Across ${weeklySummary?.groups_summary?.length || 33} active groups`}
+            {selectedGroupName
+              ? (language === 'ta' ? `${selectedGroupName} குழுவிற்கு` : `For ${selectedGroupName}`)
+              : (language === 'ta' ? `${weeklySummary?.groups_summary?.length || 33} செயலில் உள்ள குழுக்களில்` : `Across ${weeklySummary?.groups_summary?.length || 33} active groups`)}
           </p>
         </div>
       </Card>

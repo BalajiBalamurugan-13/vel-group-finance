@@ -19,6 +19,7 @@ import {
   useRecordWholeWeek,
 } from '../hooks/useCollections';
 import type { RecordWeekResponse } from '../types';
+import { useLanguage } from '@/i18n';
 import { cn } from '@/lib/cn';
 
 interface RecordWholeWeekModalProps {
@@ -77,6 +78,7 @@ export function RecordWholeWeekModal({
   onClose,
   onSuccess,
 }: RecordWholeWeekModalProps) {
+  const { language } = useLanguage();
   // Day of week selection state: 'all' | 'sunday' | 'monday'
   const [dayFilter, setDayFilter] = useState<CollectionDayFilter>('all');
   const [selectedDate, setSelectedDate] = useState<string>(getNearestSunday);
@@ -223,10 +225,12 @@ export function RecordWholeWeekModal({
                 id="record-week-modal-title"
                 className="text-base sm:text-lg font-bold text-secondary-900"
               >
-                Record Whole Week Collection
+                {language === 'ta' ? 'முழு வார வசூல் பதிவு' : 'Record Whole Week Collection'}
               </h2>
               <p className="text-xs text-secondary-500 mt-0.5">
-                One-click recording for all eligible customers across groups
+                {language === 'ta'
+                  ? 'அனைத்து தகுதியான உறுப்பினர்களுக்கும் ஒரே கிளிக்கில் வசூல் பதிவு'
+                  : 'One-click recording for all eligible customers across groups'}
               </p>
             </div>
           </div>
@@ -253,14 +257,14 @@ export function RecordWholeWeekModal({
           <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-secondary-600">
-                Collection Day
+                {language === 'ta' ? 'வசூல் நாள்' : 'Collection Day'}
               </span>
               <span className="text-xs text-secondary-500 font-medium">
                 {dayFilter === 'all'
-                  ? `All ${allGroups.length} Active Groups`
+                  ? (language === 'ta' ? `அனைத்து ${allGroups.length} குழுக்கள்` : `All ${allGroups.length} Active Groups`)
                   : dayFilter === 'sunday'
-                  ? `${sundayGroups.length} Sunday Groups`
-                  : `${mondayGroups.length} Monday Groups`}
+                  ? (language === 'ta' ? `${sundayGroups.length} ஞாயிறு குழுக்கள்` : `${sundayGroups.length} Sunday Groups`)
+                  : (language === 'ta' ? `${mondayGroups.length} திங்கள் குழுக்கள்` : `${mondayGroups.length} Monday Groups`)}
               </span>
             </div>
 
@@ -276,9 +280,9 @@ export function RecordWholeWeekModal({
                     : 'bg-secondary-50/70 border-border text-secondary-700 hover:bg-secondary-100'
                 )}
               >
-                <span>All Groups</span>
+                <span>{language === 'ta' ? 'அனைத்து குழுக்கள்' : 'All Groups'}</span>
                 <span className="text-[11px] font-normal text-secondary-500 mt-0.5">
-                  {allGroups.length} groups
+                  {allGroups.length} {language === 'ta' ? 'குழுக்கள்' : 'groups'}
                 </span>
               </button>
 
@@ -293,9 +297,9 @@ export function RecordWholeWeekModal({
                     : 'bg-secondary-50/70 border-border text-secondary-700 hover:bg-secondary-100'
                 )}
               >
-                <span>Sunday (ஞாயிறு)</span>
+                <span>{language === 'ta' ? 'ஞாயிறு' : 'Sunday (ஞாயிறு)'}</span>
                 <span className="text-[11px] font-normal text-secondary-500 mt-0.5">
-                  {sundayGroups.length} groups
+                  {sundayGroups.length} {language === 'ta' ? 'குழுக்கள்' : 'groups'}
                 </span>
               </button>
 
@@ -310,9 +314,9 @@ export function RecordWholeWeekModal({
                     : 'bg-secondary-50/70 border-border text-secondary-700 hover:bg-secondary-100'
                 )}
               >
-                <span>Monday (திங்கள்)</span>
+                <span>{language === 'ta' ? 'திங்கள்' : 'Monday (திங்கள்)'}</span>
                 <span className="text-[11px] font-normal text-secondary-500 mt-0.5">
-                  {mondayGroups.length} groups
+                  {mondayGroups.length} {language === 'ta' ? 'குழுக்கள்' : 'groups'}
                 </span>
               </button>
             </div>
@@ -548,7 +552,7 @@ export function RecordWholeWeekModal({
             disabled={isSubmitting}
             className="min-h-[44px] px-4"
           >
-            Cancel
+            {language === 'ta' ? 'ரத்து' : 'Cancel'}
           </Button>
 
           <Button
@@ -561,14 +565,14 @@ export function RecordWholeWeekModal({
             leftIcon={<Zap className="w-4 h-4" />}
           >
             {isSubmitting
-              ? 'Recording...'
+              ? (language === 'ta' ? 'பதிவு செய்கிறது...' : 'Recording...')
               : eligibleCount === 0
-              ? 'All Already Recorded'
+              ? (language === 'ta' ? 'அனைத்தும் ஏற்கனவே பதிவு செய்யப்பட்டன' : 'All Already Recorded')
               : dayFilter === 'sunday'
-              ? `Record Sunday Collections (${formatCurrency(totalPendingAmountNum)})`
+              ? (language === 'ta' ? `ஞாயிறு வசூலை பதிவு செய் (${formatCurrency(totalPendingAmountNum)})` : `Record Sunday Collections (${formatCurrency(totalPendingAmountNum)})`)
               : dayFilter === 'monday'
-              ? `Record Monday Collections (${formatCurrency(totalPendingAmountNum)})`
-              : `Record Week Collections (${formatCurrency(totalPendingAmountNum)})`}
+              ? (language === 'ta' ? `திங்கள் வசூலை பதிவு செய் (${formatCurrency(totalPendingAmountNum)})` : `Record Monday Collections (${formatCurrency(totalPendingAmountNum)})`)
+              : (language === 'ta' ? `முழு வார வசூலை பதிவு செய் (${formatCurrency(totalPendingAmountNum)})` : `Record Week Collections (${formatCurrency(totalPendingAmountNum)})`)}
           </Button>
         </div>
       </div>

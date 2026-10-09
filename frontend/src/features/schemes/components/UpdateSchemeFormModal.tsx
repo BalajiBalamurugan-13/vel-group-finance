@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useUpdateScheme } from '../hooks/useSchemes';
+import { useLanguage } from '@/i18n';
 import type { SchemeUpdate, Scheme } from '../types';
 import type { ApiError } from '@/types/common';
 
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function UpdateSchemeFormModal({ scheme, isOpen, onClose }: Props) {
+  const { t, language } = useLanguage();
   const { mutateAsync: updateScheme, isPending } = useUpdateScheme();
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -95,10 +97,10 @@ export function UpdateSchemeFormModal({ scheme, isOpen, onClose }: Props) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface shrink-0">
           <div>
             <h2 className="text-base font-bold text-secondary-900">
-              Update Scheme
+              {language === 'ta' ? 'கடன் திட்டத்தை புதுப்பித்தல்' : 'Update Scheme'}
             </h2>
             <p className="text-xs text-secondary-500 mt-0.5">
-              Edit scheme display name and description
+              {language === 'ta' ? 'திட்டத்தின் பெயர் மற்றும் விவரங்களை திருத்துக' : 'Edit scheme display name and description'}
             </p>
           </div>
           <button
@@ -106,7 +108,7 @@ export function UpdateSchemeFormModal({ scheme, isOpen, onClose }: Props) {
             onClick={handleClose}
             disabled={isPending}
             className="rounded-lg p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-secondary-100 transition-colors"
-            aria-label="Close"
+            aria-label={t('common.close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -126,29 +128,35 @@ export function UpdateSchemeFormModal({ scheme, isOpen, onClose }: Props) {
 
             <Input
               id="update_scheme_name"
-              label="Scheme Name *"
-              {...register('scheme_name', { required: 'Scheme name is required', maxLength: 255 })}
+              label={`${language === 'ta' ? 'திட்டத்தின் பெயர்' : 'Scheme Name'} *`}
+              {...register('scheme_name', {
+                required: language === 'ta' ? 'திட்டத்தின் பெயர் தேவை' : 'Scheme name is required',
+                maxLength: 255,
+              })}
               errorMessage={errors.scheme_name?.message}
             />
             <Input
               id="update_description"
-              label="Description (Optional)"
+              label={language === 'ta' ? 'விளக்கம் (விருப்பம்)' : 'Description (Optional)'}
               {...register('description')}
               errorMessage={errors.description?.message}
             />
 
             <div className="rounded-lg bg-secondary-50 p-3 text-xs text-secondary-600 border border-border">
-              <strong>Note:</strong> Financial configurations (loan amount, weeks, etc.) cannot be modified to preserve historical records. Create a new scheme for different configurations.
+              <strong>{language === 'ta' ? 'குறிப்பு:' : 'Note:'}</strong>{' '}
+              {language === 'ta'
+                ? 'பழைய கணக்குகளைப் பாதுகாக்க கடன் தொகை மற்றும் கால அளவை மாற்ற முடியாது. புதிய அமைப்பிற்கு புதிய திட்டத்தை உருவாக்கவும்.'
+                : 'Financial configurations (loan amount, weeks, etc.) cannot be modified to preserve historical records. Create a new scheme for different configurations.'}
             </div>
           </div>
 
           {/* Pinned Sticky Footer */}
           <div className="shrink-0 border-t border-border bg-surface px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] flex items-center justify-end gap-3">
             <Button variant="ghost" size="sm" type="button" onClick={handleClose} disabled={isPending}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" size="sm" isLoading={isPending}>
-              Save Changes
+              {t('common.saveChanges')}
             </Button>
           </div>
         </form>

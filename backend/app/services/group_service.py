@@ -42,7 +42,9 @@ class GroupService:
 
     def __init__(self, db: Client):
         self.db = db
-        load_overrides(self.db)
+        from app.core import finance_calc
+        if not finance_calc._CACHE_INITIALIZED:
+            load_overrides(self.db)
 
     def suggest_next_group_name(self, location: str) -> dict:
         """
@@ -128,8 +130,30 @@ class GroupService:
         response = query.execute()
 
         groups = response.data or []
+        if not groups:
+            return groups
+
+        # High performance: bulk-fetch active member counts in 1 single query instead of N individual queries
+        group_ids = [str(g["id"]) for g in groups if "id" in g and g["id"]]
+        counts_map: dict[str, int] = {}
+        if group_ids:
+            try:
+                m_res = (
+                    self.db.table("members")
+                    .select("group_id")
+                    .in_("group_id", group_ids)
+                    .eq("status", "Active")
+                    .execute()
+                )
+                for row in m_res.data or []:
+                    gid = str(row.get("group_id") or "")
+                    counts_map[gid] = counts_map.get(gid, 0) + 1
+            except Exception as e:
+                logger.error("Failed to bulk query active members for groups: %s", e)
+
         for g in groups:
-            self._enrich_dynamic_fields(g)
+            gid = str(g.get("id") or "")
+            self._enrich_dynamic_fields(g, member_count=counts_map.get(gid) if group_ids else None)
 
         return groups
 
@@ -338,9 +362,7 @@ class GroupService:
                     "group_id": str(group_id),
                 }
                 try:
-                    if existing_data:
-                        self.db.table("investments").update(inv_payload).eq("id", existing_data[0]["id"]).execute()
-                    else:
+                    if not existing_data:
                         self.db.table("investments").insert(inv_payload).execute()
                 except Exception as e:
                     logger.warning("Could not sync investment record for additional group %s: %s", group_id, e)
@@ -653,13 +675,15 @@ class GroupService:
                     member_id,
                 )
 
-    def _enrich_dynamic_fields(self, group: dict) -> None:
+    def _enrich_dynamic_fields(self, group: dict, member_count: Optional[int] = None) -> None:
         """
         Calculates dynamic values (member_count, total_group_amount).
         Per BR-004: Total Group Amount = Scheme loan amount × active member count.
         NEVER stored in DB table.
         """
-        if "id" in group and group["id"]:
+        if member_count is not None:
+            group["member_count"] = member_count
+        elif "id" in group and group["id"]:
             try:
                 member_res = (
                     self.db.table("members")
@@ -668,23 +692,23 @@ class GroupService:
                     .eq("status", "Active")
                     .execute()
                 )
-                member_count = len(member_res.data) if member_res.data else 0
+                group["member_count"] = len(member_res.data) if member_res.data else 0
             except Exception as e:
                 logger.error(
                     "Failed to query active members for group %s: %s",
                     group.get("id"),
                     e,
                 )
-                member_count = group.get("member_count", 0) or 0
+                group["member_count"] = group.get("member_count", 0) or 0
         else:
-            member_count = group.get("member_count", 0) or 0
+            group["member_count"] = group.get("member_count", 0) or 0
 
-        group["member_count"] = member_count
+        member_cnt = group["member_count"]
 
         scheme = group.get("scheme")
-        if scheme and "loan_amount" in scheme and member_count > 0:
+        if scheme and "loan_amount" in scheme and member_cnt > 0:
             loan_amount = Decimal(str(scheme["loan_amount"]))
-            group["total_group_amount"] = loan_amount * member_count
+            group["total_group_amount"] = loan_amount * member_cnt
         else:
             group["total_group_amount"] = Decimal("0.00")
 

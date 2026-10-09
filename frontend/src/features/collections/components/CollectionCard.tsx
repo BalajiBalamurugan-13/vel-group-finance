@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { CollectionStatusBadge } from './CollectionStatusBadge';
+import { useLanguage } from '@/i18n';
 import type { Collection } from '../types';
 
 interface CollectionCardProps {
@@ -14,6 +15,7 @@ export function CollectionCard({
   collection,
   onViewDetails,
 }: CollectionCardProps) {
+  const { language } = useLanguage();
   const amount = Number(collection.amount_paid);
 
   return (
@@ -27,7 +29,7 @@ export function CollectionCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 min-w-0">
               <h3 className="font-semibold text-secondary-900 text-sm truncate">
-                {collection.member_name || 'Member'}
+                {collection.member_name || (language === 'ta' ? 'உறுப்பினர்' : 'Member')}
               </h3>
               {collection.receipt_code && (
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-success-50 text-success-700 border border-success-200/60 flex-shrink-0">
@@ -53,7 +55,7 @@ export function CollectionCard({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
-              Amount Paid
+              {language === 'ta' ? 'செலுத்திய தொகை' : 'Amount Paid'}
             </div>
             <div className="mt-0.5 text-xs font-bold text-secondary-900 font-mono tabular-nums">
               {formatCurrency(amount)}
@@ -61,7 +63,7 @@ export function CollectionCard({
           </div>
           <div className="text-right">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
-              Payment Date
+              {language === 'ta' ? 'தேதி' : 'Payment Date'}
             </div>
             <div className="mt-0.5 text-xs font-medium text-secondary-700 tabular-nums">
               {formatDate(collection.payment_date)}
@@ -72,7 +74,9 @@ export function CollectionCard({
 
       {/* Footer / Action */}
       <div className="px-4 py-2 bg-secondary-50/50 flex items-center justify-between text-xs text-secondary-500">
-        <span className="truncate mr-2 text-[11px]">Collector: {collection.collector_name || 'Admin'}</span>
+        <span className="truncate mr-2 text-[11px]">
+          {language === 'ta' ? 'வசூலிப்பாளர்:' : 'Collector:'} {collection.collector_name || 'Admin'}
+        </span>
         <Button
           variant="ghost"
           size="sm"
@@ -84,7 +88,7 @@ export function CollectionCard({
           aria-label={`View details for ${collection.member_name || 'member'}`}
         >
           <Eye className="w-3.5 h-3.5 mr-1" />
-          Details
+          {language === 'ta' ? 'விவரங்கள்' : 'Details'}
         </Button>
       </div>
     </Card>

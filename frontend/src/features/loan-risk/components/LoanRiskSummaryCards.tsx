@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/Card';
 import { CheckCircle2, Clock, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { useLanguage } from '@/i18n';
 import type { LoanRiskSummary } from '../types';
 
 interface LoanRiskSummaryCardsProps {
@@ -16,6 +17,7 @@ function formatINR(val?: number): string {
 }
 
 export function LoanRiskSummaryCards({ summary }: LoanRiskSummaryCardsProps) {
+  const { language } = useLanguage();
   const currentCount = summary?.current_count || 0;
   const overdueCount = summary?.overdue_count || 0;
   const atRiskCount = summary?.at_risk_count || 0;
@@ -29,13 +31,13 @@ export function LoanRiskSummaryCards({ summary }: LoanRiskSummaryCardsProps) {
         <Card className="p-4 border-l-4 border-l-emerald-500 bg-emerald-50/15">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-secondary-500 uppercase tracking-wider">
-              Current
+              {language === 'ta' ? 'சரியான நிலை' : 'Current'}
             </span>
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </div>
           <div className="mt-2 text-2xl font-bold text-secondary-900">{currentCount}</div>
           <div className="mt-1 text-xs text-emerald-700 font-medium">
-            Paying normally · 0 weeks overdue
+            {language === 'ta' ? 'முறையாக செலுத்துபவர்கள் · தாமதம் இல்லை' : 'Paying normally · 0 weeks overdue'}
           </div>
         </Card>
 
@@ -43,13 +45,13 @@ export function LoanRiskSummaryCards({ summary }: LoanRiskSummaryCardsProps) {
         <Card className="p-4 border-l-4 border-l-amber-500 bg-amber-50/15">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-secondary-500 uppercase tracking-wider">
-              Overdue
+              {language === 'ta' ? 'தாமதம்' : 'Overdue'}
             </span>
             <Clock className="h-4 w-4 text-amber-600" />
           </div>
           <div className="mt-2 text-2xl font-bold text-secondary-900">{overdueCount}</div>
           <div className="mt-1 text-xs text-amber-700 font-medium">
-            1–3 weeks missed · Normal recovery
+            {language === 'ta' ? '1–3 வாரங்கள் நிலுவை · வழக்கமான வசூல்' : '1–3 weeks missed · Normal recovery'}
           </div>
         </Card>
 
@@ -57,13 +59,13 @@ export function LoanRiskSummaryCards({ summary }: LoanRiskSummaryCardsProps) {
         <Card className="p-4 border-l-4 border-l-rose-500 bg-rose-50/15">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-secondary-500 uppercase tracking-wider">
-              At Risk
+              {language === 'ta' ? 'அதிக அபாயம்' : 'At Risk'}
             </span>
             <AlertTriangle className="h-4 w-4 text-rose-600" />
           </div>
           <div className="mt-2 text-2xl font-bold text-rose-950">{atRiskCount}</div>
           <div className="mt-1 text-xs text-rose-700 font-medium">
-            4+ weeks unpaid · Requires special focus
+            {language === 'ta' ? '4+ வாரங்கள் நிலுவை · தீவிர கவனம் தேவை' : '4+ weeks unpaid · Requires special focus'}
           </div>
         </Card>
 
@@ -71,7 +73,7 @@ export function LoanRiskSummaryCards({ summary }: LoanRiskSummaryCardsProps) {
         <Card className="p-4 border-l-4 border-l-indigo-500">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-secondary-500 uppercase tracking-wider">
-              Total Overdue Amount
+              {language === 'ta' ? 'மொத்த தாமதத் தொகை' : 'Total Overdue Amount'}
             </span>
             <ShieldAlert className="h-4 w-4 text-indigo-600" />
           </div>
@@ -79,7 +81,9 @@ export function LoanRiskSummaryCards({ summary }: LoanRiskSummaryCardsProps) {
             {formatINR(totalOverdue)}
           </div>
           <div className="mt-1 text-xs text-secondary-500">
-            Across {overdueCount + atRiskCount} unpaid members (out of {formatINR(totalOutstanding)} outstanding)
+            {language === 'ta'
+              ? `${overdueCount + atRiskCount} செலுத்தாத உறுப்பினர்கள் (மொத்த நிலுவை ${formatINR(totalOutstanding)})`
+              : `Across ${overdueCount + atRiskCount} unpaid members (out of ${formatINR(totalOutstanding)} outstanding)`}
           </div>
         </Card>
       </div>

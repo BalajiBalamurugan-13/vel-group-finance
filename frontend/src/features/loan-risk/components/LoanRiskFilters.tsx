@@ -1,5 +1,6 @@
 import { Input } from '@/components/ui/Input';
 import { Search, Filter } from 'lucide-react';
+import { useLanguage } from '@/i18n';
 import type { LoanRiskFiltersState, RiskStatusCategory } from '../types';
 import { cn } from '@/lib/cn';
 
@@ -9,25 +10,26 @@ interface LoanRiskFiltersProps {
   groups?: Array<{ id: string; group_name: string }>;
 }
 
-const STATUS_TABS: Array<{ label: string; value: RiskStatusCategory | 'All' }> = [
-  { label: 'All Members', value: 'All' },
-  { label: 'At Risk (4+ wks)', value: 'At Risk' },
-  { label: 'Overdue (1–3 wks)', value: 'Overdue' },
-  { label: 'Current', value: 'Current' },
-];
-
 export function LoanRiskFilters({
   filters,
   onFilterChange,
   groups = [],
 }: LoanRiskFiltersProps) {
+  const { language } = useLanguage();
   const currentStatus = filters.risk_status || 'All';
+
+  const statusTabs: Array<{ label: string; value: RiskStatusCategory | 'All' }> = [
+    { label: language === 'ta' ? 'அனைத்து உறுப்பினர்கள்' : 'All Members', value: 'All' },
+    { label: language === 'ta' ? 'அதிக அபாயம் (4+ வாரங்கள்)' : 'At Risk (4+ wks)', value: 'At Risk' },
+    { label: language === 'ta' ? 'தாமதம் (1–3 வாரங்கள்)' : 'Overdue (1–3 wks)', value: 'Overdue' },
+    { label: language === 'ta' ? 'சரியான நிலை' : 'Current', value: 'Current' },
+  ];
 
   return (
     <div className="space-y-3 bg-surface p-3.5 rounded-xl border border-border">
       {/* Category Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-        {STATUS_TABS.map((tab) => {
+        {statusTabs.map((tab) => {
           const isActive = currentStatus === tab.value;
           return (
             <button
@@ -51,7 +53,7 @@ export function LoanRiskFilters({
         <div className="relative">
           <Input
             id="loan-risk-search"
-            placeholder="Search member name or code..."
+            placeholder={language === 'ta' ? 'பெயர் அல்லது குறியீட்டைத் தேடுக...' : 'Search member name or code...'}
             value={filters.search || ''}
             onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
             leftElement={<Search className="h-4 w-4 text-secondary-400" />}
@@ -65,7 +67,7 @@ export function LoanRiskFilters({
             onChange={(e) => onFilterChange({ ...filters, group_id: e.target.value })}
             className="w-full h-10 px-3 rounded-lg border border-border bg-surface text-secondary-900 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
           >
-            <option value="all">All Groups</option>
+            <option value="all">{language === 'ta' ? 'அனைத்துக் குழுக்கள்' : 'All Groups'}</option>
             {groups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.group_name}

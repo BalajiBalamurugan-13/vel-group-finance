@@ -1,6 +1,7 @@
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Phone, MapPin, Calendar, AlertTriangle } from 'lucide-react';
+import { useLanguage } from '@/i18n';
 import type { LoanRiskMember } from '../types';
 
 interface LoanRiskTableProps {
@@ -18,10 +19,12 @@ function formatINR(val?: number): string {
 }
 
 export function LoanRiskTable({ members = [], isLoading }: LoanRiskTableProps) {
+  const { language } = useLanguage();
+
   if (isLoading) {
     return (
       <Card className="p-8 text-center text-sm text-secondary-500">
-        Loading loan risk records...
+        {language === 'ta' ? 'கடன் இடர் பதிவுகள் ஏற்றப்படுகின்றன...' : 'Loading loan risk records...'}
       </Card>
     );
   }
@@ -29,7 +32,7 @@ export function LoanRiskTable({ members = [], isLoading }: LoanRiskTableProps) {
   if (members.length === 0) {
     return (
       <Card className="p-8 text-center text-sm text-secondary-500">
-        No members found matching the selected filter criteria.
+        {language === 'ta' ? 'தேர்ந்தெடுக்கப்பட்ட வடிகட்டிக்கு உறுப்பினர்கள் எதுவும் கிடைக்கவில்லை.' : 'No members found matching the selected filter criteria.'}
       </Card>
     );
   }
@@ -60,9 +63,15 @@ export function LoanRiskTable({ members = [], isLoading }: LoanRiskTableProps) {
               </div>
 
               <div>
-                {m.risk_status === 'Current' && <Badge variant="success">Current</Badge>}
-                {m.risk_status === 'Overdue' && <Badge variant="warning">Overdue</Badge>}
-                {m.risk_status === 'At Risk' && <Badge variant="error">At Risk</Badge>}
+                {m.risk_status === 'Current' && (
+                  <Badge variant="success">{language === 'ta' ? 'சரியான நிலை' : 'Current'}</Badge>
+                )}
+                {m.risk_status === 'Overdue' && (
+                  <Badge variant="warning">{language === 'ta' ? 'தாமதம்' : 'Overdue'}</Badge>
+                )}
+                {m.risk_status === 'At Risk' && (
+                  <Badge variant="error">{language === 'ta' ? 'அதிக அபாயம்' : 'At Risk'}</Badge>
+                )}
               </div>
             </div>
 
@@ -77,10 +86,10 @@ export function LoanRiskTable({ members = [], isLoading }: LoanRiskTableProps) {
                   {m.phone_number}
                 </a>
               ) : (
-                <span className="text-secondary-400">No phone</span>
+                <span className="text-secondary-400">{language === 'ta' ? 'எண் இல்லை' : 'No phone'}</span>
               )}
               <span className="text-[11px] text-secondary-500">
-                {m.scheme_name} · {formatINR(m.weekly_installment)}/wk
+                {m.scheme_name} · {formatINR(m.weekly_installment)}/{language === 'ta' ? 'வா' : 'wk'}
               </span>
             </div>
 
@@ -89,7 +98,10 @@ export function LoanRiskTable({ members = [], isLoading }: LoanRiskTableProps) {
               <div className="rounded-lg bg-rose-50 border border-rose-200 p-2 text-xs text-rose-800 flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5 text-rose-600 shrink-0" />
                 <span>
-                  <strong>Loan Loss Candidate:</strong> Overdue for {m.weeks_overdue} consecutive weeks.
+                  <strong>{language === 'ta' ? 'கடன் இழப்பு அபாயம்:' : 'Loan Loss Candidate:'}</strong>{' '}
+                  {language === 'ta'
+                    ? `தொடர்ச்சியாக ${m.weeks_overdue} வாரங்கள் தாமதம்.`
+                    : `Overdue for ${m.weeks_overdue} consecutive weeks.`}
                 </span>
               </div>
             )}
@@ -98,37 +110,37 @@ export function LoanRiskTable({ members = [], isLoading }: LoanRiskTableProps) {
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div className="bg-secondary-50/80 rounded-lg p-2 text-center">
                 <span className="text-[10px] uppercase font-semibold text-secondary-500 block">
-                  Overdue
+                  {language === 'ta' ? 'தாமதம்' : 'Overdue'}
                 </span>
                 <span className="font-bold text-rose-700 block mt-0.5">
                   {m.overdue_amount > 0 ? formatINR(m.overdue_amount) : '₹0'}
                 </span>
                 <span className="text-[10px] text-secondary-500">
-                  {m.weeks_overdue} {m.weeks_overdue === 1 ? 'wk' : 'wks'}
+                  {m.weeks_overdue} {language === 'ta' ? 'வா' : m.weeks_overdue === 1 ? 'wk' : 'wks'}
                 </span>
               </div>
 
               <div className="bg-secondary-50/80 rounded-lg p-2 text-center">
                 <span className="text-[10px] uppercase font-semibold text-secondary-500 block">
-                  Outstanding
+                  {language === 'ta' ? 'நிலுவை' : 'Outstanding'}
                 </span>
                 <span className="font-bold text-secondary-900 block mt-0.5">
                   {formatINR(m.outstanding_amount)}
                 </span>
                 <span className="text-[10px] text-secondary-500">
-                  principal + margin
+                  {language === 'ta' ? 'அசல் + வட்டி' : 'principal + margin'}
                 </span>
               </div>
 
               <div className="bg-secondary-50/80 rounded-lg p-2 text-center">
                 <span className="text-[10px] uppercase font-semibold text-secondary-500 block">
-                  Paid / Exp
+                  {language === 'ta' ? 'செலுத்தியது' : 'Paid / Exp'}
                 </span>
                 <span className="font-bold text-secondary-900 block mt-0.5">
                   {m.actual_weeks_paid} / {m.expected_weeks_paid}
                 </span>
                 <span className="text-[10px] text-secondary-500">
-                  weeks
+                  {language === 'ta' ? 'வாரங்கள்' : 'weeks'}
                 </span>
               </div>
             </div>
@@ -137,10 +149,10 @@ export function LoanRiskTable({ members = [], isLoading }: LoanRiskTableProps) {
             <div className="text-[11px] text-secondary-500 flex items-center justify-between pt-1 border-t border-secondary-100">
               <span className="flex items-center gap-1">
                 <Calendar className="h-3 w-3 text-secondary-400" />
-                Last payment: {m.last_payment_date || 'None'}
+                {language === 'ta' ? 'கடைசி வசூல்:' : 'Last payment:'} {m.last_payment_date || (language === 'ta' ? 'ஏதுமில்லை' : 'None')}
               </span>
               <span>
-                Total: {m.total_weeks} weeks
+                {language === 'ta' ? 'மொத்தம்:' : 'Total:'} {m.total_weeks} {language === 'ta' ? 'வாரங்கள்' : 'weeks'}
               </span>
             </div>
           </div>
@@ -152,15 +164,15 @@ export function LoanRiskTable({ members = [], isLoading }: LoanRiskTableProps) {
         <table className="w-full text-left text-xs">
           <thead className="bg-secondary-50/80 text-secondary-600 font-semibold border-b border-border">
             <tr>
-              <th className="px-4 py-3">Member</th>
-              <th className="px-4 py-3">Group &amp; Location</th>
-              <th className="px-4 py-3">Scheme</th>
-              <th className="px-4 py-3 text-center">Paid / Expected</th>
-              <th className="px-4 py-3 text-center">Weeks Overdue</th>
-              <th className="px-4 py-3 text-right">Overdue Amount</th>
-              <th className="px-4 py-3 text-right">Outstanding</th>
-              <th className="px-4 py-3">Last Payment</th>
-              <th className="px-4 py-3 text-center">Status</th>
+              <th className="px-4 py-3">{language === 'ta' ? 'உறுப்பினர்' : 'Member'}</th>
+              <th className="px-4 py-3">{language === 'ta' ? 'குழு & இடம்' : 'Group & Location'}</th>
+              <th className="px-4 py-3">{language === 'ta' ? 'திட்டம்' : 'Scheme'}</th>
+              <th className="px-4 py-3 text-center">{language === 'ta' ? 'செலுத்தியது / எதிர்பார்ப்பு' : 'Paid / Expected'}</th>
+              <th className="px-4 py-3 text-center">{language === 'ta' ? 'தாமதமான வாரங்கள்' : 'Weeks Overdue'}</th>
+              <th className="px-4 py-3 text-right">{language === 'ta' ? 'தாமதத் தொகை' : 'Overdue Amount'}</th>
+              <th className="px-4 py-3 text-right">{language === 'ta' ? 'நிலுவைத் தொகை' : 'Outstanding'}</th>
+              <th className="px-4 py-3">{language === 'ta' ? 'கடைசி வசூல்' : 'Last Payment'}</th>
+              <th className="px-4 py-3 text-center">{language === 'ta' ? 'நிலை' : 'Status'}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border text-secondary-900">
@@ -198,14 +210,14 @@ export function LoanRiskTable({ members = [], isLoading }: LoanRiskTableProps) {
                   <td className="px-4 py-3 text-secondary-600">
                     <div className="font-medium text-secondary-900">{m.scheme_name}</div>
                     <span className="text-[11px] text-secondary-500 block mt-0.5">
-                      {formatINR(m.weekly_installment)}/wk · {m.total_weeks} wks
+                      {formatINR(m.weekly_installment)}/{language === 'ta' ? 'வா' : 'wk'} · {m.total_weeks} {language === 'ta' ? 'வாரங்கள்' : 'wks'}
                     </span>
                   </td>
 
                   {/* Progress: Actual / Expected */}
                   <td className="px-4 py-3 text-center font-medium">
                     <span className="font-bold text-secondary-900">{m.actual_weeks_paid}</span>
-                    <span className="text-secondary-400"> / {m.expected_weeks_paid} wks</span>
+                    <span className="text-secondary-400"> / {m.expected_weeks_paid} {language === 'ta' ? 'வா' : 'wks'}</span>
                   </td>
 
                   {/* Weeks Overdue */}
@@ -218,7 +230,7 @@ export function LoanRiskTable({ members = [], isLoading }: LoanRiskTableProps) {
                             : 'bg-amber-100 text-amber-800'
                         }`}
                       >
-                        {m.weeks_overdue} {m.weeks_overdue === 1 ? 'wk' : 'wks'}
+                        {m.weeks_overdue} {language === 'ta' ? 'வா' : m.weeks_overdue === 1 ? 'wk' : 'wks'}
                       </span>
                     ) : (
                       <span className="text-emerald-700 font-medium">0</span>
@@ -249,20 +261,20 @@ export function LoanRiskTable({ members = [], isLoading }: LoanRiskTableProps) {
                         {m.last_payment_date}
                       </span>
                     ) : (
-                      <span className="text-secondary-400 text-[11px]">No payments yet</span>
+                      <span className="text-secondary-400 text-[11px]">{language === 'ta' ? 'வசூல் ஏதுமில்லை' : 'No payments yet'}</span>
                     )}
                   </td>
 
                   {/* Status */}
                   <td className="px-4 py-3 text-center">
                     {m.risk_status === 'Current' && (
-                      <Badge variant="success">Current</Badge>
+                      <Badge variant="success">{language === 'ta' ? 'சரியான நிலை' : 'Current'}</Badge>
                     )}
                     {m.risk_status === 'Overdue' && (
-                      <Badge variant="warning">Overdue</Badge>
+                      <Badge variant="warning">{language === 'ta' ? 'தாமதம்' : 'Overdue'}</Badge>
                     )}
                     {m.risk_status === 'At Risk' && (
-                      <Badge variant="error">At Risk</Badge>
+                      <Badge variant="error">{language === 'ta' ? 'அதிக அபாயம்' : 'At Risk'}</Badge>
                     )}
                   </td>
                 </tr>

@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { CollectionTable } from './CollectionTable';
 import { CollectionCard } from './CollectionCard';
+import { useLanguage } from '@/i18n';
 import type { Collection } from '../types';
 
 const PAGE_SIZE = 20;
@@ -22,6 +23,7 @@ export function CollectionList({
   onRecordPayment,
   onViewDetails,
 }: CollectionListProps) {
+  const { t, language } = useLanguage();
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   if (isLoading) {
@@ -51,11 +53,11 @@ export function CollectionList({
     return (
       <EmptyState
         icon={<Receipt className="w-12 h-12 text-secondary-400" />}
-        title="No collection records found"
-        description="No weekly installment payments match your search or filters."
+        title={t('collections.noRecordsTitle')}
+        description={t('collections.noRecordsDesc')}
         action={
           <Button onClick={onRecordPayment} size="sm" leftIcon={<Plus className="w-4 h-4" />}>
-            Record Weekly Payment
+            {t('collections.recordWeekly')}
           </Button>
         }
       />
@@ -89,7 +91,9 @@ export function CollectionList({
       {/* Load More / Count */}
       <div className="mt-4 flex items-center justify-between">
         <p className="text-xs text-secondary-500">
-          Showing {visibleCollections.length} of {collections.length} records
+          {language === 'ta'
+            ? `${collections.length} பதிவுகளில் ${visibleCollections.length} காட்டப்படுகிறது`
+            : `Showing ${visibleCollections.length} of ${collections.length} records`}
         </p>
         {hasMore && (
           <Button
@@ -98,7 +102,7 @@ export function CollectionList({
             onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
             leftIcon={<ChevronDown className="h-4 w-4" />}
           >
-            Load More
+            {t('collections.loadMore')}
           </Button>
         )}
       </div>

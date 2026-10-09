@@ -1,6 +1,7 @@
 import { Search, Users, Sun, Moon } from 'lucide-react';
 import { Input, Select } from '@/components/ui';
 import { cn } from '@/lib/cn';
+import { useLanguage } from '@/i18n';
 import type { MemberFiltersState, MemberStatus } from '../types';
 import type { RouteOptGroup, RouteSortableGroup } from '@/features/places';
 
@@ -14,13 +15,6 @@ export interface MemberFiltersProps {
   sessionCounts?: { all: number; morning: number; evening: number };
 }
 
-// "Closed" is intentionally excluded — not a user-facing lifecycle filter.
-const STATUS_TABS: Array<{ label: string; value: MemberStatus | 'All' }> = [
-  { label: 'All', value: 'All' },
-  { label: 'Active', value: 'Active' },
-  { label: 'Completed', value: 'Completed' },
-];
-
 export function MemberFilters({
   filters,
   onFilterChange,
@@ -30,6 +24,14 @@ export function MemberFilters({
   onSessionFilterChange,
   sessionCounts,
 }: MemberFiltersProps) {
+  const { language } = useLanguage();
+
+  const statusTabs: Array<{ label: string; value: MemberStatus | 'All' }> = [
+    { label: language === 'ta' ? 'அனைத்தும்' : 'All', value: 'All' },
+    { label: language === 'ta' ? 'செயலில்' : 'Active', value: 'Active' },
+    { label: language === 'ta' ? 'முடிந்தது' : 'Completed', value: 'Completed' },
+  ];
+
   return (
     <div className="flex flex-col gap-3">
       {/* Search & Group Filter Row */}
@@ -37,7 +39,7 @@ export function MemberFilters({
         <div className="flex-1 min-w-0">
           <Input
             id="member-search"
-            placeholder="Search by name or phone..."
+            placeholder={language === 'ta' ? 'பெயர் அல்லது எண் மூலம் தேடவும்...' : 'Search by name or phone...'}
             value={filters.search || ''}
             onChange={(e) =>
               onFilterChange({ ...filters, search: e.target.value })
@@ -59,7 +61,9 @@ export function MemberFilters({
               }
               leftElement={<Users className="h-4 w-4" />}
             >
-              <option value="All">All Groups ({groups.length})</option>
+              <option value="All">
+                {language === 'ta' ? 'அனைத்து குழுக்கள்' : 'All Groups'} ({groups.length})
+              </option>
               {groupOptgroups && groupOptgroups.length > 0 ? (
                 groupOptgroups.map((og) => (
                   <optgroup key={og.label} label={og.label}>
@@ -86,7 +90,7 @@ export function MemberFilters({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
         {/* Status Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scroll-smooth">
-          {STATUS_TABS.map((tab) => {
+          {statusTabs.map((tab) => {
             const isSelected = (filters.status || 'All') === tab.value;
             return (
               <button
@@ -125,7 +129,7 @@ export function MemberFilters({
                   : 'text-secondary-600 hover:text-secondary-900'
               )}
             >
-              All Routes {sessionCounts ? `(${sessionCounts.all})` : ''}
+              {language === 'ta' ? 'அனைத்து வழித்தடங்கள்' : 'All Routes'} {sessionCounts ? `(${sessionCounts.all})` : ''}
             </button>
             <button
               type="button"
@@ -138,7 +142,7 @@ export function MemberFilters({
               )}
             >
               <Sun className="h-3 w-3" />
-              Morning {sessionCounts ? `(${sessionCounts.morning})` : ''}
+              {language === 'ta' ? 'காலை' : 'Morning'} {sessionCounts ? `(${sessionCounts.morning})` : ''}
             </button>
             <button
               type="button"
@@ -151,7 +155,7 @@ export function MemberFilters({
               )}
             >
               <Moon className="h-3 w-3" />
-              Evening {sessionCounts ? `(${sessionCounts.evening})` : ''}
+              {language === 'ta' ? 'மாலை' : 'Evening'} {sessionCounts ? `(${sessionCounts.evening})` : ''}
             </button>
           </div>
         )}

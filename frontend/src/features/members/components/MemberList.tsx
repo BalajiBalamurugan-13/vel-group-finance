@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Plus, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/common/EmptyState';
+import { usePlacesRoute, buildPlaceLookupMap } from '@/features/places';
 import { MemberTable } from './MemberTable';
 import { MemberCard } from './MemberCard';
 import type { Member, MemberStatus } from '../types';
@@ -20,6 +22,9 @@ export function MemberList({
   onRequestStatusChange,
   onCreateNew,
 }: MemberListProps) {
+  const { places } = usePlacesRoute();
+  const placeLookup = useMemo(() => buildPlaceLookupMap(places), [places]);
+
   if (members.length === 0) {
     return (
       <EmptyState
@@ -48,6 +53,8 @@ export function MemberList({
           onViewDetails={onViewDetails}
           onEdit={onEdit}
           onRequestStatusChange={onRequestStatusChange}
+          places={places}
+          placeLookup={placeLookup}
         />
       </div>
 
@@ -60,6 +67,8 @@ export function MemberList({
             onViewDetails={onViewDetails}
             onEdit={onEdit}
             onRequestStatusChange={onRequestStatusChange}
+            places={places}
+            placeLookup={placeLookup}
           />
         ))}
       </div>

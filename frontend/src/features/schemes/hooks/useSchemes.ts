@@ -7,6 +7,7 @@ export function useSchemes() {
   return useQuery({
     queryKey: SCHEMES_QUERY_KEY,
     queryFn: schemeApi.getSchemes,
+    staleTime: 5 * 60_000, // 5 minutes — schemes are rarely modified
   });
 }
 

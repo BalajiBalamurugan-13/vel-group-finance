@@ -8,6 +8,7 @@ import { useUpdateGroup, useLocations } from '../hooks/useGroups';
 import type { Group, GroupUpdate } from '../types';
 import type { ApiError } from '@/types/common';
 import { cn } from '@/lib/cn';
+import { useLanguage } from '@/i18n';
 
 interface UpdateGroupFormModalProps {
   group: Group | null;
@@ -20,6 +21,7 @@ export function UpdateGroupFormModal({
   isOpen,
   onClose,
 }: UpdateGroupFormModalProps) {
+  const { language } = useLanguage();
   const { mutateAsync: updateGroup, isPending } = useUpdateGroup();
   const { data: existingLocations = [] } = useLocations();
   const [apiError, setApiError] = useState<string | null>(null);
@@ -167,10 +169,12 @@ export function UpdateGroupFormModal({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface shrink-0">
           <div>
             <h2 className="text-base font-bold text-secondary-900">
-              Edit Group
+              {language === 'ta' ? 'குழுவைத் திருத்து' : 'Edit Group'}
             </h2>
             <p className="text-xs text-secondary-500 mt-0.5">
-              Update group details and funding breakdown
+              {language === 'ta'
+                ? 'குழு விவரங்கள் மற்றும் நிதி விவரங்களை மாற்றவும்'
+                : 'Update group details and funding breakdown'}
             </p>
           </div>
           <button
@@ -198,9 +202,9 @@ export function UpdateGroupFormModal({
 
             <Input
               id="edit_group_name"
-              label="Group Name *"
+              label={language === 'ta' ? 'குழு பெயர் *' : 'Group Name *'}
               {...register('group_name', {
-                required: 'Group name is required',
+                required: language === 'ta' ? 'குழு பெயர் தேவை' : 'Group name is required',
                 maxLength: 255,
               })}
               errorMessage={errors.group_name?.message}
@@ -210,11 +214,11 @@ export function UpdateGroupFormModal({
             <div ref={locationWrapperRef} className="relative z-30">
               <Input
                 id="edit_location"
-                label="Location *"
-                placeholder="e.g. PTM, TNK, ABC"
+                label={language === 'ta' ? 'இடம் *' : 'Location *'}
+                placeholder={language === 'ta' ? 'உ.ம். PTM, TNK' : 'e.g. PTM, TNK, ABC'}
                 autoComplete="off"
                 {...register('location', {
-                  required: 'Location is required',
+                  required: language === 'ta' ? 'இடம் தேவை' : 'Location is required',
                   maxLength: 100,
                 })}
                 onFocus={() => setIsLocationDropdownOpen(true)}
@@ -247,8 +251,12 @@ export function UpdateGroupFormModal({
                   {filteredLocations.length > 0 ? (
                     <>
                       <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-secondary-400 border-b border-border/60 flex items-center justify-between">
-                        <span>Existing Locations ({filteredLocations.length})</span>
-                        <span className="text-[10px] lowercase font-normal text-secondary-400">click to pick</span>
+                        <span>
+                          {language === 'ta' ? 'உள்ளிட்ட இடங்கள்' : 'Existing Locations'} ({filteredLocations.length})
+                        </span>
+                        <span className="text-[10px] lowercase font-normal text-secondary-400">
+                          {language === 'ta' ? 'தேர்ந்தெடுக்க கிளிக் செய்யவும்' : 'click to pick'}
+                        </span>
                       </div>
                       {filteredLocations.map((loc) => (
                         <button
@@ -268,7 +276,9 @@ export function UpdateGroupFormModal({
                     </>
                   ) : (
                     <div className="px-3 py-2.5 text-xs text-secondary-500">
-                      New location: <span className="font-semibold text-secondary-800">"{watchedLocation}"</span> (will be saved with this group)
+                      {language === 'ta' ? 'புதிய இடம்:' : 'New location:'}{' '}
+                      <span className="font-semibold text-secondary-800">"{watchedLocation}"</span>{' '}
+                      {language === 'ta' ? '(இந்த குழுவுடன் சேமிக்கப்படும்)' : '(will be saved with this group)'}
                     </div>
                   )}
                 </div>
@@ -279,10 +289,14 @@ export function UpdateGroupFormModal({
             <div className="space-y-3">
               <div className="rounded-lg bg-secondary-50 p-3 text-xs text-secondary-500 border border-border">
                 <span className="font-semibold text-secondary-800 block">
-                  Scheme: {group.scheme?.scheme_name || 'N/A'} (Default: ₹{group.scheme?.weekly_installment || 760}/wk)
+                  {language === 'ta' ? 'திட்டம்:' : 'Scheme:'} {group.scheme?.scheme_name || 'N/A'} (
+                  {language === 'ta' ? 'இயல்புநிலை:' : 'Default:'} ₹{group.scheme?.weekly_installment || 760}/
+                  {language === 'ta' ? 'வாரம்' : 'wk'})
                 </span>
                 <span className="text-[11px]">
-                  Scheme cannot be changed after group creation.
+                  {language === 'ta'
+                    ? 'குழு உருவாக்கிய பிறகு திட்டத்தை மாற்ற முடியாது.'
+                    : 'Scheme cannot be changed after group creation.'}
                 </span>
               </div>
 
@@ -292,12 +306,16 @@ export function UpdateGroupFormModal({
                 type="number"
                 step="any"
                 min="1"
-                label="Weekly Installment (₹) *"
+                label={language === 'ta' ? 'வார தவணை (₹) *' : 'Weekly Installment (₹) *'}
                 placeholder="760"
-                helperText={`Change if this group pays ₹1000/wk or another amount instead of scheme default (₹${group.scheme?.weekly_installment || 760}/wk).`}
+                helperText={
+                  language === 'ta'
+                    ? `திட்ட இயல்புநிலைக்கு பதிலாக (₹${group.scheme?.weekly_installment || 760}/வாரம்) இந்த குழு ₹1000/வாரம் செலுத்தினால் மாற்றவும்.`
+                    : `Change if this group pays ₹1000/wk or another amount instead of scheme default (₹${group.scheme?.weekly_installment || 760}/wk).`
+                }
                 {...register('weekly_installment', {
-                  required: 'Weekly installment is required',
-                  min: { value: 1, message: 'Must be greater than 0' },
+                  required: language === 'ta' ? 'வார தவணை தேவை' : 'Weekly installment is required',
+                  min: { value: 1, message: language === 'ta' ? '0 ஐ விட அதிகமாக இருக்க வேண்டும்' : 'Must be greater than 0' },
                 })}
                 errorMessage={errors.weekly_installment?.message}
               />
@@ -307,10 +325,10 @@ export function UpdateGroupFormModal({
               <Input
                 id="edit_start_date"
                 type="date"
-                label="Start Date *"
+                label={language === 'ta' ? 'தொடக்க தேதி *' : 'Start Date *'}
                 required
                 {...register('start_date', {
-                  required: 'Start date is required',
+                  required: language === 'ta' ? 'தொடக்க தேதி தேவை' : 'Start date is required',
                 })}
                 errorMessage={errors.start_date?.message}
               />
@@ -318,7 +336,7 @@ export function UpdateGroupFormModal({
                 <div className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-md border border-primary-200">
                   <span>📅</span>
                   <span>
-                    வசூல் நாள் (Collection Day): {collectionDayInfo.nameTa} ({collectionDayInfo.nameEn})
+                    {language === 'ta' ? 'வசூல் நாள்' : 'Collection Day'}: {collectionDayInfo.nameTa} ({collectionDayInfo.nameEn})
                   </span>
                 </div>
               )}
@@ -327,16 +345,22 @@ export function UpdateGroupFormModal({
             {/* Funding Source (Section 8) */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="edit_funding_source" className="text-sm font-medium text-secondary-900">
-                Funding Source
+                {language === 'ta' ? 'நிதி ஆதாரம்' : 'Funding Source'}
               </label>
               <select
                 id="edit_funding_source"
                 {...register('funding_source')}
                 className="w-full h-10 px-3 rounded-lg border border-border bg-surface text-secondary-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
               >
-                <option value="Recycled Collections">Recycled Collections</option>
-                <option value="Initial Investment">Initial Investment</option>
-                <option value="Additional Investment">Additional Investment</option>
+                <option value="Recycled Collections">
+                  {language === 'ta' ? 'மறுசுழற்சி வசூல்' : 'Recycled Collections'}
+                </option>
+                <option value="Initial Investment">
+                  {language === 'ta' ? 'ஆரம்ப முதலீடு' : 'Initial Investment'}
+                </option>
+                <option value="Additional Investment">
+                  {language === 'ta' ? 'கூடுதல் முதலீடு' : 'Additional Investment'}
+                </option>
               </select>
             </div>
 
@@ -345,10 +369,10 @@ export function UpdateGroupFormModal({
               <div className="rounded-xl border border-primary-200/80 bg-primary-50/40 p-3.5 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-secondary-900 uppercase tracking-wider">
-                    Recycled Funding Breakdown
+                    {language === 'ta' ? 'மறுசுழற்சி நிதி விவரம்' : 'Recycled Funding Breakdown'}
                   </span>
                   <span className="text-[11px] font-medium text-primary-700 bg-primary-100/70 px-2 py-0.5 rounded">
-                    Business Cash
+                    {language === 'ta' ? 'வணிக பணம்' : 'Business Cash'}
                   </span>
                 </div>
 
@@ -366,8 +390,10 @@ export function UpdateGroupFormModal({
                         : 'border-border bg-surface/60 text-secondary-600 hover:bg-surface'
                     )}
                   >
-                    <span className="font-semibold">Fully Recycled</span>
-                    <span className="text-[10px] text-secondary-500 mt-0.5">100% past collections</span>
+                    <span className="font-semibold">{language === 'ta' ? 'முழு மறுசுழற்சி' : 'Fully Recycled'}</span>
+                    <span className="text-[10px] text-secondary-500 mt-0.5">
+                      {language === 'ta' ? '100% கடந்த கால வசூல்' : '100% past collections'}
+                    </span>
                   </button>
 
                   <button
@@ -380,8 +406,10 @@ export function UpdateGroupFormModal({
                         : 'border-border bg-surface/60 text-secondary-600 hover:bg-surface'
                     )}
                   >
-                    <span className="font-semibold">Recycled + Owner Cash</span>
-                    <span className="text-[10px] text-secondary-500 mt-0.5">Collections + cash from hand</span>
+                    <span className="font-semibold">{language === 'ta' ? 'மறுசுழற்சி + சொந்த பணம்' : 'Recycled + Owner Cash'}</span>
+                    <span className="text-[10px] text-secondary-500 mt-0.5">
+                      {language === 'ta' ? 'வசூல் + கையில் உள்ள பணம்' : 'Collections + cash from hand'}
+                    </span>
                   </button>
                 </div>
 
@@ -391,15 +419,19 @@ export function UpdateGroupFormModal({
                     <Input
                       id="edit_owner_investment_amount"
                       type="number"
-                      label="Owner Cash Added (₹) *"
+                      label={language === 'ta' ? 'சேர்க்கப்பட்ட சொந்த பணம் (₹) *' : 'Owner Cash Added (₹) *'}
                       placeholder="e.g. 90,000"
-                      helperText="Owner cash added from hand for this group."
+                      helperText={
+                        language === 'ta'
+                          ? 'இக்குழுவிற்காக கையில் இருந்து சேர்க்கப்பட்ட உரிமையாளர் பணம்.'
+                          : 'Owner cash added from hand for this group.'
+                      }
                       {...register('owner_investment_amount', {
                         required:
                           watchedRecycledSubType === 'Recycled + Owner Investment'
-                            ? 'Please enter the owner cash amount added'
+                            ? (language === 'ta' ? 'சேர்க்கப்பட்ட உரிமையாளர் பணத்தை உள்ளிடவும்' : 'Please enter the owner cash amount added')
                             : false,
-                        min: { value: 1, message: 'Amount must be greater than 0' },
+                        min: { value: 1, message: language === 'ta' ? 'தொகை 0 ஐ விட அதிகமாக இருக்க வேண்டும்' : 'Amount must be greater than 0' },
                         valueAsNumber: true,
                       })}
                       errorMessage={errors.owner_investment_amount?.message}
@@ -411,8 +443,8 @@ export function UpdateGroupFormModal({
 
             <Input
               id="edit_remarks"
-              label="Remarks (Optional)"
-              placeholder="Operational notes..."
+              label={language === 'ta' ? 'குறிப்புகள் (விருப்பத்தேர்வு)' : 'Remarks (Optional)'}
+              placeholder={language === 'ta' ? 'குறிப்புகள்...' : 'Operational notes...'}
               {...register('remarks')}
               errorMessage={errors.remarks?.message}
             />
@@ -427,10 +459,10 @@ export function UpdateGroupFormModal({
               onClick={handleClose}
               disabled={isPending}
             >
-              Cancel
+              {language === 'ta' ? 'ரத்து' : 'Cancel'}
             </Button>
             <Button type="submit" size="sm" isLoading={isPending}>
-              Save Changes
+              {language === 'ta' ? 'மாற்றங்களை சேமி' : 'Save Changes'}
             </Button>
           </div>
         </form>

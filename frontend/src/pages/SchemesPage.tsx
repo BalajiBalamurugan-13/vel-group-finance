@@ -7,9 +7,11 @@ import { PageContainer } from '@/components/common/PageContainer';
 import { LoadingState } from '@/components/common/LoadingState';
 import { Button } from '@/components/ui/Button';
 import { Plus } from 'lucide-react';
+import { useLanguage } from '@/i18n';
 import type { Scheme } from '@/features/schemes/types';
 
 export function SchemesPage() {
+  const { t } = useLanguage();
   const { data: schemes, isLoading, error } = useSchemes();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingScheme, setEditingScheme] = useState<Scheme | null>(null);
@@ -22,7 +24,7 @@ export function SchemesPage() {
     <PageContainer>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-secondary-900">
-          Scheme Management
+          {t('schemes.title')}
         </h1>
         <Button
           variant="primary"
@@ -30,7 +32,7 @@ export function SchemesPage() {
           leftIcon={<Plus className="h-4 w-4" />}
           onClick={() => setIsCreateOpen(true)}
         >
-          New Scheme
+          {t('schemes.newScheme')}
         </Button>
       </div>
 

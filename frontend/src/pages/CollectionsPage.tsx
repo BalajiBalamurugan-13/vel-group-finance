@@ -27,7 +27,7 @@ interface ToastState {
 }
 
 export function CollectionsPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   useDocumentTitle(`${t('collections.title')} | VEL Finance`);
 
   // Toast State
@@ -41,8 +41,8 @@ export function CollectionsPage() {
   const [isRecordWholeWeekModalOpen, setIsRecordWholeWeekModalOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
 
-  // Queries
-  const { data: groups = [] } = useGroups();
+  // Queries — fetch Active groups so query key matches RecordPaymentModal & RecordWholeWeekModal perfectly
+  const { data: groups = [] } = useGroups({ status: 'Active' });
   const {
     data: collections = [],
     isLoading: isLoadingCollections,
@@ -114,7 +114,7 @@ export function CollectionsPage() {
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
             aria-label="Record Whole Week Collection"
           >
-            Record Whole Week
+            {language === 'ta' ? 'முழு வார வசூல்' : 'Record Whole Week'}
           </Button>
 
           <Button
@@ -160,37 +160,37 @@ export function CollectionsPage() {
         aria-label="Record Weekly Collection Payment"
       >
         <Plus className="h-4 w-4" />
-        <span>Record Payment</span>
+        <span>{t('dashboard.recordPayment')}</span>
       </button>
 
-      {/* ── Record Payment Modal (Lazy mounted only when opened) ─────────────── */}
-      {isRecordModalOpen && (
-        <RecordPaymentModal
-          isOpen={isRecordModalOpen}
-          onClose={() => setIsRecordModalOpen(false)}
-          onSuccess={({ week, memberName, amount }) => {
-            setSuccessToast({
-              message: 'Payment Recorded',
-              description: `Week ${week} • ${memberName} • ${formatCurrency(amount)}`,
-            });
-          }}
-        />
-      )}
+      {/* ── Record Payment Modal ────────────────────────────────────────────── */}
+      <RecordPaymentModal
+        isOpen={isRecordModalOpen}
+        onClose={() => setIsRecordModalOpen(false)}
+        onSuccess={({ week, memberName, amount }) => {
+          setSuccessToast({
+            message: language === 'ta' ? 'பணம் பதிவு செய்யப்பட்டது' : 'Payment Recorded',
+            description: `${language === 'ta' ? 'வாரம்' : 'Week'} ${week} • ${memberName} • ${formatCurrency(amount)}`,
+          });
+        }}
+      />
 
       {/* ── Record Whole Week Modal (One-click batch collection) ───────────────── */}
-      {isRecordWholeWeekModalOpen && (
-        <RecordWholeWeekModal
-          isOpen={isRecordWholeWeekModalOpen}
-          onClose={() => setIsRecordWholeWeekModalOpen(false)}
-          onSuccess={(result) => {
-            setSuccessToast({
-              message: `Week ${result.business_week} Collections Recorded!`,
-              description: `${result.total_recorded} payments successfully recorded (${formatCurrency(Number(result.total_amount))}).`,
-            });
-            refetchCollections();
-          }}
-        />
-      )}
+      <RecordWholeWeekModal
+        isOpen={isRecordWholeWeekModalOpen}
+        onClose={() => setIsRecordWholeWeekModalOpen(false)}
+        onSuccess={(result) => {
+          setSuccessToast({
+            message: language === 'ta'
+              ? `வாரம் ${result.business_week} வசூல்கள் பதிவு செய்யப்பட்டன!`
+              : `Week ${result.business_week} Collections Recorded!`,
+            description: language === 'ta'
+              ? `${result.total_recorded} பதிவுகள் வெற்றிகரமாக சேர்க்கப்பட்டன (${formatCurrency(Number(result.total_amount))}).`
+              : `${result.total_recorded} payments successfully recorded (${formatCurrency(Number(result.total_amount))}).`,
+          });
+          refetchCollections();
+        }}
+      />
 
       {/* ── Collection Details Modal ─────────────────────────────────────────── */}
       <CollectionDetailsModal

@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Users } from 'lucide-react';
+import { usePlacesRoute, buildPlaceLookupMap } from '@/features/places';
 import { GroupCard } from './GroupCard';
 import { GroupTable } from './GroupTable';
 import type { Group, GroupStatus } from '../types';
@@ -17,6 +19,9 @@ export function GroupList({
   onRequestStatusChange,
   onCreateNew,
 }: GroupListProps) {
+  const { places } = usePlacesRoute();
+  const placeLookup = useMemo(() => buildPlaceLookupMap(places), [places]);
+
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -57,6 +62,8 @@ export function GroupList({
             onEdit={onEdit}
             onRequestStatusChange={onRequestStatusChange}
             formatMoney={formatMoney}
+            places={places}
+            placeLookup={placeLookup}
           />
         ))}
       </div>
@@ -68,6 +75,8 @@ export function GroupList({
           onEdit={onEdit}
           onRequestStatusChange={onRequestStatusChange}
           formatMoney={formatMoney}
+          places={places}
+          placeLookup={placeLookup}
         />
       </div>
     </>

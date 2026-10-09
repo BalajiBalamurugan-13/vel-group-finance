@@ -19,7 +19,7 @@ export function useGroups(filters?: GroupFiltersState) {
         search: filters?.search,
       }),
     placeholderData: keepPreviousData,
-    staleTime: 30_000,
+    staleTime: 60_000, // 60 seconds — groups are cached across page switches
   });
 }
 

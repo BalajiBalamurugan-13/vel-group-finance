@@ -28,6 +28,7 @@ import {
   type MemberFiltersState,
   type MemberStatus,
 } from '@/features/members';
+import { useLanguage } from '@/i18n';
 
 interface ToastState {
   message: string;
@@ -35,7 +36,8 @@ interface ToastState {
 }
 
 export function MembersPage() {
-  useDocumentTitle('Members');
+  const { t } = useLanguage();
+  useDocumentTitle(t('members.title'));
 
   const [filters, setFilters] = useState<MemberFiltersState>({
     status: 'All',
@@ -151,7 +153,7 @@ export function MembersPage() {
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-secondary-900">
-          Members
+          {t('members.title')}
         </h1>
         <Button
           variant="primary"
@@ -159,7 +161,7 @@ export function MembersPage() {
           leftIcon={<Plus className="h-4 w-4" />}
           onClick={() => setIsCreateOpen(true)}
         >
-          New Member
+          {t('members.newMember')}
         </Button>
       </div>
 

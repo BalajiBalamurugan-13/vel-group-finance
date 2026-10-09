@@ -2,6 +2,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Edit2, ToggleLeft, ToggleRight, FileBadge } from 'lucide-react';
+import { useLanguage } from '@/i18n';
 import type { Scheme } from '../types';
 import { useUpdateSchemeStatus } from '../hooks/useSchemes';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -12,14 +13,19 @@ interface SchemeListProps {
 }
 
 export function SchemeList({ schemes, onEdit }: SchemeListProps) {
+  const { language } = useLanguage();
   const { mutate: updateStatus, isPending } = useUpdateSchemeStatus();
 
   if (schemes.length === 0) {
     return (
       <EmptyState
         icon={<FileBadge className="w-12 h-12 text-secondary-300" />}
-        title="No active schemes found"
-        description="Create a new scheme to define the financial terms for your groups."
+        title={language === 'ta' ? 'செயலில் உள்ள திட்டங்கள் எதுவும் இல்லை' : 'No active schemes found'}
+        description={
+          language === 'ta'
+            ? 'குழுக்களுக்கான நிதி விதிகளை வரையறுக்க ஒரு புதிய திட்டத்தை உருவாக்கவும்.'
+            : 'Create a new scheme to define the financial terms for your groups.'
+        }
       />
     );
   }
@@ -55,7 +61,9 @@ export function SchemeList({ schemes, onEdit }: SchemeListProps) {
                 variant={scheme.status === 'Active' ? 'success' : 'neutral'}
                 className="flex-shrink-0"
               >
-                {scheme.status}
+                {scheme.status === 'Active'
+                  ? (language === 'ta' ? 'செயலில்' : 'Active')
+                  : (language === 'ta' ? 'செயலிழந்தது' : 'Inactive')}
               </Badge>
             </div>
             {scheme.description && (
@@ -71,7 +79,7 @@ export function SchemeList({ schemes, onEdit }: SchemeListProps) {
               {/* Loan Amount — Primary KPI */}
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
-                  Loan Amount
+                  {language === 'ta' ? 'கடன் தொகை' : 'Loan Amount'}
                 </div>
                 <div className="text-sm font-bold text-secondary-900 tabular-nums font-mono mt-0.5">
                   {formatMoney(scheme.loan_amount)}
@@ -81,7 +89,7 @@ export function SchemeList({ schemes, onEdit }: SchemeListProps) {
               {/* Weekly Installment */}
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
-                  Weekly Installment
+                  {language === 'ta' ? 'வாரத் தவணை' : 'Weekly Installment'}
                 </div>
                 <div className="text-sm font-bold text-primary-700 tabular-nums font-mono mt-0.5">
                   {formatMoney(scheme.weekly_installment)}
@@ -91,17 +99,17 @@ export function SchemeList({ schemes, onEdit }: SchemeListProps) {
               {/* Duration */}
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
-                  Duration
+                  {language === 'ta' ? 'கால அளவு' : 'Duration'}
                 </div>
                 <div className="text-xs font-semibold text-secondary-800 mt-0.5">
-                  {scheme.total_weeks} Weeks
+                  {scheme.total_weeks} {language === 'ta' ? 'வாரங்கள்' : 'Weeks'}
                 </div>
               </div>
 
               {/* Note Cost */}
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-secondary-400">
-                  Note Cost
+                  {language === 'ta' ? 'நோட் செலவு' : 'Note Cost'}
                 </div>
                 <div className="text-xs font-semibold text-secondary-800 tabular-nums font-mono mt-0.5">
                   {formatMoney(scheme.note_cost)}
@@ -119,7 +127,7 @@ export function SchemeList({ schemes, onEdit }: SchemeListProps) {
               onClick={() => onEdit(scheme)}
               className="text-secondary-600 hover:text-secondary-900"
             >
-              Edit
+              {language === 'ta' ? 'திருத்து' : 'Edit'}
             </Button>
             <div className="flex-1" />
             <Button
@@ -147,7 +155,9 @@ export function SchemeList({ schemes, onEdit }: SchemeListProps) {
                   : 'text-success-600 hover:text-success-700 hover:bg-success-50'
               }
             >
-              {scheme.status === 'Active' ? 'Deactivate' : 'Activate'}
+              {scheme.status === 'Active'
+                ? (language === 'ta' ? 'செயலிழக்கச் செய்' : 'Deactivate')
+                : (language === 'ta' ? 'செயல்படுத்து' : 'Activate')}
             </Button>
           </div>
         </Card>

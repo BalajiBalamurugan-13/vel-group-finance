@@ -1,11 +1,9 @@
-import { useMemo } from 'react';
 import { Edit, Eye, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/utils/format';
 import { MemberStatusBadge } from './MemberStatusBadge';
 import {
-  usePlacesRoute,
-  buildPlaceLookupMap,
+  type PlaceRouteConfig,
   resolvePlaceRouteInfo,
 } from '@/features/places';
 import type { Member, MemberStatus } from '../types';
@@ -15,6 +13,8 @@ interface MemberTableProps {
   onViewDetails: (member: Member) => void;
   onEdit: (member: Member) => void;
   onRequestStatusChange: (member: Member, targetStatus: MemberStatus) => void;
+  places?: PlaceRouteConfig[];
+  placeLookup?: Map<string, PlaceRouteConfig>;
 }
 
 export function MemberTable({
@@ -22,9 +22,9 @@ export function MemberTable({
   onViewDetails,
   onEdit,
   onRequestStatusChange,
+  places = [],
+  placeLookup = new Map(),
 }: MemberTableProps) {
-  const { places } = usePlacesRoute();
-  const placeLookup = useMemo(() => buildPlaceLookupMap(places), [places]);
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       <div className="overflow-x-auto">

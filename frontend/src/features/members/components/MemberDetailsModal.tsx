@@ -6,6 +6,7 @@ import { MemberStatusBadge } from './MemberStatusBadge';
 import type { Member } from '../types';
 import { useCollections } from '@/features/collections/hooks/useCollections';
 import { CreditCard, History, MapPin, Phone, Shield, User, X } from 'lucide-react';
+import { useLanguage } from '@/i18n';
 
 interface MemberDetailsModalProps {
   member: Member | null;
@@ -20,6 +21,7 @@ export function MemberDetailsModal({
   onClose,
   onEdit,
 }: MemberDetailsModalProps) {
+  const { language } = useLanguage();
   // Lock body scroll while modal is open
   useEffect(() => {
     if (isOpen) {
@@ -112,7 +114,7 @@ export function MemberDetailsModal({
                   onEdit(member);
                 }}
               >
-                Edit
+                {language === 'ta' ? 'திருத்து' : 'Edit'}
               </Button>
             )}
             <button
@@ -132,7 +134,7 @@ export function MemberDetailsModal({
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <MapPin className="h-4 w-4 text-primary-600 flex-shrink-0" />
               <span className="font-semibold text-secondary-900 text-sm break-words flex-1 leading-snug">
-                {member.group_name || 'No Group'}
+                {member.group_name || (language === 'ta' ? 'குழு இல்லை' : 'No Group')}
               </span>
             </div>
             {member.scheme_name && (
@@ -146,9 +148,10 @@ export function MemberDetailsModal({
           {member.status === 'Active' && totalWeeks > 0 && (
             <div className="rounded-xl border border-border p-3.5">
               <div className="flex items-center justify-between text-xs font-medium text-secondary-600 mb-2">
-                <span>Repayment Progress</span>
+                <span>{language === 'ta' ? 'திருப்பிச் செலுத்தும் முன்னேற்றம்' : 'Repayment Progress'}</span>
                 <span className="text-secondary-900">
-                  {weeksPaid} / {totalWeeks} weeks • {formatCurrency(totalPaid)} paid
+                  {weeksPaid} / {totalWeeks} {language === 'ta' ? 'வாரங்கள்' : 'weeks'} • {formatCurrency(totalPaid)}{' '}
+                  {language === 'ta' ? 'செலுத்தப்பட்டது' : 'paid'}
                 </span>
               </div>
               <div className="vel-progress-bar" style={{ height: '8px' }}>
@@ -158,7 +161,7 @@ export function MemberDetailsModal({
                 />
               </div>
               <div className="mt-1 text-right text-[11px] text-secondary-500">
-                {Math.round(progressPct)}% complete
+                {Math.round(progressPct)}% {language === 'ta' ? 'முடிந்தது' : 'complete'}
               </div>
             </div>
           )}
@@ -167,12 +170,12 @@ export function MemberDetailsModal({
           <div className="rounded-xl border border-border bg-surface p-3.5">
             <div className="flex items-center gap-2 font-semibold text-secondary-900 mb-2.5 text-sm">
               <CreditCard className="h-4 w-4 text-primary-600" />
-              Loan & Financial Summary
+              {language === 'ta' ? 'கடன் மற்றும் நிதிச் சுருக்கம்' : 'Loan & Financial Summary'}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
               <div className="rounded-lg bg-secondary-50 p-2">
                 <div className="text-[11px] font-medium uppercase text-secondary-500">
-                  Loan Amount
+                  {language === 'ta' ? 'கடன் தொகை' : 'Loan Amount'}
                 </div>
                 <div className="mt-0.5 text-sm font-bold text-secondary-900">
                   {loanAmount > 0 ? formatCurrency(loanAmount) : '—'}
@@ -180,7 +183,7 @@ export function MemberDetailsModal({
               </div>
               <div className="rounded-lg bg-secondary-50 p-2">
                 <div className="text-[11px] font-medium uppercase text-secondary-500">
-                  Note Cost
+                  {language === 'ta' ? 'நோட்டு செலவு' : 'Note Cost'}
                 </div>
                 <div className="mt-0.5 text-sm font-bold text-secondary-900">
                   {noteCost > 0 ? formatCurrency(noteCost) : '—'}
@@ -188,7 +191,7 @@ export function MemberDetailsModal({
               </div>
               <div className="rounded-lg bg-success-50/70 p-2">
                 <div className="text-[11px] font-medium uppercase text-success-700">
-                  Cash Given
+                  {language === 'ta' ? 'வழங்கப்பட்ட பணம்' : 'Cash Given'}
                 </div>
                 <div className="mt-0.5 text-sm font-bold text-success-700">
                   {cashGiven > 0 ? formatCurrency(cashGiven) : '—'}
@@ -196,7 +199,7 @@ export function MemberDetailsModal({
               </div>
               <div className="rounded-lg bg-secondary-50 p-2">
                 <div className="text-[11px] font-medium uppercase text-secondary-500">
-                  Weekly Inst.
+                  {language === 'ta' ? 'வார தவணை' : 'Weekly Inst.'}
                 </div>
                 <div className="mt-0.5 text-sm font-bold text-secondary-900">
                   {weeklyInstallment > 0
@@ -210,10 +213,14 @@ export function MemberDetailsModal({
             {immediateCollection > 0 && member.joined_week > 1 && (
               <div className="mt-2.5 rounded-lg border border-warning-200 bg-warning-50/70 p-2.5 text-xs text-warning-900">
                 <div className="font-semibold">
-                  Late Joining Notice (Week {member.joined_week})
+                  {language === 'ta'
+                    ? `தாமதமாக சேர்ந்த அறிவிப்பு (வாரம் ${member.joined_week})`
+                    : `Late Joining Notice (Week ${member.joined_week})`}
                 </div>
                 <div className="mt-0.5 text-warning-800">
-                  Immediate Collection Due (Missed + Current):{' '}
+                  {language === 'ta'
+                    ? 'உடனடி நிலுவைத் தொகை (தவறியது + நடப்பு): '
+                    : 'Immediate Collection Due (Missed + Current): '}
                   <span className="font-bold">
                     {formatCurrency(immediateCollection)}
                   </span>
@@ -226,36 +233,36 @@ export function MemberDetailsModal({
           <div className="rounded-xl border border-border bg-surface p-3.5">
             <div className="flex items-center gap-2 font-semibold text-secondary-900 mb-2.5 text-sm">
               <User className="h-4 w-4 text-primary-600" />
-              Member Profile
+              {language === 'ta' ? 'உறுப்பினர் சுயவிவரம்' : 'Member Profile'}
             </div>
             <div className="grid gap-2 text-xs sm:grid-cols-2">
               <div>
-                <span className="text-secondary-500">Address:</span>
+                <span className="text-secondary-500">{language === 'ta' ? 'முகவரி:' : 'Address:'}</span>
                 <p className="mt-0.5 font-medium text-secondary-900 break-words">
                   {member.address}
                 </p>
               </div>
               <div>
-                <span className="text-secondary-500">Joined Date:</span>
+                <span className="text-secondary-500">{language === 'ta' ? 'சேர்ந்த தேதி:' : 'Joined Date:'}</span>
                 <p className="mt-0.5 font-medium text-secondary-900">
-                  {member.joined_date ? formatDate(member.joined_date) : '—'} (Week {member.joined_week})
+                  {member.joined_date ? formatDate(member.joined_date) : '—'} ({language === 'ta' ? `வாரம் ${member.joined_week}` : `Week ${member.joined_week}`})
                 </p>
               </div>
               <div>
-                <span className="text-secondary-500">Nominee:</span>
+                <span className="text-secondary-500">{language === 'ta' ? 'நாமினி:' : 'Nominee:'}</span>
                 <p className="mt-0.5 font-medium text-secondary-900">
                   {member.nominee || '—'}
                 </p>
               </div>
               <div>
-                <span className="text-secondary-500">ID Proof:</span>
+                <span className="text-secondary-500">{language === 'ta' ? 'அடையாளச் சான்று:' : 'ID Proof:'}</span>
                 <p className="mt-0.5 font-medium text-secondary-900">
                   {member.id_proof || '—'}
                 </p>
               </div>
               {member.remarks && (
                 <div className="sm:col-span-2">
-                  <span className="text-secondary-500">Remarks:</span>
+                  <span className="text-secondary-500">{language === 'ta' ? 'குறிப்புகள்:' : 'Remarks:'}</span>
                   <p className="mt-0.5 font-medium text-secondary-900">
                     {member.remarks}
                   </p>
@@ -269,17 +276,17 @@ export function MemberDetailsModal({
             <div className="rounded-xl border border-border bg-surface p-3.5">
               <div className="flex items-center gap-2 font-semibold text-secondary-900 mb-2 text-sm">
                 <Shield className="h-4 w-4 text-primary-600" />
-                Loan Cycle Information
+                {language === 'ta' ? 'கடன் சுழற்சி விவரம்' : 'Loan Cycle Information'}
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs text-secondary-600">
                 <div>
-                  Cycle Number:{' '}
+                  {language === 'ta' ? 'சுழற்சி எண்:' : 'Cycle Number:'}{' '}
                   <span className="font-semibold text-secondary-900">
-                    Cycle {currentCycle.cycle_number}
+                    {language === 'ta' ? `சுழற்சி ${currentCycle.cycle_number}` : `Cycle ${currentCycle.cycle_number}`}
                   </span>
                 </div>
                 <div>
-                  Cycle Status:{' '}
+                  {language === 'ta' ? 'சுழற்சி நிலை:' : 'Cycle Status:'}{' '}
                   <span className="font-semibold text-secondary-900">
                     {currentCycle.status}
                   </span>
@@ -287,7 +294,7 @@ export function MemberDetailsModal({
                 {currentCycle.loan_transaction && (
                   <>
                     <div>
-                      Disbursed Date:{' '}
+                      {language === 'ta' ? 'வழங்கப்பட்ட தேதி:' : 'Disbursed Date:'}{' '}
                       <span className="font-medium text-secondary-900">
                         {formatDate(
                           currentCycle.loan_transaction.disbursement_date,
@@ -295,7 +302,7 @@ export function MemberDetailsModal({
                       </span>
                     </div>
                     <div>
-                      Disbursed Amount:{' '}
+                      {language === 'ta' ? 'வழங்கப்பட்ட தொகை:' : 'Disbursed Amount:'}{' '}
                       <span className="font-semibold text-success-700">
                         {formatCurrency(
                           Number(currentCycle.loan_transaction.cash_given),
@@ -313,7 +320,9 @@ export function MemberDetailsModal({
             <div className="rounded-xl border border-border bg-surface p-3.5">
               <div className="flex items-center gap-2 font-semibold text-secondary-900 mb-2.5 text-sm">
                 <History className="h-4 w-4 text-primary-600" />
-                Payment History ({paidCollections.length} payments)
+                {language === 'ta'
+                  ? `பணம் செலுத்திய வரலாறு (${paidCollections.length} தவணைகள்)`
+                  : `Payment History (${paidCollections.length} payments)`}
               </div>
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {paidCollections
@@ -348,7 +357,7 @@ export function MemberDetailsModal({
             onClick={onClose}
             className="min-h-[44px] px-6 w-full sm:w-auto"
           >
-            Close
+            {language === 'ta' ? 'மூடு' : 'Close'}
           </Button>
         </div>
       </div>

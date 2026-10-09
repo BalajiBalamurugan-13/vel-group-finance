@@ -330,17 +330,11 @@ class InvestmentService:
                 # Mark as processed so we never insert again for this group in this call
                 existing_group_ids.add(gid)
             else:
-                # If row already exists in investments table, check if amount needs to be kept in sync
-                # Only update the FIRST matching record to avoid cascading updates
-                for r in rows:
-                    if str(r.get("group_id")) == gid and r.get("investment_type") == "Additional":
-                        if r.get("amount") != amt:
-                            r["amount"] = amt
-                            try:
-                                self.db.table("investments").update({"amount": float(amt)}).eq("id", r["id"]).execute()
-                            except Exception:
-                                pass
-                        break  # Only update the first matching record
+                # If row already exists in investments table, do NOT mutate or overwrite it.
+                # Existing investment entries are immutable financial ledger records that represent
+                # the actual capital deployed at creation time. They must not be modified when
+                # future cycle members are funded from collections.
+                pass
 
         return rows
 

@@ -3,6 +3,7 @@ import { PageContainer } from '@/components/common/PageContainer';
 import { useDocumentTitle } from '@/hooks';
 import { Button } from '@/components/ui/Button';
 import { useGroups } from '@/features/groups/hooks/useGroups';
+import { useLanguage } from '@/i18n';
 import {
   useLoanRisk,
   LoanRiskSummaryCards,
@@ -14,6 +15,7 @@ import { AlertTriangle, RefreshCw, AlertCircle } from 'lucide-react';
 
 export function LoanRiskPage() {
   useDocumentTitle('Loan Risk & Overdue');
+  const { t, language } = useLanguage();
 
   const [filters, setFilters] = useState<LoanRiskFiltersState>({
     risk_status: 'All',
@@ -27,19 +29,19 @@ export function LoanRiskPage() {
   if (isError) {
     const message =
       (error as { message?: string })?.message ??
-      'Unable to load loan risk analysis. Please try again.';
+      (language === 'ta' ? 'கடன் இடர் பகுப்பாய்வை ஏற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.' : 'Unable to load loan risk analysis. Please try again.');
     return (
       <PageContainer>
         <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
           <AlertCircle className="h-12 w-12 text-error-500" aria-hidden="true" />
           <div>
             <p className="text-lg font-semibold text-secondary-900">
-              Could not load loan risk data
+              {language === 'ta' ? 'கடன் இடர் தரவை ஏற்ற முடியவில்லை' : 'Could not load loan risk data'}
             </p>
             <p className="mt-1 text-sm text-secondary-500">{message}</p>
           </div>
           <Button variant="secondary" onClick={() => refetch()}>
-            Try Again
+            {t('common.retry')}
           </Button>
         </div>
       </PageContainer>
@@ -54,9 +56,12 @@ export function LoanRiskPage() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-6 w-6 text-amber-600" />
             <h1 className="text-xl font-bold text-secondary-900">
-              Loan Risk &amp; Overdue Tracking
+              {t('loanRisk.title')}
             </h1>
           </div>
+          <p className="text-xs text-secondary-500 mt-0.5">
+            {t('loanRisk.subtitle')}
+          </p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -71,7 +76,7 @@ export function LoanRiskPage() {
               />
             }
           >
-            Refresh
+            {language === 'ta' ? 'புதுப்பி' : 'Refresh'}
           </Button>
         </div>
       </div>

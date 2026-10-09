@@ -23,7 +23,7 @@ export function useMembers(
       }),
     enabled: options?.enabled ?? true,
     placeholderData: keepPreviousData,
-    staleTime: 10_000,
+    staleTime: 60_000, // 60 seconds — members cached across modal opens and tab switches
   });
 }
 

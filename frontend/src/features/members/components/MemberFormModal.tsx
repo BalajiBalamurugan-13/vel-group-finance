@@ -11,6 +11,7 @@ import {
 } from '@/features/places';
 import { useCreateMember } from '../hooks/useMembers';
 import { formatCurrency } from '@/utils/format';
+import { useLanguage } from '@/i18n';
 import type { MemberCreate } from '../types';
 import type { ApiError } from '@/types/common';
 import { cn } from '@/lib/cn';
@@ -30,6 +31,7 @@ export function MemberFormModal({
   defaultGroupId,
   onSuccess,
 }: MemberFormModalProps) {
+  const { language } = useLanguage();
   const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
   const { places } = usePlacesRoute();
   const { mutateAsync: createMember, isPending: isCreating } = useCreateMember();
@@ -137,10 +139,12 @@ export function MemberFormModal({
         <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 flex-shrink-0 bg-surface">
           <div>
             <h2 id="add-member-title" className="text-base sm:text-lg font-bold text-secondary-900">
-              Add New Member
+              {language === 'ta' ? 'புதிய உறுப்பினரைச் சேர்' : 'Add New Member'}
             </h2>
             <p className="text-xs text-secondary-500 mt-0.5">
-              Enroll member into an active finance group
+              {language === 'ta'
+                ? 'செயலில் உள்ள குழுவில் உறுப்பினரைச் சேர்க்கவும்'
+                : 'Enroll member into an active finance group'}
             </p>
           </div>
           <button
@@ -163,7 +167,10 @@ export function MemberFormModal({
 
             {eligibleGroups.length === 0 && !isLoadingGroups && (
               <div className="rounded-lg bg-warning-50 p-3 text-sm text-warning-800 border border-warning-200">
-                <strong>Note:</strong> No Active groups are currently available. Members can only be added to an Active group. Please activate a group first.
+                <strong>{language === 'ta' ? 'குறிப்பு:' : 'Note:'}</strong>{' '}
+                {language === 'ta'
+                  ? 'தற்போது செயலில் உள்ள குழுக்கள் எதுவும் இல்லை. செயலில் உள்ள குழுவில் மட்டுமே உறுப்பினர்களைச் சேர்க்க முடியும். முதலில் ஒரு குழுவை செயல்படுத்தவும்.'
+                  : 'No Active groups are currently available. Members can only be added to an Active group. Please activate a group first.'}
               </div>
             )}
           {/* Group Selection */}
@@ -172,11 +179,14 @@ export function MemberFormModal({
               htmlFor="member_group_id"
               className="text-sm font-medium text-secondary-700"
             >
-              Assign to Active Group <span className="text-error-500">*</span>
+              {language === 'ta' ? 'செயலில் உள்ள குழுவை ஒதுக்கு' : 'Assign to Active Group'}{' '}
+              <span className="text-error-500">*</span>
             </label>
             <select
               id="member_group_id"
-              {...register('group_id', { required: 'Please select an active group' })}
+              {...register('group_id', {
+                required: language === 'ta' ? 'செயலில் உள்ள குழுவை தேர்ந்தெடுக்கவும்' : 'Please select an active group',
+              })}
               className={cn(
                 'h-11 min-h-[44px] w-full rounded-lg border border-border bg-surface px-3 text-sm text-secondary-900',
                 'hover:border-border-strong focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20',
@@ -185,7 +195,9 @@ export function MemberFormModal({
               )}
               disabled={isLoadingGroups}
             >
-              <option value="">-- Select Active Group --</option>
+              <option value="">
+                {language === 'ta' ? '-- குழுவை தேர்ந்தெடுக்கவும் --' : '-- Select Active Group --'}
+              </option>
               {routeOptgroups.map((og) => (
                 <optgroup key={og.label} label={og.label}>
                   {og.options.map((g) => (
@@ -208,17 +220,17 @@ export function MemberFormModal({
             <div className="rounded-lg border border-primary-100 bg-primary-50/60 p-3 text-xs text-secondary-700">
               <div className="flex items-center gap-1.5 font-semibold text-primary-900 mb-1.5">
                 <Info className="h-4 w-4 text-primary-600" />
-                Scheme: {selectedGroup.scheme.scheme_name}
+                {language === 'ta' ? 'திட்டம்:' : 'Scheme:'} {selectedGroup.scheme.scheme_name}
               </div>
               <div className="grid grid-cols-2 gap-2 text-secondary-600">
                 <div>
-                  Loan Amount:{' '}
+                  {language === 'ta' ? 'கடன் தொகை:' : 'Loan Amount:'}{' '}
                   <span className="font-medium text-secondary-900">
                     {formatCurrency(Number(selectedGroup.scheme.loan_amount))}
                   </span>
                 </div>
                 <div>
-                  Weekly Installment:{' '}
+                  {language === 'ta' ? 'வார தவணை:' : 'Weekly Installment:'}{' '}
                   <span className="font-medium text-secondary-900">
                     {formatCurrency(
                       Number(selectedGroup.scheme.weekly_installment),
@@ -226,13 +238,13 @@ export function MemberFormModal({
                   </span>
                 </div>
                 <div>
-                  Note Cost:{' '}
+                  {language === 'ta' ? 'நோட்டு செலவு:' : 'Note Cost:'}{' '}
                   <span className="font-medium text-secondary-900">
                     {formatCurrency(Number(selectedGroup.scheme.note_cost || 0))}
                   </span>
                 </div>
                 <div>
-                  Cash Given:{' '}
+                  {language === 'ta' ? 'வழங்கப்பட்ட பணம்:' : 'Cash Given:'}{' '}
                   <span className="font-semibold text-success-700">
                     {formatCurrency(
                       Number(selectedGroup.scheme.loan_amount) -
@@ -248,10 +260,10 @@ export function MemberFormModal({
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
               id="member_name"
-              label="Member Name"
-              placeholder="e.g. Murugan S"
+              label={language === 'ta' ? 'உறுப்பினர் பெயர் *' : 'Member Name *'}
+              placeholder={language === 'ta' ? 'உ.ம். முருகன்' : 'e.g. Murugan S'}
               {...register('member_name', {
-                required: 'Member name is required',
+                required: language === 'ta' ? 'உறுப்பினர் பெயர் தேவை' : 'Member name is required',
                 maxLength: 255,
               })}
               errorMessage={errors.member_name?.message}
@@ -259,14 +271,14 @@ export function MemberFormModal({
 
             <Input
               id="member_phone"
-              label="Phone Number"
+              label={language === 'ta' ? 'தொலைபேசி எண் *' : 'Phone Number *'}
               placeholder="e.g. 9876543210"
               maxLength={10}
               {...register('phone_number', {
-                required: 'Phone number is required',
+                required: language === 'ta' ? 'தொலைபேசி எண் தேவை' : 'Phone number is required',
                 pattern: {
                   value: /^\d{10}$/,
-                  message: 'Phone number must contain exactly 10 digits',
+                  message: language === 'ta' ? 'தொலைபேசி எண் 10 இலக்கங்களைக் கொண்டிருக்க வேண்டும்' : 'Phone number must contain exactly 10 digits',
                 },
               })}
               errorMessage={errors.phone_number?.message}
@@ -279,13 +291,15 @@ export function MemberFormModal({
               htmlFor="member_address"
               className="text-sm font-medium text-secondary-700"
             >
-              Address <span className="text-error-500">*</span>
+              {language === 'ta' ? 'முகவரி' : 'Address'} <span className="text-error-500">*</span>
             </label>
             <textarea
               id="member_address"
               rows={2}
-              placeholder="Street, Landmark, City/Village..."
-              {...register('address', { required: 'Address is required' })}
+              placeholder={language === 'ta' ? 'தெரு, ஊர், அடையாளம்...' : 'Street, Landmark, City/Village...'}
+              {...register('address', {
+                required: language === 'ta' ? 'முகவரி தேவை' : 'Address is required',
+              })}
               className={cn(
                 'w-full rounded-lg border border-border bg-surface p-3 text-sm text-secondary-900 placeholder:text-secondary-400',
                 'hover:border-border-strong focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20',
@@ -303,7 +317,7 @@ export function MemberFormModal({
           {/* Joined Date */}
           <Input
             id="member_joined_date"
-            label="Joined Date"
+            label={language === 'ta' ? 'சேர்ந்த தேதி' : 'Joined Date'}
             type="date"
             {...register('joined_date')}
             errorMessage={errors.joined_date?.message}
@@ -313,15 +327,15 @@ export function MemberFormModal({
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
               id="member_nominee"
-              label="Nominee (Optional)"
-              placeholder="e.g. Lakshmi M (Spouse)"
+              label={language === 'ta' ? 'நாமினி (விருப்பத்தேர்வு)' : 'Nominee (Optional)'}
+              placeholder={language === 'ta' ? 'உ.ம். லட்சுமி (மனைவி)' : 'e.g. Lakshmi M (Spouse)'}
               {...register('nominee')}
             />
 
             <Input
               id="member_id_proof"
-              label="ID Proof (Optional)"
-              placeholder="e.g. Aadhaar / Voter ID"
+              label={language === 'ta' ? 'அடையாளச் சான்று (விருப்பத்தேர்வு)' : 'ID Proof (Optional)'}
+              placeholder={language === 'ta' ? 'ஆதார் / வாக்காளர் அட்டை' : 'e.g. Aadhaar / Voter ID'}
               {...register('id_proof')}
             />
           </div>
@@ -332,12 +346,12 @@ export function MemberFormModal({
               htmlFor="member_remarks"
               className="text-sm font-medium text-secondary-700"
             >
-              Remarks (Optional)
+              {language === 'ta' ? 'குறிப்புகள் (விருப்பத்தேர்வு)' : 'Remarks (Optional)'}
             </label>
             <textarea
               id="member_remarks"
               rows={2}
-              placeholder="Additional notes..."
+              placeholder={language === 'ta' ? 'கூடுதல் குறிப்புகள்...' : 'Additional notes...'}
               {...register('remarks')}
               className={cn(
                 'w-full rounded-lg border border-border bg-surface p-3 text-sm text-secondary-900 placeholder:text-secondary-400',
@@ -357,7 +371,7 @@ export function MemberFormModal({
               disabled={isCreating}
               className="min-h-[44px] px-4"
             >
-              Cancel
+              {language === 'ta' ? 'ரத்து' : 'Cancel'}
             </Button>
             <Button
               type="submit"
@@ -365,7 +379,7 @@ export function MemberFormModal({
               isLoading={isCreating}
               className="min-h-[44px] flex-1 sm:flex-initial px-6 font-semibold"
             >
-              Add Member
+              {language === 'ta' ? 'உறுப்பினரைச் சேர்' : 'Add Member'}
             </Button>
           </div>
         </form>
