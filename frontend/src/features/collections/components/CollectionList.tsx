@@ -15,6 +15,7 @@ interface CollectionListProps {
   isLoading: boolean;
   onRecordPayment: () => void;
   onViewDetails: (collection: Collection) => void;
+  onEdit?: (collection: Collection) => void;
 }
 
 export function CollectionList({
@@ -22,6 +23,7 @@ export function CollectionList({
   isLoading,
   onRecordPayment,
   onViewDetails,
+  onEdit,
 }: CollectionListProps) {
   const { t, language } = useLanguage();
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -74,6 +76,7 @@ export function CollectionList({
         <CollectionTable
           collections={visibleCollections}
           onViewDetails={onViewDetails}
+          onEdit={onEdit}
         />
       </div>
 
@@ -84,6 +87,7 @@ export function CollectionList({
             key={collection.id}
             collection={collection}
             onViewDetails={onViewDetails}
+            onEdit={onEdit}
           />
         ))}
       </div>

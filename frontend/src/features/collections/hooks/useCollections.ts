@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { collectionApi } from '../api/collectionApi';
-import type { CollectionFiltersState } from '../types';
+import type { CollectionFiltersState, CollectionUpdate } from '../types';
 
 export const COLLECTIONS_QUERY_KEY = ['collections'];
 
@@ -184,6 +184,40 @@ export function useRecordWholeWeek() {
       queryClient.invalidateQueries({ queryKey: ['members'] });
       queryClient.invalidateQueries({ queryKey: ['groups'] });
       queryClient.invalidateQueries({ queryKey: ['record-week-preview'] });
+      queryClient.invalidateQueries({ queryKey: ['profit'] });
+    },
+  });
+}
+
+export function useUpdateCollection() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: CollectionUpdate }) =>
+      collectionApi.updateCollection(id, payload),
+    onSuccess: (_updated, variables) => {
+      queryClient.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: [...COLLECTIONS_QUERY_KEY, variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-collection-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['profit'] });
+    },
+  });
+}
+
+export function useDeleteCollection() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => collectionApi.deleteCollection(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: COLLECTIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['weekly-collection-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
       queryClient.invalidateQueries({ queryKey: ['profit'] });
     },
   });

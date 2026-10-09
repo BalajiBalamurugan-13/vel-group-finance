@@ -40,6 +40,7 @@ export function CollectionsPage() {
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [isRecordWholeWeekModalOpen, setIsRecordWholeWeekModalOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
+  const [collectionModalMode, setCollectionModalMode] = useState<'view' | 'edit'>('view');
 
   // Queries — fetch Active groups so query key matches RecordPaymentModal & RecordWholeWeekModal perfectly
   const { data: groups = [] } = useGroups({ status: 'Active' });
@@ -149,7 +150,14 @@ export function CollectionsPage() {
         collections={filteredCollections}
         isLoading={isLoadingCollections}
         onRecordPayment={() => setIsRecordModalOpen(true)}
-        onViewDetails={(collection) => setSelectedCollection(collection)}
+        onViewDetails={(collection) => {
+          setSelectedCollection(collection);
+          setCollectionModalMode('view');
+        }}
+        onEdit={(collection) => {
+          setSelectedCollection(collection);
+          setCollectionModalMode('edit');
+        }}
       />
 
       {/* ── Mobile Floating Action Button (FAB) for Record Payment ────── */}
@@ -196,7 +204,14 @@ export function CollectionsPage() {
       <CollectionDetailsModal
         collection={selectedCollection}
         isOpen={Boolean(selectedCollection)}
+        initialMode={collectionModalMode}
         onClose={() => setSelectedCollection(null)}
+        onSuccess={(msg) => {
+          setSuccessToast({
+            message: msg,
+          });
+          refetchCollections();
+        }}
       />
     </PageContainer>
   );

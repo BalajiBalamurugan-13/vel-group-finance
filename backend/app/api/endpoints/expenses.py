@@ -14,7 +14,7 @@ from supabase import Client
 
 from app.db.supabase import get_supabase_client
 from app.schemas import SuccessResponse
-from app.schemas.expense import ExpenseCreate
+from app.schemas.expense import ExpenseCreate, ExpenseUpdate
 from app.services.expense_service import ExpenseService
 
 logger = logging.getLogger(__name__)
@@ -71,6 +71,22 @@ def get_expense_summary(
     return SuccessResponse(
         data=summary,
         message="Expense summary retrieved successfully.",
+    )
+
+
+@router.put("/{id}", response_model=SuccessResponse)
+def update_expense(
+    id: str,
+    data: ExpenseUpdate,
+    service: ExpenseService = Depends(get_service),
+):
+    """
+    Updates an expense by ID and recalculates Available Cash.
+    """
+    record = service.update_expense(id, data)
+    return SuccessResponse(
+        data=record,
+        message="Expense updated successfully. Available Cash updated.",
     )
 
 

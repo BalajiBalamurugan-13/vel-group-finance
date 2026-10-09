@@ -12,9 +12,10 @@ import logging
 from typing import Optional
 from uuid import UUID, uuid4
 
+from fastapi import HTTPException
 from supabase import Client
 
-from app.schemas.expense import ExpenseCreate
+from app.schemas.expense import ExpenseCreate, ExpenseUpdate
 from app.services.dashboard_service import invalidate_dashboard_cache
 
 logger = logging.getLogger(__name__)
@@ -176,6 +177,52 @@ class ExpenseService:
         if deleted:
             invalidate_dashboard_cache()
         return deleted
+
+    def update_expense(self, expense_id: str, data: ExpenseUpdate) -> dict:
+        """
+        Updates an expense by ID and recalculates Available Cash.
+        """
+        update_fields = {}
+        if data.amount is not None:
+            update_fields["amount"] = float(data.amount)
+        if data.note is not None:
+            update_fields["note"] = data.note.strip()
+        if data.date is not None:
+            update_fields["date"] = data.date.isoformat() if hasattr(data.date, "isoformat") else str(data.date)[:10]
+        if data.category is not None:
+            update_fields["category"] = data.category.strip()
+
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields provided for update.")
+
+        updated_record = None
+        # Try table
+        try:
+            res = self.db.table("expenses").update(update_fields).eq("id", expense_id).execute()
+            if res.data:
+                updated_record = res.data[0]
+        except Exception:
+            pass
+
+        # Also update in settings
+        expenses = self._load_expenses_from_settings()
+        found_in_settings = False
+        for e in expenses:
+            if str(e.get("id")) == str(expense_id):
+                e.update(update_fields)
+                found_in_settings = True
+                if not updated_record:
+                    updated_record = e
+                break
+
+        if found_in_settings:
+            self._save_expenses_to_settings(expenses)
+
+        if not updated_record:
+            raise HTTPException(status_code=404, detail="Expense not found.")
+
+        invalidate_dashboard_cache()
+        return updated_record
 
     def get_total_expenses(self) -> Decimal:
         """

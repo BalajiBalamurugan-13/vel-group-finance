@@ -207,6 +207,23 @@ def test_record_collection_validation_errors(client, mock_service):
     assert response.status_code == 422
 
 
+def test_update_collection_endpoint(client, mock_service):
+    updated = {**MOCK_COLLECTION, "amount_paid": "800.00", "remarks": "Updated amount"}
+    mock_service.update_collection.return_value = updated
+    payload = {"amount_paid": 800.00, "remarks": "Updated amount"}
+    response = client.put(f"/api/v1/collections/{MOCK_COLLECTION_ID}", json=payload)
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert response.json()["data"]["amount_paid"] == "800.00"
+
+
+def test_delete_collection_endpoint(client, mock_service):
+    mock_service.delete_collection.return_value = {"id": MOCK_COLLECTION_ID}
+    response = client.delete(f"/api/v1/collections/{MOCK_COLLECTION_ID}")
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+
+
 # ── Service Layer Tests ────────────────────────────────────────────────────────
 
 @pytest.fixture

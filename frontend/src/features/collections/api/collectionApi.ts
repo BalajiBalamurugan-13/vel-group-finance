@@ -3,6 +3,7 @@ import type { ApiResponse } from '@/types/common';
 import type {
   Collection,
   CollectionCreate,
+  CollectionUpdate,
   BulkCollectionResponse,
   TodayCollectionSummary,
   WeeklyCollectionSummary,
@@ -98,4 +99,15 @@ export const collectionApi = {
     const { data } = await httpClient.post<ApiResponse<RecordWeekResponse>>('/collections/record-week', payload);
     return data.data;
   },
+
+  updateCollection: async (id: string, payload: CollectionUpdate): Promise<Collection> => {
+    const { data } = await httpClient.put<ApiResponse<Collection>>(`/collections/${id}`, payload);
+    return data.data;
+  },
+
+  deleteCollection: async (id: string): Promise<{ id: string }> => {
+    const { data } = await httpClient.delete<ApiResponse<{ id: string }>>(`/collections/${id}`);
+    return data.data;
+  },
 };
+

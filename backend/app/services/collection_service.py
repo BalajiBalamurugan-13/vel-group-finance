@@ -11,6 +11,7 @@ from app.core.business_week import get_business_week, get_week_date_range
 from app.core.finance_calc import get_effective_weekly_installment
 from app.schemas.collection import (
     CollectionCreate,
+    CollectionUpdate,
     CollectionResponse,
     GroupWeeklySummary,
     PaymentStatus,
@@ -520,6 +521,63 @@ class CollectionService:
         collection = response.data[0]
         enriched = self._enrich_collections_batch([collection])
         return enriched[0]
+
+    def update_collection(self, collection_id: UUID, data: CollectionUpdate) -> dict:
+        """
+        Updates an existing collection record (amount_paid, payment_date, week_number, payment_status, remarks).
+        Useful for correcting accidental typographical errors made during field collection entries.
+        """
+        existing = (
+            self.db.table("collections")
+            .select("*")
+            .eq("id", str(collection_id))
+            .execute()
+        )
+        if not existing.data:
+            raise HTTPException(status_code=404, detail="Collection record not found.")
+
+        update_dict = data.model_dump(exclude_unset=True)
+        if not update_dict:
+            return self.get_collection_by_id(collection_id)
+
+        if "amount_paid" in update_dict and update_dict["amount_paid"] is not None:
+            update_dict["amount_paid"] = float(update_dict["amount_paid"])
+        if "payment_date" in update_dict and update_dict["payment_date"] is not None:
+            val = update_dict["payment_date"]
+            update_dict["payment_date"] = val.isoformat() if hasattr(val, "isoformat") else str(val)
+        if "payment_status" in update_dict and update_dict["payment_status"] is not None:
+            val = update_dict["payment_status"]
+            update_dict["payment_status"] = val.value if hasattr(val, "value") else str(val)
+
+        res = (
+            self.db.table("collections")
+            .update(update_dict)
+            .eq("id", str(collection_id))
+            .execute()
+        )
+        if not res.data:
+            raise HTTPException(status_code=500, detail="Failed to update collection record.")
+
+        invalidate_dashboard_cache()
+        enriched = self._enrich_collections_batch(res.data)
+        return enriched[0]
+
+    def delete_collection(self, collection_id: UUID) -> bool:
+        """
+        Deletes an erroneous collection record by ID and updates dashboard available cash.
+        """
+        existing = (
+            self.db.table("collections")
+            .select("id")
+            .eq("id", str(collection_id))
+            .execute()
+        )
+        if not existing.data:
+            raise HTTPException(status_code=404, detail="Collection record not found.")
+
+        self.db.table("collections").delete().eq("id", str(collection_id)).execute()
+        invalidate_dashboard_cache()
+        return True
 
     def get_today_collections(self, target_date: Optional[date] = None) -> dict:
         """

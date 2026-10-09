@@ -9,6 +9,7 @@ from app.db.supabase import get_supabase_client
 from app.schemas import SuccessResponse
 from app.schemas.collection import (
     CollectionCreate,
+    CollectionUpdate,
     BulkCollectionCreate,
     RecordWeekRequest,
 )
@@ -141,4 +142,37 @@ def get_collection(
     return SuccessResponse(
         data=collection,
         message="Collection details retrieved successfully.",
+    )
+
+
+@router.put("/{id}", response_model=SuccessResponse)
+def update_collection(
+    id: UUID,
+    data: CollectionUpdate,
+    service: CollectionService = Depends(get_service),
+):
+    """
+    Updates an existing collection record (amount, date, week number, remarks).
+    Enables field users to easily rectify accidental data-entry typos.
+    """
+    collection = service.update_collection(id, data)
+    return SuccessResponse(
+        data=collection,
+        message="Collection record updated successfully.",
+    )
+
+
+@router.delete("/{id}", response_model=SuccessResponse)
+def delete_collection(
+    id: UUID,
+    service: CollectionService = Depends(get_service),
+):
+    """
+    Deletes an erroneously entered collection record.
+    Immediately recalculates Available Cash and outstanding balances.
+    """
+    service.delete_collection(id)
+    return SuccessResponse(
+        data={"id": str(id), "deleted": True},
+        message="Collection record deleted successfully.",
     )

@@ -175,12 +175,15 @@ def test_update_member_endpoint(client, mock_service):
     assert response.json()["data"]["address"] == "New Address"
 
 
-def test_update_member_rejects_group_id_mutation(client, mock_service):
-    # group_id cannot be modified (forbidden extra)
-    payload = {"group_id": str(uuid4())}
+def test_update_member_supports_group_id_reassignment(client, mock_service):
+    new_group_id = str(uuid4())
+    updated = {**MOCK_MEMBER, "group_id": new_group_id}
+    mock_service.update_member.return_value = updated
+    payload = {"group_id": new_group_id}
     response = client.put(f"/api/v1/members/{MOCK_MEMBER_ID}", json=payload)
-    assert response.status_code == 422
-    assert response.json()["success"] is False
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert response.json()["data"]["group_id"] == new_group_id
 
 
 def test_update_member_status_endpoint(client, mock_service):

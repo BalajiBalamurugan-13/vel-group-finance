@@ -36,6 +36,22 @@ class CollectionCreate(CollectionBase):
     collector_id: Optional[UUID] = None
 
 
+class CollectionUpdate(BaseModel):
+    """Attributes that can be updated for an existing weekly collection record."""
+    amount_paid: Optional[Decimal] = Field(None, gt=0)
+    payment_date: Optional[date] = None
+    week_number: Optional[int] = Field(None, ge=1)
+    payment_status: Optional[PaymentStatus] = None
+    remarks: Optional[str] = None
+
+    @field_validator("payment_date")
+    @classmethod
+    def validate_payment_date(cls, v: Optional[date]) -> Optional[date]:
+        if v is not None and v > date.today():
+            raise ValueError("Payment date cannot be in the future.")
+        return v
+
+
 class BulkCollectionCreate(BaseModel):
     """Schema for recording a batch of collection payments (e.g. for an entire group)."""
     items: list[CollectionCreate] = Field(..., min_length=1)

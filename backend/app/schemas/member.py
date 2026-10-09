@@ -52,8 +52,9 @@ class MemberCreate(MemberBase):
 class MemberUpdate(BaseModel):
     """
     Attributes that can be updated for a member.
-    group_id is immutable once member is created.
+    Supports reassigning member to another group (group_id).
     """
+    group_id: Optional[UUID] = None
     member_name: Optional[str] = Field(None, min_length=1, max_length=255)
     phone_number: Optional[str] = Field(None, min_length=10, max_length=10)
     address: Optional[str] = Field(None, min_length=1)

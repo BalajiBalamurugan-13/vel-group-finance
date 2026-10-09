@@ -18,6 +18,13 @@ class ExpenseCreate(BaseModel):
     category: Optional[str] = Field(default="General", max_length=100, description="Expense category")
 
 
+class ExpenseUpdate(BaseModel):
+    amount: Optional[Decimal] = Field(None, gt=0, description="Expense amount in INR (> 0)")
+    note: Optional[str] = Field(None, min_length=1, max_length=500, description="Description or note for the expense")
+    date: Optional[dt_date] = Field(None, description="Date of the expense")
+    category: Optional[str] = Field(None, max_length=100, description="Expense category")
+
+
 class ExpenseResponse(BaseModel):
     id: str = Field(description="Unique identifier for the expense")
     amount: Decimal = Field(description="Expense amount in INR")

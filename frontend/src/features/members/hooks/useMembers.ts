@@ -65,6 +65,8 @@ export function useUpdateMember() {
       queryClient.invalidateQueries({
         queryKey: [...MEMBERS_QUERY_KEY, variables.id],
       });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['collections'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });

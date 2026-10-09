@@ -13,6 +13,7 @@ import {
   Plus,
   Trash2,
   Calendar,
+  Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/utils/format';
@@ -31,6 +32,7 @@ export function ExpenseDrawer({ open, onClose, onExpenseAdded }: ExpenseDrawerPr
   const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: expenses = [], isLoading } = useExpenses();
@@ -180,10 +182,19 @@ export function ExpenseDrawer({ open, onClose, onExpenseAdded }: ExpenseDrawerPr
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-sm font-bold font-mono text-error-600">
                     -{formatCurrency(Number(exp.amount))}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setEditingExpense(exp)}
+                    className="p-1 text-secondary-400 hover:text-primary-600 rounded transition-colors"
+                    title="Edit expense"
+                    aria-label="Edit expense"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(exp.id)}
@@ -208,11 +219,15 @@ export function ExpenseDrawer({ open, onClose, onExpenseAdded }: ExpenseDrawerPr
         </div>
       </div>
 
-      {/* Add Expense Modal */}
-      {isAddModalOpen && (
+      {/* Add / Edit Expense Modal */}
+      {(isAddModalOpen || Boolean(editingExpense)) && (
         <AddExpenseModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
+          isOpen={isAddModalOpen || Boolean(editingExpense)}
+          expenseToEdit={editingExpense}
+          onClose={() => {
+            setIsAddModalOpen(false);
+            setEditingExpense(null);
+          }}
           onSuccess={(amt, note) => {
             if (onExpenseAdded) onExpenseAdded(amt, note);
           }}

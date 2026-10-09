@@ -1,4 +1,4 @@
-import { Eye } from 'lucide-react';
+import { Eye, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { CollectionStatusBadge } from './CollectionStatusBadge';
@@ -8,11 +8,13 @@ import type { Collection } from '../types';
 interface CollectionTableProps {
   collections: Collection[];
   onViewDetails: (collection: Collection) => void;
+  onEdit?: (collection: Collection) => void;
 }
 
 export function CollectionTable({
   collections,
   onViewDetails,
+  onEdit,
 }: CollectionTableProps) {
   const { language } = useLanguage();
 
@@ -117,17 +119,30 @@ export function CollectionTable({
 
                 {/* Actions */}
                 <td className="py-3 pl-3 pr-4 sm:pr-6 text-right whitespace-nowrap">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onViewDetails(collection)}
-                    className="h-8 px-2 text-secondary-600 hover:text-primary-600"
-                    title="View Collection Details"
-                    aria-label={`View collection details for ${collection.member_name || 'member'}`}
-                  >
-                    <Eye className="w-4 h-4 mr-1" />
-                    {language === 'ta' ? 'விவரங்கள்' : 'Details'}
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onViewDetails(collection)}
+                      className="h-8 px-2 text-secondary-600 hover:text-primary-600"
+                      title="View Collection Details"
+                      aria-label={`View collection details for ${collection.member_name || 'member'}`}
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      {language === 'ta' ? 'விவரங்கள்' : 'Details'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEdit ? onEdit(collection) : onViewDetails(collection)}
+                      className="h-8 px-2 text-secondary-700 hover:text-primary-700 hover:border-primary-300"
+                      title="Edit Collection"
+                      aria-label={`Edit collection for ${collection.member_name || 'member'}`}
+                    >
+                      <Pencil className="w-3.5 h-3.5 mr-1" />
+                      {language === 'ta' ? 'திருத்து' : 'Edit'}
+                    </Button>
+                  </div>
                 </td>
               </tr>
             );

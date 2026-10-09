@@ -1,14 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { useGroups } from '@/features/groups/hooks/useGroups';
+import {
+  usePlacesRoute,
+  sortGroupsByRoute,
+  buildRouteGroupOptgroups,
+} from '@/features/places';
 import { useUpdateMember } from '../hooks/useMembers';
 import { useLanguage } from '@/i18n';
 import type { Member, MemberUpdate } from '../types';
 import type { ApiError } from '@/types/common';
 import { cn } from '@/lib/cn';
-import { X } from 'lucide-react';
+import { X, ArrowRightLeft } from 'lucide-react';
 
 interface UpdateMemberFormModalProps {
   member: Member | null;
@@ -25,8 +31,22 @@ export function UpdateMemberFormModal({
   onSuccess,
 }: UpdateMemberFormModalProps) {
   const { language } = useLanguage();
+  const { data: groups = [], isLoading: isLoadingGroups } = useGroups();
+  const { places } = usePlacesRoute();
   const { mutateAsync: updateMember, isPending: isUpdating } = useUpdateMember();
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // Eligible groups: Draft, Active, or the member's current group
+  const eligibleGroups = useMemo(() => {
+    const raw = groups.filter(
+      (g) => g.status === 'Draft' || g.status === 'Active' || g.id === member?.group_id
+    );
+    return sortGroupsByRoute(raw, places);
+  }, [groups, places, member?.group_id]);
+
+  const routeOptgroups = useMemo(() => {
+    return buildRouteGroupOptgroups(eligibleGroups, places);
+  }, [eligibleGroups, places]);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -42,10 +62,12 @@ export function UpdateMemberFormModal({
   const {
     register,
     handleSubmit,
+    watch,
     reset,
     formState: { errors },
   } = useForm<MemberUpdate>({
     defaultValues: {
+      group_id: member?.group_id || '',
       member_name: member?.member_name || '',
       phone_number: member?.phone_number || '',
       address: member?.address || '',
@@ -55,9 +77,12 @@ export function UpdateMemberFormModal({
     },
   });
 
+  const watchedGroupId = watch('group_id');
+
   useEffect(() => {
     if (member) {
       reset({
+        group_id: member.group_id || '',
         member_name: member.member_name || '',
         phone_number: member.phone_number || '',
         address: member.address || '',
@@ -95,6 +120,7 @@ export function UpdateMemberFormModal({
       await updateMember({
         id: member.id,
         payload: {
+          group_id: data.group_id && data.group_id !== member.group_id ? data.group_id : undefined,
           member_name: data.member_name?.trim() || undefined,
           phone_number: data.phone_number?.trim() || undefined,
           address: data.address?.trim() || undefined,
@@ -129,10 +155,11 @@ export function UpdateMemberFormModal({
         <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 flex-shrink-0 bg-surface">
           <div>
             <h2 id="edit-member-title" className="text-base sm:text-lg font-bold text-secondary-900">
-              {language === 'ta' ? 'உறுப்பினர் சுயவிவரத்தைத் திருத்து' : 'Edit Member Profile'}
+              {language === 'ta' ? 'உறுப்பினர் விவரங்களைத் திருத்து' : 'Edit Member Details'}
             </h2>
             <p className="text-xs text-secondary-500 mt-0.5">
-              {language === 'ta' ? 'குழு:' : 'Group:'} <span className="font-medium text-secondary-800">{member.group_name || '—'}</span> · {language === 'ta' ? 'நிதி விதிமுறைகளை மாற்ற முடியாது' : 'Financial terms are immutable'}
+              {language === 'ta' ? 'தற்போதைய குழு:' : 'Current Group:'}{' '}
+              <span className="font-semibold text-secondary-800">{member.group_name || '—'}</span>
             </p>
           </div>
           <button
@@ -152,6 +179,69 @@ export function UpdateMemberFormModal({
                 {apiError}
               </div>
             )}
+
+            {/* Group Assignment / Reassignment */}
+            <div className="flex flex-col gap-1.5 p-3 rounded-xl bg-secondary-50/70 border border-secondary-200">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="update_member_group_id"
+                  className="text-xs font-semibold text-secondary-800 flex items-center gap-1.5"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-primary-600" />
+                  {language === 'ta' ? 'குழு ஒதுக்கீடு / மாற்றம்' : 'Group Assignment / Transfer'}
+                  <span className="text-error-500">*</span>
+                </label>
+                {watchedGroupId && watchedGroupId !== member.group_id && (
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                    {language === 'ta' ? 'குழு மாற்றப்படும்' : 'Transferring'}
+                  </span>
+                )}
+              </div>
+              <select
+                id="update_member_group_id"
+                {...register('group_id', {
+                  required: language === 'ta' ? 'குழுவை தேர்ந்தெடுக்கவும்' : 'Please select a group',
+                })}
+                className={cn(
+                  'h-10 min-h-[40px] w-full rounded-lg border border-border bg-surface px-3 text-sm text-secondary-900',
+                  'hover:border-border-strong focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20',
+                  errors.group_id &&
+                    'border-error-500 focus:border-error-500 focus:ring-error-500/20',
+                )}
+                disabled={isLoadingGroups}
+              >
+                <option value="">
+                  {language === 'ta' ? '-- குழுவை தேர்ந்தெடுக்கவும் --' : '-- Select Group --'}
+                </option>
+                {routeOptgroups.map((og) => (
+                  <optgroup key={og.label} label={og.label}>
+                    {og.options.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.group_name} ({g.location}){g.id === member.group_id ? ` — [${language === 'ta' ? 'தற்போதைய குழு' : 'Current'}]` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              {errors.group_id && (
+                <p className="text-xs text-error-500">
+                  {errors.group_id.message}
+                </p>
+              )}
+              {watchedGroupId && watchedGroupId !== member.group_id ? (
+                <p className="text-xs text-amber-700 font-medium">
+                  {language === 'ta'
+                    ? '⚠️ இந்த உறுப்பினரை புதிய குழுவிற்கு மாற்றினால், முந்தைய குழுவிலிருந்து நீக்கப்பட்டு புதிய குழுவில் சேர்க்கப்படுவார்.'
+                    : '⚠️ Transferring will move this member and all cycle records from the current group to the selected group.'}
+                </p>
+              ) : (
+                <p className="text-[11px] text-secondary-500">
+                  {language === 'ta'
+                    ? 'தவறான குழுவில் சேர்க்கப்பட்ட உறுப்பினர்களை சரியான குழுவிற்கு மாற்ற இந்த தேர்வைப் பயன்படுத்தலாம்.'
+                    : 'Use this to move members who were accidentally added to the wrong group.'}
+                </p>
+              )}
+            </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
               id="update_member_name"

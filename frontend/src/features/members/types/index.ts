@@ -72,6 +72,7 @@ export interface MemberCreate {
 }
 
 export interface MemberUpdate {
+  group_id?: string;
   member_name?: string;
   phone_number?: string;
   address?: string;

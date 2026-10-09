@@ -38,6 +38,14 @@ export interface CollectionCreate {
   remarks?: string;
 }
 
+export interface CollectionUpdate {
+  amount_paid?: number;
+  payment_date?: string;
+  week_number?: number;
+  payment_status?: PaymentStatus;
+  remarks?: string;
+}
+
 export interface BulkCollectionCreate {
   items: CollectionCreate[];
 }

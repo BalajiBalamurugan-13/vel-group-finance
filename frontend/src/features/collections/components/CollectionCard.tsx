@@ -1,4 +1,4 @@
-import { Eye } from 'lucide-react';
+import { Eye, Pencil } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency, formatDate } from '@/utils/format';
@@ -9,11 +9,13 @@ import type { Collection } from '../types';
 interface CollectionCardProps {
   collection: Collection;
   onViewDetails: (collection: Collection) => void;
+  onEdit?: (collection: Collection) => void;
 }
 
 export function CollectionCard({
   collection,
   onViewDetails,
+  onEdit,
 }: CollectionCardProps) {
   const { language } = useLanguage();
   const amount = Number(collection.amount_paid);
@@ -77,19 +79,34 @@ export function CollectionCard({
         <span className="truncate mr-2 text-[11px]">
           {language === 'ta' ? 'வசூலிப்பாளர்:' : 'Collector:'} {collection.collector_name || 'Admin'}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onViewDetails(collection);
-          }}
-          className="text-secondary-600 hover:text-primary-600 flex-shrink-0 min-h-[36px]"
-          aria-label={`View details for ${collection.member_name || 'member'}`}
-        >
-          <Eye className="w-3.5 h-3.5 mr-1" />
-          {language === 'ta' ? 'விவரங்கள்' : 'Details'}
-        </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails(collection);
+            }}
+            className="text-secondary-600 hover:text-primary-600 flex-shrink-0 min-h-[36px] px-2"
+            aria-label={`View details for ${collection.member_name || 'member'}`}
+          >
+            <Eye className="w-3.5 h-3.5 mr-1" />
+            {language === 'ta' ? 'விவரங்கள்' : 'Details'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit ? onEdit(collection) : onViewDetails(collection);
+            }}
+            className="text-secondary-700 hover:text-primary-600 flex-shrink-0 min-h-[36px] px-2"
+            aria-label={`Edit collection for ${collection.member_name || 'member'}`}
+          >
+            <Pencil className="w-3.5 h-3.5 mr-1" />
+            {language === 'ta' ? 'திருத்து' : 'Edit'}
+          </Button>
+        </div>
       </div>
     </Card>
   );

@@ -11,12 +11,14 @@ import { X, Receipt, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useLanguage } from '@/i18n';
-import { useAddExpense } from '../hooks/useExpenses';
+import { useAddExpense, useUpdateExpense } from '../hooks/useExpenses';
+import type { Expense } from '../types';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (amount: number, note: string) => void;
+  expenseToEdit?: Expense | null;
 }
 
 interface FormValues {
@@ -26,9 +28,16 @@ interface FormValues {
   category: string;
 }
 
-export function AddExpenseModal({ isOpen, onClose, onSuccess }: AddExpenseModalProps) {
-  const { t } = useLanguage();
-  const { mutateAsync: addExpense, isPending } = useAddExpense();
+export function AddExpenseModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  expenseToEdit,
+}: AddExpenseModalProps) {
+  const { t, language } = useLanguage();
+  const { mutateAsync: addExpense, isPending: isAdding } = useAddExpense();
+  const { mutateAsync: updateExpense, isPending: isUpdating } = useUpdateExpense();
+  const isPending = isAdding || isUpdating;
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -49,27 +58,48 @@ export function AddExpenseModal({ isOpen, onClose, onSuccess }: AddExpenseModalP
 
   useEffect(() => {
     if (isOpen) {
-      reset({
-        amount: '' as unknown as number,
-        note: '',
-        date: todayStr,
-        category: 'General',
-      });
+      if (expenseToEdit) {
+        reset({
+          amount: Number(expenseToEdit.amount),
+          note: expenseToEdit.note,
+          date: expenseToEdit.date,
+          category: expenseToEdit.category || 'General',
+        });
+      } else {
+        reset({
+          amount: '' as unknown as number,
+          note: '',
+          date: todayStr,
+          category: 'General',
+        });
+      }
       setErrorMsg(null);
     }
-  }, [isOpen, reset, todayStr]);
+  }, [isOpen, reset, todayStr, expenseToEdit]);
 
   if (!isOpen) return null;
 
   const onSubmit = async (values: FormValues) => {
     try {
       setErrorMsg(null);
-      await addExpense({
-        amount: Number(values.amount),
-        note: values.note.trim(),
-        date: values.date,
-        category: values.category || 'General',
-      });
+      if (expenseToEdit) {
+        await updateExpense({
+          id: expenseToEdit.id,
+          payload: {
+            amount: Number(values.amount),
+            note: values.note.trim(),
+            date: values.date,
+            category: values.category || 'General',
+          },
+        });
+      } else {
+        await addExpense({
+          amount: Number(values.amount),
+          note: values.note.trim(),
+          date: values.date,
+          category: values.category || 'General',
+        });
+      }
       if (onSuccess) {
         onSuccess(Number(values.amount), values.note.trim());
       }
@@ -99,10 +129,18 @@ export function AddExpenseModal({ isOpen, onClose, onSuccess }: AddExpenseModalP
             </div>
             <div>
               <h2 id="add-expense-modal-title" className="text-base font-bold text-secondary-900">
-                {t('expenses.addExpense') || 'Record Business Expense'}
+                {expenseToEdit
+                  ? language === 'ta'
+                    ? 'செலவைத் திருத்து'
+                    : 'Edit Business Expense'
+                  : t('expenses.addExpense') || 'Record Business Expense'}
               </h2>
               <p className="text-xs text-secondary-500 mt-0.5">
-                {t('expenses.addExpenseSub') || 'Deducts directly from Available Cash'}
+                {expenseToEdit
+                  ? language === 'ta'
+                    ? 'செலவுத் தொகையை திருத்தினால் மீதிப் பணம் தானாக புதுப்பிக்கப்படும்'
+                    : 'Changes will automatically update Available Cash'
+                  : t('expenses.addExpenseSub') || 'Deducts directly from Available Cash'}
               </p>
             </div>
           </div>
@@ -190,7 +228,11 @@ export function AddExpenseModal({ isOpen, onClose, onSuccess }: AddExpenseModalP
               className="bg-error-600 hover:bg-error-700 text-white"
               leftIcon={<CheckCircle2 className="h-4 w-4" />}
             >
-              {isPending ? (t('common.saving') || 'Saving...') : (t('expenses.saveExpense') || 'Record Expense')}
+              {isPending
+                ? (t('common.saving') || 'Saving...')
+                : expenseToEdit
+                ? (language === 'ta' ? 'மாற்றங்களை சேமி' : 'Save Changes')
+                : (t('expenses.saveExpense') || 'Record Expense')}
             </Button>
           </div>
         </form>

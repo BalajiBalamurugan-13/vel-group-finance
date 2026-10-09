@@ -411,6 +411,26 @@ class MemberService:
                             )
             update_dict["phone_number"] = new_phone
 
+        target_group = None
+        if "group_id" in update_dict:
+            new_gid = str(update_dict["group_id"])
+            if new_gid != str(current_member.get("group_id")):
+                g_res = (
+                    self.db.table("groups")
+                    .select("id, group_name, location, status, scheme_id, scheme:schemes(*)")
+                    .eq("id", new_gid)
+                    .execute()
+                )
+                if not g_res.data:
+                    raise HTTPException(status_code=404, detail="Target group not found.")
+                target_group = g_res.data[0]
+                if target_group.get("status") in ("Closed", "Completed"):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Cannot move member to a {target_group.get('status')} group.",
+                    )
+            update_dict["group_id"] = new_gid
+
         response = (
             self.db.table("members")
             .update(update_dict)
@@ -421,7 +441,28 @@ class MemberService:
             raise HTTPException(status_code=500, detail="Failed to update member")
 
         updated_member = response.data[0]
-        updated_member["group"] = current_member.get("group")
+
+        if target_group:
+            # Re-link any active loan_cycles for this member to the new group
+            try:
+                cycle_updates = {"group_id": target_group["id"]}
+                if target_group.get("scheme_id"):
+                    cycle_updates["scheme_id"] = target_group["scheme_id"]
+                self.db.table("loan_cycles").update(cycle_updates).eq("member_id", str(member_id)).execute()
+            except Exception as e:
+                logger.warning("Could not cascade update loan_cycles group_id: %s", e)
+
+            # Re-link any collections for this member to the new group
+            try:
+                self.db.table("collections").update({"group_id": target_group["id"]}).eq("member_id", str(member_id)).execute()
+            except Exception as e:
+                logger.warning("Could not cascade update collections group_id: %s", e)
+
+            updated_member["group"] = target_group
+            invalidate_dashboard_cache()
+        else:
+            updated_member["group"] = current_member.get("group")
+
         return updated_member
 
     def update_member_status(

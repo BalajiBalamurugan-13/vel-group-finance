@@ -52,3 +52,17 @@ export function useDeleteExpense() {
     },
   });
 }
+
+export function useUpdateExpense() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<ExpenseCreatePayload> }) =>
+      expenseApi.updateExpense(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: EXPENSES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: EXPENSES_SUMMARY_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY });
+    },
+  });
+}

@@ -351,11 +351,23 @@ export function MemberDetailsModal({
         </div>
 
         {/* Footer — Always pinned at bottom with safe-area spacing */}
-        <div className="flex items-center justify-end border-t border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface flex-shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+        <div className="flex items-center justify-between border-t border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface flex-shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+          {onEdit ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                onClose();
+                onEdit(member);
+              }}
+              className="min-h-[44px] px-4 text-primary-700 border-primary-200 hover:bg-primary-50"
+            >
+              {language === 'ta' ? 'விவரங்களைத் திருத்து' : 'Edit Member'}
+            </Button>
+          ) : <div />}
           <Button
             variant="outline"
             onClick={onClose}
-            className="min-h-[44px] px-6 w-full sm:w-auto"
+            className="min-h-[44px] px-6"
           >
             {language === 'ta' ? 'மூடு' : 'Close'}
           </Button>

@@ -69,7 +69,7 @@ async def update_member(
     service: MemberService = Depends(get_service),
 ):
     """
-    Update member details (group_id is immutable).
+    Update member details (including reassigning to another group).
     """
     member = service.update_member(member_id, data)
     return SuccessResponse(message="Member updated successfully.", data=member)
